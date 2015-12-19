@@ -22,27 +22,27 @@ import javax.transaction.xa.Xid;
 
 import org.bytesoft.bytejta.utils.ByteUtils;
 
-public abstract class TransactionXid implements Xid, Serializable {
+public abstract class AbstractXid implements Xid, Serializable {
 	private static final long serialVersionUID = 1L;
 
 	protected byte[] globalTransactionId;
 	protected byte[] branchQualifier;
 
-	public TransactionXid(byte[] global) {
+	public AbstractXid(byte[] global) {
 		this(global, new byte[0]);
 	}
 
-	public TransactionXid(byte[] global, byte[] branch) {
+	public AbstractXid(byte[] global, byte[] branch) {
 		if (global == null) {
-			throw new IllegalArgumentException("全局事务ID(globalTransactionId)不能为空.");
+			throw new IllegalArgumentException("globalTransactionId cannot be null.");
 		} else if (global.length > MAXGTRIDSIZE) {
-			throw new IllegalArgumentException("全局事务ID(globalTransactionId)长度不能超过64.");
+			throw new IllegalArgumentException("length of globalTransactionId cannot exceed 64 bytes.");
 		}
 
 		if (branch == null) {
-			throw new IllegalArgumentException("事务分支标识(branchQualifier)不能为空.");
+			throw new IllegalArgumentException("branchQualifier cannot be null.");
 		} else if (branch.length > MAXBQUALSIZE) {
-			throw new IllegalArgumentException("事务分支标识(branchQualifier)长度不能超过64.");
+			throw new IllegalArgumentException("length of branchQualifier cannot exceed 64 bytes.");
 		}
 		this.globalTransactionId = global;
 		this.branchQualifier = branch;
@@ -50,9 +50,9 @@ public abstract class TransactionXid implements Xid, Serializable {
 
 	public abstract int getFormatId();
 
-	public abstract TransactionXid getGlobalXid();
+	public abstract AbstractXid getGlobalXid();
 
-	public abstract TransactionXid createBranchXid();
+	public abstract AbstractXid createBranchXid();
 
 	public byte[] getBranchQualifier() {
 		return this.branchQualifier;
@@ -79,7 +79,7 @@ public abstract class TransactionXid implements Xid, Serializable {
 		} else if (getClass() != obj.getClass()) {
 			return false;
 		}
-		TransactionXid other = (TransactionXid) obj;
+		AbstractXid other = (AbstractXid) obj;
 		if (this.getFormatId() != other.getFormatId()) {
 			return false;
 		} else if (Arrays.equals(branchQualifier, other.branchQualifier) == false) {

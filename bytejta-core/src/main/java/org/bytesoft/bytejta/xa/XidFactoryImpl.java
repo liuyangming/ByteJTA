@@ -22,9 +22,9 @@ import java.net.UnknownHostException;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.bytesoft.bytejta.common.TransactionCommonXid;
+import org.bytesoft.bytejta.common.TransactionXid;
 import org.bytesoft.bytejta.utils.ByteUtils;
-import org.bytesoft.transaction.xa.TransactionXid;
+import org.bytesoft.transaction.xa.AbstractXid;
 import org.bytesoft.transaction.xa.XidFactory;
 
 public class XidFactoryImpl implements XidFactory {
@@ -54,7 +54,7 @@ public class XidFactoryImpl implements XidFactory {
 		}
 	}
 
-	public TransactionXid createGlobalXid() {
+	public AbstractXid createGlobalXid() {
 		byte[] global = new byte[GLOBAL_TRANSACTION_LENGTH];
 		byte[] applicationBytes = new byte[10];
 		byte[] fromBytes = this.application.getBytes();
@@ -78,26 +78,26 @@ public class XidFactoryImpl implements XidFactory {
 				this.hardwareAddress.length + applicationBytes.length + endByteArray.length + millisByteArray.length,//
 				atomicByteArray.length);
 
-		return new TransactionCommonXid(global);
+		return new TransactionXid(global);
 	}
 
-	public TransactionXid createGlobalXid(byte[] globalTransactionId) {
+	public AbstractXid createGlobalXid(byte[] globalTransactionId) {
 		if (globalTransactionId == null) {
 			throw new IllegalArgumentException("The globalTransactionId cannot be null.");
-		} else if (globalTransactionId.length > TransactionXid.MAXGTRIDSIZE) {
+		} else if (globalTransactionId.length > AbstractXid.MAXGTRIDSIZE) {
 			throw new IllegalArgumentException("The length of globalTransactionId cannot exceed 64 bytes.");
 		}
 		byte[] global = new byte[globalTransactionId.length];
 		System.arraycopy(globalTransactionId, 0, global, 0, global.length);
-		return new TransactionCommonXid(global);
+		return new TransactionXid(global);
 	}
 
-	public TransactionXid createBranchXid(TransactionXid globalXid) {
+	public AbstractXid createBranchXid(AbstractXid globalXid) {
 		if (globalXid == null) {
 			throw new IllegalArgumentException("Xid cannot be null.");
 		} else if (globalXid.getGlobalTransactionId() == null) {
 			throw new IllegalArgumentException("The globalTransactionId cannot be null.");
-		} else if (globalXid.getGlobalTransactionId().length > TransactionXid.MAXGTRIDSIZE) {
+		} else if (globalXid.getGlobalTransactionId().length > AbstractXid.MAXGTRIDSIZE) {
 			throw new IllegalArgumentException("The length of globalTransactionId cannot exceed 64 bytes.");
 		}
 
@@ -127,28 +127,28 @@ public class XidFactoryImpl implements XidFactory {
 				this.hardwareAddress.length + applicationBytes.length + endByteArray.length + millisByteArray.length,//
 				atomicByteArray.length);
 
-		return new TransactionCommonXid(global, branch);
+		return new TransactionXid(global, branch);
 	}
 
-	public TransactionXid createBranchXid(TransactionXid globalXid, byte[] branchQualifier) {
+	public AbstractXid createBranchXid(AbstractXid globalXid, byte[] branchQualifier) {
 		if (globalXid == null) {
 			throw new IllegalArgumentException("Xid cannot be null.");
 		} else if (globalXid.getGlobalTransactionId() == null) {
 			throw new IllegalArgumentException("The globalTransactionId cannot be null.");
-		} else if (globalXid.getGlobalTransactionId().length > TransactionXid.MAXGTRIDSIZE) {
+		} else if (globalXid.getGlobalTransactionId().length > AbstractXid.MAXGTRIDSIZE) {
 			throw new IllegalArgumentException("The length of globalTransactionId cannot exceed 64 bytes.");
 		}
 
 		if (branchQualifier == null) {
 			throw new IllegalArgumentException("The branchQulifier cannot be null.");
-		} else if (branchQualifier.length > TransactionXid.MAXBQUALSIZE) {
+		} else if (branchQualifier.length > AbstractXid.MAXBQUALSIZE) {
 			throw new IllegalArgumentException("The length of branchQulifier cannot exceed 64 bytes.");
 		}
 
 		byte[] global = new byte[globalXid.getGlobalTransactionId().length];
 		System.arraycopy(globalXid.getGlobalTransactionId(), 0, global, 0, global.length);
 
-		return new TransactionCommonXid(global, branchQualifier);
+		return new TransactionXid(global, branchQualifier);
 	}
 
 	public byte[] generateUniqueKey() {

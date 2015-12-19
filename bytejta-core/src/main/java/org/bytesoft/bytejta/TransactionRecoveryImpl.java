@@ -22,9 +22,8 @@ import javax.transaction.Status;
 import javax.transaction.SystemException;
 import javax.transaction.xa.XAResource;
 
-import org.bytesoft.bytejta.common.TransactionConfigurator;
+import org.bytesoft.bytejta.common.TransactionBeanFactory;
 import org.bytesoft.bytejta.common.TransactionRepository;
-import org.bytesoft.bytejta.xa.XATerminatorImpl;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
 import org.bytesoft.transaction.TransactionContext;
@@ -32,14 +31,15 @@ import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.archive.XAResourceArchive;
 import org.bytesoft.transaction.logger.TransactionLogger;
 import org.bytesoft.transaction.recovery.TransactionRecovery;
-import org.bytesoft.transaction.xa.TransactionXid;
+import org.bytesoft.transaction.xa.AbstractXid;
+import org.bytesoft.transaction.xa.XATerminator;
 
 public class TransactionRecoveryImpl implements TransactionRecovery {
 
 	private boolean initialized;
 
 	public synchronized void timingRecover() {
-		TransactionConfigurator transactionConfigurator = TransactionConfigurator.getInstance();
+		TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
 		TransactionRepository transactionRepository = transactionConfigurator.getTransactionRepository();
 		List<TransactionImpl> transactions = transactionRepository.getErrorTransactionList();
 		for (int i = 0; i < transactions.size(); i++) {
@@ -54,7 +54,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery {
 
 	public synchronized void recoverTransaction(TransactionImpl transaction) {
 
-		TransactionConfigurator transactionConfigurator = TransactionConfigurator.getInstance();
+		TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
 		TransactionRepository transactionRepository = transactionConfigurator.getTransactionRepository();
 
 		TransactionContext transactionContext = transaction.getTransactionContext();
@@ -69,7 +69,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery {
 			case Status.STATUS_UNKNOWN:
 				try {
 					transaction.recoveryRollback();
-					TransactionXid globalXid = transactionContext.getGlobalXid();
+					AbstractXid globalXid = transactionContext.getXid();
 					transactionRepository.removeErrorTransaction(globalXid);
 					transactionRepository.removeTransaction(globalXid);
 
@@ -84,7 +84,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery {
 			case Status.STATUS_COMMITTING:
 				try {
 					transaction.recoveryCommit();
-					TransactionXid globalXid = transactionContext.getGlobalXid();
+					AbstractXid globalXid = transactionContext.getXid();
 					transactionRepository.removeErrorTransaction(globalXid);
 					transactionRepository.removeTransaction(globalXid);
 
@@ -121,7 +121,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery {
 	}
 
 	private synchronized void processStartupRecover() {
-		TransactionConfigurator transactionConfigurator = TransactionConfigurator.getInstance();
+		TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
 		TransactionRepository transactionRepository = transactionConfigurator.getTransactionRepository();
 		TransactionLogger transactionLogger = transactionConfigurator.getTransactionLogger();
 		List<TransactionArchive> archives = transactionLogger.getTransactionArchiveList();
@@ -134,7 +134,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery {
 				continue;
 			}
 			TransactionContext transactionContext = transaction.getTransactionContext();
-			TransactionXid globalXid = transactionContext.getGlobalXid();
+			AbstractXid globalXid = transactionContext.getXid();
 			transactionRepository.putTransaction(globalXid, transaction);
 			transactionRepository.putErrorTransaction(globalXid, transaction);
 		}
@@ -142,22 +142,21 @@ public class TransactionRecoveryImpl implements TransactionRecovery {
 
 	private TransactionImpl reconstructTransaction(TransactionArchive archive) throws IllegalStateException {
 		TransactionContext transactionContext = new TransactionContext(/* TODO nonxaResourceAllowed */);
-		transactionContext.setCurrentXid((TransactionXid) archive.getXid());
-		transactionContext.setRecovery(true);
-		transactionContext.setOptimized(archive.isOptimized());
+		transactionContext.setXid((AbstractXid) archive.getXid());
+		transactionContext.setRecoveried(true);
+		// transactionContext.setOptimized(archive.isOptimized());
 		transactionContext.setCoordinator(archive.isCoordinator());
-		transactionContext.setCompensable(archive.isCompensable());
 
 		TransactionImpl transaction = new TransactionImpl(transactionContext);
 		transaction.setTransactionStatus(archive.getStatus());
 
-		XATerminatorImpl nativeTerminator = transaction.getNativeTerminator();
+		XATerminator nativeTerminator = transaction.getNativeTerminator();
 		List<XAResourceArchive> nativeResources = archive.getNativeResources();
-		nativeTerminator.initializeForRecovery(nativeResources);
+		nativeTerminator.getResourceArchives().addAll(nativeResources);
 
-		XATerminatorImpl remoteTerminator = transaction.getRemoteTerminator();
+		XATerminator remoteTerminator = transaction.getRemoteTerminator();
 		List<XAResourceArchive> remoteResources = archive.getRemoteResources();
-		remoteTerminator.initializeForRecovery(remoteResources);
+		remoteTerminator.getResourceArchives().addAll(remoteResources);
 
 		if (archive.getVote() == XAResource.XA_RDONLY) {
 			throw new IllegalStateException();
@@ -169,12 +168,12 @@ public class TransactionRecoveryImpl implements TransactionRecovery {
 	private void deleteRecoveryTransaction(TransactionImpl transaction) {
 
 		TransactionArchive archive = transaction.getTransactionArchive();
-		TransactionConfigurator transactionConfigurator = TransactionConfigurator.getInstance();
+		TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
 		TransactionLogger transactionLogger = transactionConfigurator.getTransactionLogger();
 		transactionLogger.deleteTransaction(archive);
 
 		TransactionRepository transactionRepository = transactionConfigurator.getTransactionRepository();
-		TransactionXid globalXid = transaction.getTransactionContext().getGlobalXid();
+		AbstractXid globalXid = transaction.getTransactionContext().getXid();
 		transactionRepository.removeTransaction(globalXid);
 		transactionRepository.removeErrorTransaction(globalXid);
 

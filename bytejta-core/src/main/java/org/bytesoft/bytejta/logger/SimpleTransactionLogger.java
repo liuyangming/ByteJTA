@@ -23,7 +23,7 @@ import java.util.List;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
-import org.bytesoft.bytejta.common.TransactionConfigurator;
+import org.bytesoft.bytejta.common.TransactionBeanFactory;
 import org.bytesoft.bytejta.logger.store.SimpleTransactionStorageObject;
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.archive.XAResourceArchive;
@@ -33,7 +33,7 @@ import org.bytesoft.transaction.serialize.XAResourceSerializer;
 import org.bytesoft.transaction.store.TransactionStorageKey;
 import org.bytesoft.transaction.store.TransactionStorageManager;
 import org.bytesoft.transaction.store.TransactionStorageObject;
-import org.bytesoft.transaction.xa.TransactionXid;
+import org.bytesoft.transaction.xa.AbstractXid;
 import org.bytesoft.transaction.xa.XAResourceDescriptor;
 import org.bytesoft.transaction.xa.XidFactory;
 
@@ -182,8 +182,8 @@ public class SimpleTransactionLogger implements TransactionLogger, TransactionAr
 		byte[] transactionId = new byte[XidFactory.GLOBAL_TRANSACTION_LENGTH];
 		buffer.get(transactionId);
 
-		XidFactory xidFactory = TransactionConfigurator.getInstance().getXidFactory();
-		TransactionXid globalXid = xidFactory.createGlobalXid(transactionId);
+		XidFactory xidFactory = TransactionBeanFactory.getInstance().getXidFactory();
+		AbstractXid globalXid = xidFactory.createGlobalXid(transactionId);
 		archive.setXid(globalXid);
 
 		int status = buffer.get();
@@ -213,7 +213,7 @@ public class SimpleTransactionLogger implements TransactionLogger, TransactionAr
 		return archive;
 	}
 
-	private XAResourceArchive deserializeXAResourceArchive(TransactionXid globalXid, ByteBuffer buffer) throws IOException {
+	private XAResourceArchive deserializeXAResourceArchive(AbstractXid globalXid, ByteBuffer buffer) throws IOException {
 		byte[] branchQualifier = new byte[XidFactory.BRANCH_QUALIFIER_LENGTH];
 		buffer.get(branchQualifier);
 		int descriptorId = buffer.get();
@@ -222,8 +222,8 @@ public class SimpleTransactionLogger implements TransactionLogger, TransactionAr
 		int rolledbackValue = buffer.get();
 		int heuristicValue = buffer.get();
 		XAResourceArchive resourceArchive = new XAResourceArchive();
-		XidFactory xidFactory = TransactionConfigurator.getInstance().getXidFactory();
-		TransactionXid branchXid = xidFactory.createBranchXid(globalXid, branchQualifier);
+		XidFactory xidFactory = TransactionBeanFactory.getInstance().getXidFactory();
+		AbstractXid branchXid = xidFactory.createBranchXid(globalXid, branchQualifier);
 		resourceArchive.setXid(branchXid);
 		resourceArchive.setVote(branchVote);
 		resourceArchive.setRolledback(rolledbackValue != 0);

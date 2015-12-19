@@ -31,13 +31,13 @@ import javax.transaction.SystemException;
 import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
 
-import org.bytesoft.bytejta.common.TransactionConfigurator;
+import org.bytesoft.bytejta.common.TransactionBeanFactory;
 import org.bytesoft.bytejta.common.TransactionRepository;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.TransactionTimer;
-import org.bytesoft.transaction.xa.TransactionXid;
+import org.bytesoft.transaction.xa.AbstractXid;
 import org.bytesoft.transaction.xa.XidFactory;
 
 public class TransactionManagerImpl implements TransactionManager, TransactionTimer {
@@ -58,17 +58,18 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		long expiredTime = createdTime + (timeoutSeconds * 1000L);
 		transactionContext.setCreatedTime(createdTime);
 		transactionContext.setExpiredTime(expiredTime);
-		TransactionConfigurator transactionConfigurator = TransactionConfigurator.getInstance();
+		TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
 		XidFactory xidFactory = transactionConfigurator.getXidFactory();
-		TransactionXid globalXid = xidFactory.createGlobalXid();
-		transactionContext.setCurrentXid(globalXid);
+		AbstractXid globalXid = xidFactory.createGlobalXid();
+		transactionContext.setXid(globalXid); // TODO
 
 		TransactionImpl transaction = new TransactionImpl(transactionContext);
+		transaction.setTransactionTimeout(this.timeoutSeconds);
 
 		// transaction.setThread(Thread.currentThread());
 		this.associateds.put(Thread.currentThread(), transaction);
 		TransactionRepository transactionRepository = transactionConfigurator.getTransactionRepository();
-		transactionRepository.putTransaction(transactionContext.getGlobalXid(), transaction);
+		transactionRepository.putTransaction(transactionContext.getXid(), transaction);
 		// this.transactionStatistic.fireBeginTransaction(transaction);
 
 	}
@@ -78,15 +79,20 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 			throw new NotSupportedException();
 		}
 
-		TransactionConfigurator transactionConfigurator = TransactionConfigurator.getInstance();
+		TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
 		TransactionRepository transactionRepository = transactionConfigurator.getTransactionRepository();
 
 		TransactionImpl transaction = new TransactionImpl(transactionContext);
 
+		long expired = transactionContext.getExpiredTime();
+		long current = System.currentTimeMillis();
+		long timeoutMillis = (expired - current) / 1000L;
+		transaction.setTransactionTimeout((int) timeoutMillis);
+
 		// transaction.setThread(Thread.currentThread());
 		this.associateds.put(Thread.currentThread(), transaction);
 
-		transactionRepository.putTransaction(transactionContext.getGlobalXid(), transaction);
+		transactionRepository.putTransaction(transactionContext.getXid(), transaction);
 		// this.transactionStatistic.fireBeginTransaction(transaction);
 
 	}
@@ -97,22 +103,22 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 			throw new NotSupportedException();
 		}
 
-		TransactionConfigurator transactionConfigurator = TransactionConfigurator.getInstance();
+		TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
 		TransactionRepository transactionRepository = transactionConfigurator.getTransactionRepository();
 
-		TransactionXid propagationXid = transactionContext.getCurrentXid();
-		TransactionXid globalXid = propagationXid.getGlobalXid();
+		AbstractXid propagationXid = transactionContext.getXid();
+		AbstractXid globalXid = propagationXid.getGlobalXid();
 		TransactionImpl transaction = transactionRepository.getTransaction(globalXid);
 		if (transaction == null) {
 			transaction = new TransactionImpl(transactionContext);
 
-			// long createdTime = transactionContext.getCreatedTime();
-			// long expiredTime = transactionContext.getExpiredTime();
-			// transactionContext.setCreatedTime(createdTime);
-			// transactionContext.setExpiredTime(expiredTime);
+			long expired = transactionContext.getExpiredTime();
+			long current = System.currentTimeMillis();
+			long timeoutMillis = (expired - current) / 1000L;
+			transaction.setTransactionTimeout((int) timeoutMillis);
 
 			// transaction.setThread(Thread.currentThread());
-			transactionRepository.putTransaction(transactionContext.getGlobalXid(), transaction);
+			transactionRepository.putTransaction(transactionContext.getXid(), transaction);
 		}
 
 		this.associateds.put(Thread.currentThread(), transaction);
@@ -126,8 +132,8 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		// transaction.setThread(null);
 	}
 
-	public void commit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
-			SecurityException, IllegalStateException, SystemException {
+	public void commit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException, SecurityException,
+			IllegalStateException, SystemException {
 		TransactionImpl transaction = this.associateds.remove(Thread.currentThread());
 		if (transaction == null) {
 			throw new IllegalStateException();
@@ -143,8 +149,8 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		}
 
 		TransactionContext transactionContext = transaction.getTransactionContext();
-		TransactionXid globalXid = transactionContext.getGlobalXid();
-		TransactionConfigurator transactionConfigurator = TransactionConfigurator.getInstance();
+		AbstractXid globalXid = transactionContext.getXid();
+		TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
 		TransactionRepository transactionRepository = transactionConfigurator.getTransactionRepository();
 		boolean transactionDone = false;
 		try {
@@ -216,8 +222,8 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		}
 
 		TransactionContext transactionContext = transaction.getTransactionContext();
-		TransactionXid globalXid = transactionContext.getGlobalXid();
-		TransactionConfigurator transactionConfigurator = TransactionConfigurator.getInstance();
+		AbstractXid globalXid = transactionContext.getXid();
+		TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
 		TransactionRepository transactionRepository = transactionConfigurator.getTransactionRepository();
 		boolean transactionDone = false;
 		try {
@@ -295,11 +301,10 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		Iterator<TransactionImpl> expiredItr = expiredTransactions.iterator();
 		while (activeItr.hasNext()) {
 			TransactionImpl transaction = expiredItr.next();
-			if (transaction.getStatus() == Status.STATUS_ACTIVE
-					|| transaction.getStatus() == Status.STATUS_MARKED_ROLLBACK) {
+			if (transaction.getStatus() == Status.STATUS_ACTIVE || transaction.getStatus() == Status.STATUS_MARKED_ROLLBACK) {
 				TransactionContext transactionContext = transaction.getTransactionContext();
-				TransactionXid globalXid = transactionContext.getGlobalXid();
-				TransactionConfigurator transactionConfigurator = TransactionConfigurator.getInstance();
+				AbstractXid globalXid = transactionContext.getXid();
+				TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
 				TransactionRepository transactionRepository = transactionConfigurator.getTransactionRepository();
 				try {
 					transaction.rollback();

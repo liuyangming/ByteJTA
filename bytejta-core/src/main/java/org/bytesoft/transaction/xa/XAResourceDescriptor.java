@@ -21,21 +21,20 @@ import javax.transaction.xa.Xid;
 
 public class XAResourceDescriptor implements XAResource {
 	private boolean remote;
-	private transient boolean supportsXA;
 	private XAResource delegate;
 	private String identifier;
 	private int descriptorId;
 
-	public void commit(Xid arg0, boolean arg1) throws XAException {
-		delegate.commit(arg0, arg1);
+	public void commit(Xid xid, boolean arg1) throws XAException {
+		delegate.commit(xid, arg1);
 	}
 
-	public void end(Xid arg0, int arg1) throws XAException {
-		delegate.end(arg0, arg1);
+	public void end(Xid xid, int arg1) throws XAException {
+		delegate.end(xid, arg1);
 	}
 
-	public void forget(Xid arg0) throws XAException {
-		delegate.forget(arg0);
+	public void forget(Xid xid) throws XAException {
+		delegate.forget(xid);
 	}
 
 	public int getTransactionTimeout() throws XAException {
@@ -51,29 +50,37 @@ public class XAResourceDescriptor implements XAResource {
 		}
 	}
 
-	public int prepare(Xid arg0) throws XAException {
-		return delegate.prepare(arg0);
+	public int prepare(Xid xid) throws XAException {
+		return delegate.prepare(xid);
 	}
 
-	public Xid[] recover(int arg0) throws XAException {
-		return delegate.recover(arg0);
+	public Xid[] recover(int flags) throws XAException {
+		return delegate.recover(flags);
 	}
 
-	public void rollback(Xid arg0) throws XAException {
-		delegate.rollback(arg0);
+	public void rollback(Xid xid) throws XAException {
+		delegate.rollback(xid);
 	}
 
-	public boolean setTransactionTimeout(int arg0) throws XAException {
-		return delegate.setTransactionTimeout(arg0);
+	public boolean setTransactionTimeout(int seconds) throws XAException {
+		return delegate.setTransactionTimeout(seconds);
 	}
 
-	public void start(Xid arg0, int arg1) throws XAException {
-		delegate.start(arg0, arg1);
+	public boolean setTransactionTimeoutQuietly(int seconds) {
+		try {
+			return delegate.setTransactionTimeout(seconds);
+		} catch (XAException xa) {
+			return false;
+		}
+	}
+
+	public void start(Xid xid, int flag) throws XAException {
+		delegate.start(xid, flag);
 	}
 
 	public String toString() {
-		return String.format("xa-res(identifier= %s, descriptor= %s, support-xa= %s, remote-res= %s)"//
-				, this.identifier, this.descriptorId, this.supportsXA, this.remote);
+		return String.format("xa-res-descriptor(identifier= %s, descriptor= %s, remote= %s)" //
+				, this.identifier, this.descriptorId, this.remote);
 	}
 
 	public boolean isRemote() {
@@ -90,14 +97,6 @@ public class XAResourceDescriptor implements XAResource {
 
 	public void setDelegate(XAResource delegate) {
 		this.delegate = delegate;
-	}
-
-	public boolean isSupportsXA() {
-		return supportsXA;
-	}
-
-	public void setSupportsXA(boolean supportsXA) {
-		this.supportsXA = supportsXA;
 	}
 
 	public String getIdentifier() {

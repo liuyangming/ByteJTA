@@ -13,41 +13,49 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.transaction;
+package org.bytesoft.transaction.internal;
 
 import javax.transaction.Synchronization;
 
+import org.apache.log4j.Logger;
+
 public class SynchronizationImpl implements Synchronization {
+	static final Logger logger = Logger.getLogger(SynchronizationImpl.class.getSimpleName());
+
 	private Synchronization delegate;
-	private boolean beforeCompletionRequired;
-	private boolean afterCompletionRequired;
+	private boolean beforeRequired;
+	private boolean finishRequired;
 
 	public SynchronizationImpl(Synchronization sync) {
 		if (sync == null) {
 			throw new IllegalArgumentException();
 		} else {
 			this.delegate = sync;
-			this.beforeCompletionRequired = true;
-			this.afterCompletionRequired = true;
+			this.beforeRequired = true;
+			this.finishRequired = true;
 		}
 	}
 
 	public void beforeCompletion() {
-		if (this.beforeCompletionRequired) {
+		if (this.beforeRequired) {
 			try {
 				this.delegate.beforeCompletion();
+			} catch (RuntimeException rex) {
+				// ignore
 			} finally {
-				this.beforeCompletionRequired = false;
+				this.beforeRequired = false;
 			}
 		}
 	}
 
 	public void afterCompletion(int status) {
-		if (this.afterCompletionRequired) {
+		if (this.finishRequired) {
 			try {
 				this.delegate.afterCompletion(status);
+			} catch (RuntimeException rex) {
+				// ignore
 			} finally {
-				this.afterCompletionRequired = false;
+				this.finishRequired = false;
 			}
 		}
 	}

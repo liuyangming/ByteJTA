@@ -28,12 +28,11 @@ import javax.transaction.xa.Xid;
 import org.apache.log4j.Logger;
 import org.bytesoft.bytejta.utils.ByteUtils;
 import org.bytesoft.bytejta.utils.CommonUtils;
-import org.bytesoft.transaction.RemoteSystemException;
 import org.bytesoft.transaction.RollbackRequiredException;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.archive.XAResourceArchive;
-import org.bytesoft.transaction.xa.TransactionXid;
-import org.bytesoft.transaction.xa.XAInternalException;
+import org.bytesoft.transaction.internal.TransactionException;
+import org.bytesoft.transaction.xa.AbstractXid;
 import org.bytesoft.transaction.xa.XAResourceDescriptor;
 import org.bytesoft.transaction.xa.XATerminator;
 
@@ -47,267 +46,80 @@ public class XATerminatorImpl implements XATerminator {
 		this.transactionContext = txContext;
 	}
 
-	public void initializeForRecovery(List<XAResourceArchive> recoveryResources) {
-		this.resources.addAll(recoveryResources);
-	}
-
 	public synchronized int prepare(Xid xid) throws XAException {
-		return this.invokePrepare(false);
-	}
-
-	private int invokePrepare(boolean optimizeEnabled) throws XAException {
 		int globalVote = XAResource.XA_RDONLY;
-		int lastResourceIdx = this.chooseLastResourceIndex();
 		for (int i = 0; i < this.resources.size(); i++) {
-			boolean currentLastResource = (i == lastResourceIdx);
-			if (optimizeEnabled && currentLastResource) {
-				// ignore
-			} else {
-				XAResourceArchive archive = this.resources.get(i);
-				Xid branchXid = archive.getXid();
-				int branchVote = archive.prepare(branchXid);
-				archive.setVote(branchVote);
-				if (branchVote == XAResource.XA_RDONLY) {
-					archive.setReadonly(true);
-					archive.setCompleted(true);
-				} else {
-					globalVote = XAResource.XA_OK;
-				}
-				logger.info(String.format("\t[%s] prepare: xares= %s, vote= %s",
-						ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), archive, branchVote));
-			}
-		}
-		return globalVote;
-	}
-
-	private int chooseLastResourceIndex() {
-		int length = this.resources.size();
-		int lastResourceIdx = length - 1;
-		for (int i = 0; i < length; i++) {
-			XAResourceArchive archive = this.resources.get(i);
-			XAResourceDescriptor descriptor = archive.getDescriptor();
-			boolean supportXA = false;
-			if (descriptor.isRemote()) {
-				supportXA = archive.isNonxaResourceExists() == false;
-			} else {
-				supportXA = descriptor.isSupportsXA();
-			}
-			if (supportXA == false) {
-				lastResourceIdx = i;
-			}
-		}
-		return lastResourceIdx;
-	}
-
-	public synchronized void commit(Xid xid, boolean onePhase) throws XAInternalException, XAException {
-		if (onePhase) {
-			this.invokeOnePhaseCommit(xid);
-		} else {
-			this.invokeTwoPhaseCommit(xid);
-		}
-	}
-
-	private void invokeOnePhaseCommit(Xid xid) throws XAException {
-
-		try {
-			this.invokePrepare(true);
-		} catch (XAException xaex) {
-			logger.info(String.format("[%s] Error occurred while preparing transaction.",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId())));
-			try {
-				this.rollback(xid);
-				throw new XAException(XAException.XA_HEURRB);
-			} catch (XAException xae) {
-				switch (xae.errorCode) {
-				case XAException.XA_HEURCOM:
-					return;
-				case XAException.XA_HEURMIX:
-					throw xae;
-				default:
-					logger.warn("Unknown state in committing transaction phase.");
-				}
-			}
-		}
-
-		int length = this.resources.size();
-		int lastResourceIdx = this.chooseLastResourceIndex();
-		boolean commitExists = false;
-		boolean rollbackExists = false;
-		boolean unFinishExists = false;
-		for (int i = 0; i < length; i++) {
-			boolean currentLastResource = (i == lastResourceIdx);
 			XAResourceArchive archive = this.resources.get(i);
 			Xid branchXid = archive.getXid();
-
-			if (archive.isCompleted()) {
-				if (archive.isCommitted()) {
-					commitExists = true;
-				} else if (archive.isRolledback()) {
-					rollbackExists = true;
-				} else {
-					// read-only, ignore.
-				}
+			int branchVote = archive.prepare(branchXid);
+			if (branchVote == XAResource.XA_RDONLY) {
+				archive.setReadonly(true);
+				archive.setCompleted(true);
 			} else {
-				boolean currentOpc = false;
-				try {
-					if (currentLastResource) {
-						currentOpc = true;
-						archive.commit(branchXid, true);
-						commitExists = true;
-						archive.setCommitted(true);
-						archive.setCompleted(true);
-
-						logger.info(String.format("\t[%s] commit: xares= %s, onePhaseCommit= %s",
-								ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), archive, true));
-					} else {
-						currentOpc = false;
-						archive.commit(branchXid, false);
-						commitExists = true;
-						archive.setCommitted(true);
-						archive.setCompleted(true);
-
-						logger.info(String.format("\t[%s] commit: xares= %s, onePhaseCommit= %s",
-								ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), archive, false));
-					}// end-else
-				} catch (XAException xaex) {
-					if (commitExists) {
-						// * @exception XAException An error has occurred. Possible XAExceptions
-						// * are XA_HEURHAZ, XA_HEURCOM, XA_HEURRB, XA_HEURMIX, XAER_RMERR,
-						// * XAER_RMFAIL, XAER_NOTA, XAER_INVAL, or XAER_PROTO.
-						// * <P>If the resource manager did not commit the transaction and the
-						// * parameter onePhase is set to true, the resource manager may throw
-						// * one of the XA_RB* exceptions. Upon return, the resource manager has
-						// * rolled back the branch's work and has released all held resources.
-						switch (xaex.errorCode) {
-						case XAException.XA_HEURHAZ:
-							// Due to some failure, the work done on behalf of the specified
-							// transaction branch may have been heuristically completed.
-							int archiveVote = archive.getVote();
-							if (archiveVote == XAResource.XA_OK) {
-								commitExists = true;
-								archive.setCommitted(true);
-							} else if (archiveVote == XAResource.XA_RDONLY) {
-								// ignore
-							} else {
-								rollbackExists = true;
-								archive.setRolledback(true);
-							}
-							archive.setHeuristic(true);
-							archive.setCompleted(true);
-							break;
-						case XAException.XA_HEURMIX:
-							// Due to a heuristic decision, the work done on behalf of the specified
-							// transaction branch was partially committed and partially rolled back.
-							commitExists = true;
-							rollbackExists = true;
-							archive.setCommitted(true);
-							archive.setRolledback(true);
-							archive.setHeuristic(true);
-							archive.setCompleted(true);
-							break;
-						case XAException.XA_HEURCOM:
-							// Due to a heuristic decision, the work done on behalf of
-							// the specified transaction branch was committed.
-							commitExists = true;
-							archive.setCommitted(true);
-							archive.setHeuristic(true);
-							archive.setCompleted(true);
-							break;
-						case XAException.XA_HEURRB:
-							// Due to a heuristic decision, the work done on behalf of
-							// the specified transaction branch was rolled back.
-							rollbackExists = true;
-							archive.setRolledback(true);
-							archive.setHeuristic(true);
-							archive.setCompleted(true);
-							break;
-						case XAException.XAER_RMERR:
-							// An error occurred in committing the work performed on behalf of the transaction
-							// branch and the branch’s work has been rolled back. Note that returning this error
-							// signals a catastrophic event to a transaction manager since other resource
-							// managers may successfully commit their work on behalf of this branch. This error
-							// should be returned only when a resource manager concludes that it can never
-							// commit the branch and that it cannot hold the branch’s resources in a prepared
-							// state. Otherwise, [XA_RETRY] should be returned.
-
-							// TODO There's no XA_RETRY in jta.
-							rollbackExists = true;
-							archive.setRolledback(true);
-							archive.setCompleted(true);
-							break;
-						case XAException.XAER_NOTA:
-							// The specified XID is not known by the resource manager.
-							if (currentOpc) {
-								rollbackExists = true;
-								archive.setRolledback(true);
-								archive.setCompleted(true);
-							} else if (archive.isCompleted() == false) {
-								if (archive.isCommitted()) {
-									commitExists = true;
-								}
-								if (archive.isRolledback()) {
-									rollbackExists = true;
-								}
-							} else {
-								int vote = archive.getVote();
-								if (vote == XAResource.XA_RDONLY) {
-									archive.setCompleted(true);
-								} else if (vote == XAResource.XA_OK) {
-									commitExists = true;
-									archive.setCommitted(true);
-									archive.setCompleted(true);
-								} else {
-									// should never happen
-									rollbackExists = true;
-									archive.setRolledback(true);
-									archive.setCompleted(true);
-								}
-							}
-							break;
-						case XAException.XAER_RMFAIL:
-							// An error occurred that makes the resource manager unavailable.
-						case XAException.XAER_INVAL:
-							// Invalid arguments were specified.
-						case XAException.XAER_PROTO:
-							// The routine was invoked in an improper context.
-							unFinishExists = true;
-							break;
-						default:// XA_RB*
-							rollbackExists = true;
-							archive.setRolledback(true);
-							archive.setCompleted(true);
-							rollbackExists = true;
-						}
-					} else {
-						try {
-							this.rollback(xid);
-							throw new XAException(XAException.XA_HEURRB);
-						} catch (XAException xae) {
-							switch (xae.errorCode) {
-							case XAException.XA_HEURCOM:
-								return;
-							case XAException.XA_HEURMIX:
-								throw xae;
-							default:
-								logger.warn("Unknown state in committing transaction phase.");
-							}
-						}
-					}
-				}
-			}// end-else
-
+				globalVote = XAResource.XA_OK;
+			}
+			logger.info(String.format("\t[%s] prepare: xares= %s, vote= %s",
+					ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), archive, branchVote));
 		}
+		return globalVote;
 
-		try {
-			this.throwCommitExceptionIfNecessary(commitExists, rollbackExists);
-		} catch (XAException xae) {
-			if (unFinishExists) {
-				throw new XAInternalException(xae.errorCode);
-			} else {
-				throw xae;
+	}
+
+	public synchronized void commit(Xid xid, boolean onePhase) throws TransactionException, XAException {
+		if (onePhase) {
+			this.fireOnePhaseCommit(xid);
+		} else {
+			this.fireTwoPhaseCommit(xid);
+		}
+	}
+
+	private void fireOnePhaseCommit(Xid xid) throws XAException {
+		if (this.resources.isEmpty() == false) {
+			XAResourceArchive archive = this.resources.get(0);
+			try {
+				Xid branchXid = archive.getXid();
+				archive.commit(branchXid, true);
+				archive.setCommitted(true);
+				archive.setCompleted(true);
+
+				logger.info(String.format("\t[%s] commit: xares= %s, opc= %s",
+						ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), archive, true));
+			} catch (XAException xa) {
+				switch (xa.errorCode) {
+				case XAException.XA_RBCOMMFAIL:
+				case XAException.XA_RBDEADLOCK:
+				case XAException.XA_RBINTEGRITY:
+				case XAException.XA_RBOTHER:
+				case XAException.XA_RBPROTO:
+				case XAException.XA_RBROLLBACK:
+				case XAException.XA_RBTIMEOUT:
+				case XAException.XA_RBTRANSIENT:
+					archive.setRolledback(true);
+					archive.setCompleted(true);
+					throw new XAException(XAException.XA_RBROLLBACK);
+				case XAException.XA_HEURCOM:
+				case XAException.XA_HEURHAZ:
+				case XAException.XA_HEURMIX:
+				case XAException.XA_HEURRB:
+				case XAException.XAER_RMERR:
+					// should never happen
+					logger.warn("An unexpected error occurred in one phase commit: code = " + xa.errorCode);
+					break;
+				case XAException.XAER_RMFAIL: {
+					String txid = ByteUtils.byteArrayToString(this.transactionContext.getXid().getGlobalTransactionId());
+					logger.warn("An error occurred in one phase commit: txid = " + txid);
+					throw xa;
+				}
+				case XAException.XAER_NOTA:
+				case XAException.XAER_INVAL:
+				case XAException.XAER_PROTO: {
+					String txid = ByteUtils.byteArrayToString(this.transactionContext.getXid().getGlobalTransactionId());
+					logger.warn("An error occurred in one phase commit: txid = " + txid);
+					throw xa;
+				}
+				}
 			}
 		}
-
 	}
 
 	private void throwCommitExceptionIfNecessary(boolean commitExists, boolean rollbackExists) throws XAException {
@@ -318,7 +130,7 @@ public class XATerminatorImpl implements XATerminator {
 		}
 	}
 
-	private void invokeTwoPhaseCommit(Xid xid) throws XAException {
+	private void fireTwoPhaseCommit(Xid xid) throws XAException {
 		int length = this.resources.size();
 		boolean commitExists = false;
 		boolean rollbackExists = false;
@@ -462,7 +274,7 @@ public class XATerminatorImpl implements XATerminator {
 			this.throwCommitExceptionIfNecessary(commitExists, rollbackExists);
 		} catch (XAException xae) {
 			if (unFinishExists) {
-				throw new XAInternalException(xae.errorCode);
+				throw new TransactionException(xae.errorCode);
 			} else {
 				throw xae;
 			}
@@ -470,7 +282,7 @@ public class XATerminatorImpl implements XATerminator {
 
 	}
 
-	public synchronized void rollback(Xid xid) throws XAInternalException, XAException {
+	public synchronized void rollback(Xid xid) throws TransactionException, XAException {
 		int length = this.resources.size();
 		boolean commitExists = false;
 		boolean rollbackExists = false;
@@ -594,7 +406,7 @@ public class XATerminatorImpl implements XATerminator {
 			this.throwRollbackExceptionIfNecessary(commitExists, rollbackExists);
 		} catch (XAException xae) {
 			if (unFinishExists) {
-				throw new XAInternalException(xae.errorCode);
+				throw new TransactionException(xae.errorCode);
 			} else {
 				throw xae;
 			}
@@ -664,42 +476,18 @@ public class XATerminatorImpl implements XATerminator {
 		}// end-for
 	}
 
-	public boolean xaSupports() throws RemoteSystemException {
-		int length = this.resources.size();
-		for (int i = 0; i < length; i++) {
-			XAResourceArchive archive = this.resources.get(i);
-			XAResourceDescriptor descriptor = archive.getDescriptor();
-			boolean supportXA = false;
-			if (descriptor.isRemote()) {
-				supportXA = archive.isNonxaResourceExists() == false;
-			} else {
-				supportXA = descriptor.isSupportsXA();
-			}
-			if (supportXA == false) {
-				return false;
-			}
-		}
-		return true;
-	}
-
-	public boolean delistResource(XAResourceDescriptor descriptor, int flag) throws IllegalStateException,
-			SystemException {
+	public boolean delistResource(XAResourceDescriptor descriptor, int flag) throws IllegalStateException, SystemException {
 
 		XAResourceArchive archive = this.locateExisted(descriptor);
 		if (archive == null) {
 			throw new SystemException();
 		}
 
-		if (descriptor.isRemote() && descriptor.isSupportsXA() == false) {
-			archive.setNonxaResourceExists(true);
-		}
-
 		return this.delistResource(archive, flag);
 
 	}
 
-	private boolean delistResource(XAResourceArchive archive, int flag) throws SystemException,
-			RollbackRequiredException {
+	private boolean delistResource(XAResourceArchive archive, int flag) throws SystemException, RollbackRequiredException {
 		try {
 			Xid branchXid = archive.getXid();
 			archive.end(branchXid, flag);
@@ -747,24 +535,14 @@ public class XATerminatorImpl implements XATerminator {
 		XAResourceArchive archive = this.locateExisted(descriptor);
 		int flags = XAResource.TMNOFLAGS;
 		if (archive == null) {
-			boolean resourceSupportsXA = descriptor.isSupportsXA();
-			boolean currentSupportXA = this.xaSupports();
-			if (resourceSupportsXA || currentSupportXA) {
-				archive = new XAResourceArchive();
-				archive.setDescriptor(descriptor);
-				TransactionXid globalXid = this.transactionContext.getCurrentXid().getGlobalXid();
-				archive.setXid(globalXid.createBranchXid());
-			} else {
-				throw new SystemException("There already has a non-xa resource exists.");
-			}
+			archive = new XAResourceArchive();
+			archive.setDescriptor(descriptor);
+			AbstractXid globalXid = this.transactionContext.getXid().getGlobalXid();
+			archive.setXid(globalXid.createBranchXid());
 		} else {
 			flags = XAResource.TMJOIN;
 		}
 
-		if (descriptor.isRemote() && descriptor.isSupportsXA() == false) {
-			archive.setNonxaResourceExists(true);
-			archive.getDescriptor().setSupportsXA(true);
-		}
 		return this.enlistResource(archive, flags);
 	}
 

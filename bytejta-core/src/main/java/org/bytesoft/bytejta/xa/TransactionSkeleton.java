@@ -24,18 +24,18 @@ import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
 import org.bytesoft.bytejta.TransactionImpl;
-import org.bytesoft.bytejta.common.TransactionConfigurator;
+import org.bytesoft.bytejta.common.TransactionBeanFactory;
 import org.bytesoft.bytejta.common.TransactionRepository;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
-import org.bytesoft.transaction.xa.TransactionXid;
+import org.bytesoft.transaction.xa.AbstractXid;
 
 public class TransactionSkeleton implements XAResource {
 
 	public void commit(Xid xid, boolean onePhase) throws XAException {
-		TransactionXid branchXid = (TransactionXid) xid;
-		TransactionXid globalXid = branchXid.getGlobalXid();
-		TransactionConfigurator configurator = TransactionConfigurator.getInstance();
+		AbstractXid branchXid = (AbstractXid) xid;
+		AbstractXid globalXid = branchXid.getGlobalXid();
+		TransactionBeanFactory configurator = TransactionBeanFactory.getInstance();
 		TransactionRepository repository = configurator.getTransactionRepository();
 		TransactionImpl transaction = repository.getTransaction(globalXid);
 		boolean transactionDone = true;
@@ -92,9 +92,9 @@ public class TransactionSkeleton implements XAResource {
 	}
 
 	public int prepare(Xid xid) throws XAException {
-		TransactionXid branchXid = (TransactionXid) xid;
-		TransactionXid globalXid = branchXid.getGlobalXid();
-		TransactionConfigurator configurator = TransactionConfigurator.getInstance();
+		AbstractXid branchXid = (AbstractXid) xid;
+		AbstractXid globalXid = branchXid.getGlobalXid();
+		TransactionBeanFactory configurator = TransactionBeanFactory.getInstance();
 		TransactionRepository repository = configurator.getTransactionRepository();
 		TransactionImpl transaction = repository.getTransaction(globalXid);
 		try {
@@ -112,9 +112,9 @@ public class TransactionSkeleton implements XAResource {
 	}
 
 	public void rollback(Xid xid) throws XAException {
-		TransactionXid branchXid = (TransactionXid) xid;
-		TransactionXid globalXid = branchXid.getGlobalXid();
-		TransactionConfigurator configurator = TransactionConfigurator.getInstance();
+		AbstractXid branchXid = (AbstractXid) xid;
+		AbstractXid globalXid = branchXid.getGlobalXid();
+		TransactionBeanFactory configurator = TransactionBeanFactory.getInstance();
 		TransactionRepository repository = configurator.getTransactionRepository();
 		TransactionImpl transaction = repository.getTransaction(globalXid);
 

@@ -22,11 +22,11 @@ public interface XidFactory {
 	public static final int GLOBAL_TRANSACTION_LENGTH = 32;
 	public static final int BRANCH_QUALIFIER_LENGTH = 32;
 
-	public TransactionXid createGlobalXid();
+	public AbstractXid createGlobalXid();
 
-	public TransactionXid createGlobalXid(byte[] globalTransactionId);
+	public AbstractXid createGlobalXid(byte[] globalTransactionId);
 
-	public TransactionXid createBranchXid(TransactionXid globalXid);
+	public AbstractXid createBranchXid(AbstractXid globalXid);
 
-	public TransactionXid createBranchXid(TransactionXid globalXid, byte[] branchQualifier);
+	public AbstractXid createBranchXid(AbstractXid globalXid, byte[] branchQualifier);
 }

@@ -20,22 +20,22 @@ import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
 import org.bytesoft.bytejta.TransactionImpl;
-import org.bytesoft.bytejta.common.TransactionConfigurator;
+import org.bytesoft.bytejta.common.TransactionBeanFactory;
 import org.bytesoft.bytejta.common.TransactionRepository;
-import org.bytesoft.transaction.xa.TransactionXid;
+import org.bytesoft.transaction.xa.AbstractXid;
 
 public class RemoteResourceManager implements XAResource {
 
 	public void commit(Xid xid, boolean onePhase) throws XAException {
 
-		if (TransactionXid.class.isInstance(xid) == false) {
+		if (AbstractXid.class.isInstance(xid) == false) {
 			throw new XAException(XAException.XAER_INVAL);
 		}
 
-		TransactionConfigurator transactionConfigurator = TransactionConfigurator.getInstance();
+		TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
 		TransactionRepository transactionRepository = transactionConfigurator.getTransactionRepository();
-		TransactionXid currentXid = (TransactionXid) xid;
-		TransactionXid globalXid = currentXid.getGlobalXid();
+		AbstractXid currentXid = (AbstractXid) xid;
+		AbstractXid globalXid = currentXid.getGlobalXid();
 		TransactionImpl transaction = transactionRepository.getTransaction(globalXid);
 		if (transaction == null) {
 			transaction = transactionRepository.getErrorTransaction(globalXid);
@@ -68,14 +68,14 @@ public class RemoteResourceManager implements XAResource {
 	}
 
 	public int prepare(Xid xid) throws XAException {
-		if (TransactionXid.class.isInstance(xid) == false) {
+		if (AbstractXid.class.isInstance(xid) == false) {
 			throw new XAException(XAException.XAER_INVAL);
 		}
 
-		TransactionConfigurator transactionConfigurator = TransactionConfigurator.getInstance();
+		TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
 		TransactionRepository transactionRepository = transactionConfigurator.getTransactionRepository();
-		TransactionXid currentXid = (TransactionXid) xid;
-		TransactionXid globalXid = currentXid.getGlobalXid();
+		AbstractXid currentXid = (AbstractXid) xid;
+		AbstractXid globalXid = currentXid.getGlobalXid();
 		TransactionImpl transaction = transactionRepository.getTransaction(globalXid);
 		if (transaction == null) {
 			transaction = transactionRepository.getErrorTransaction(globalXid);

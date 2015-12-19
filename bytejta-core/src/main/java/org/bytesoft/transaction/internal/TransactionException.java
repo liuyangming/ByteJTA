@@ -13,22 +13,22 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.transaction.xa;
+package org.bytesoft.transaction.internal;
 
 import javax.transaction.xa.XAException;
 
-public class XAInternalException extends XAException {
+public class TransactionException extends XAException {
 	private static final long serialVersionUID = 1L;
 
-	public XAInternalException() {
+	public TransactionException() {
 		super();
 	}
 
-	public XAInternalException(String s) {
+	public TransactionException(String s) {
 		super(s);
 	}
 
-	public XAInternalException(int errcode) {
+	public TransactionException(int errcode) {
 		super(errcode);
 	}
 

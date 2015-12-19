@@ -18,7 +18,7 @@ package org.bytesoft.transaction.work;
 import javax.resource.spi.work.Work;
 
 import org.apache.log4j.Logger;
-import org.bytesoft.bytejta.common.TransactionConfigurator;
+import org.bytesoft.bytejta.common.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionTimer;
 import org.bytesoft.transaction.recovery.TransactionRecovery;
 
@@ -32,7 +32,7 @@ public class TransactionWork implements Work {
 
 	public void run() {
 
-		TransactionConfigurator configurator = TransactionConfigurator.getInstance();
+		TransactionBeanFactory configurator = TransactionBeanFactory.getInstance();
 		TransactionTimer transactionTimer = configurator.getTransactionTimer();
 		TransactionRecovery transactionRecovery = configurator.getTransactionRecovery();
 		try {

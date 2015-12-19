@@ -22,20 +22,21 @@ import javax.transaction.xa.Xid;
 import org.bytesoft.transaction.xa.XAResourceDescriptor;
 
 public class XAResourceArchive implements XAResource {
-	private XAResourceDescriptor descriptor;
-	private transient boolean delisted;
-	private Xid xid;
-	private int vote = -1;
-	private transient boolean completed;
-	private transient boolean readonly;
+
+	private boolean delisted;
+	private boolean completed;
+	private boolean readonly;
 	private boolean committed;
 	private boolean rolledback;
-	private transient boolean heuristic;
-	private boolean nonxaResourceExists;
+	private boolean heuristic;
+
+	private Xid xid;
+	private Integer vote = null;
+	private XAResourceDescriptor descriptor;
 
 	public void commit(Xid ignore, boolean onePhase) throws XAException {
 		if (this.readonly) {
-			throw new XAException(XAException.XAER_NOTA);
+			// ignore
 		} else if (this.committed) {
 			// ignore
 		} else if (this.rolledback) {
@@ -70,10 +71,11 @@ public class XAResourceArchive implements XAResource {
 
 		if (this.readonly) {
 			return XAResource.XA_RDONLY;
-		} else if (this.vote != -1) {
+		} else if (this.vote != null) {
 			return this.vote;
 		} else {
-			return descriptor.prepare(xid);
+			this.vote = descriptor.prepare(xid);
+			return this.vote;
 		}
 
 	}
@@ -85,7 +87,7 @@ public class XAResourceArchive implements XAResource {
 	public void rollback(Xid ignore) throws XAException {
 
 		if (this.readonly) {
-			throw new XAException(XAException.XAER_NOTA);
+			// ignore
 		} else if (this.committed) {
 			throw new XAException(XAException.XA_HEURCOM);
 		} else if (this.rolledback) {
@@ -105,7 +107,7 @@ public class XAResourceArchive implements XAResource {
 	}
 
 	public String toString() {
-		return String.format("xa-archive[descriptor: %s, non-xa-exists: %s]", this.descriptor, this.nonxaResourceExists);
+		return String.format("xa-res-archive[descriptor: %s]", this.descriptor);
 	}
 
 	public XAResourceDescriptor getDescriptor() {
@@ -178,14 +180,6 @@ public class XAResourceArchive implements XAResource {
 
 	public void setHeuristic(boolean heuristic) {
 		this.heuristic = heuristic;
-	}
-
-	public boolean isNonxaResourceExists() {
-		return nonxaResourceExists;
-	}
-
-	public void setNonxaResourceExists(boolean nonxaResourceExists) {
-		this.nonxaResourceExists = nonxaResourceExists;
 	}
 
 }

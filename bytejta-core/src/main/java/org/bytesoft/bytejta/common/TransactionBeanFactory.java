@@ -25,10 +25,9 @@ import org.bytesoft.transaction.recovery.TransactionRecovery;
 import org.bytesoft.transaction.rpc.TransactionInterceptor;
 import org.bytesoft.transaction.xa.XidFactory;
 
-public final class TransactionConfigurator {
-	private static final TransactionConfigurator instance = new TransactionConfigurator();
+public final class TransactionBeanFactory {
+	private static final TransactionBeanFactory instance = new TransactionBeanFactory();
 
-	private boolean optimizeEnabled = true;
 	private TransactionManagerImpl transactionManager;
 	private XidFactory xidFactory;
 	private TransactionTimer transactionTimer;
@@ -38,7 +37,7 @@ public final class TransactionConfigurator {
 	private TransactionRecovery transactionRecovery;
 	private XAResource transactionSkeleton;
 
-	public static TransactionConfigurator getInstance() {
+	public static TransactionBeanFactory getInstance() {
 		return instance;
 	}
 
@@ -119,22 +118,6 @@ public final class TransactionConfigurator {
 			this.transactionTimer = transactionTimer;
 		} else {
 			instance.setTransactionTimer(transactionTimer);
-		}
-	}
-
-	public boolean isOptimizeEnabled() {
-		if (this == instance) {
-			return this.optimizeEnabled;
-		} else {
-			return instance.isOptimizeEnabled();
-		}
-	}
-
-	public void setOptimizeEnabled(boolean optimizeEnabled) {
-		if (this == instance) {
-			this.optimizeEnabled = optimizeEnabled;
-		} else {
-			instance.setOptimizeEnabled(optimizeEnabled);
 		}
 	}
 

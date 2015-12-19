@@ -17,70 +17,48 @@ package org.bytesoft.transaction;
 
 import java.io.Serializable;
 
-import org.bytesoft.bytejta.common.TransactionConfigurator;
-import org.bytesoft.transaction.xa.TransactionXid;
+import org.bytesoft.transaction.xa.AbstractXid;
 
 public class TransactionContext implements Serializable, Cloneable {
 	private static final long serialVersionUID = 1L;
 
-	private transient boolean optimized;
 	private transient boolean coordinator;
-	private transient boolean recovery;
-	private transient int prepareVote = -1;
+	private transient boolean recoveried;
 
-	private TransactionXid currentXid;
-	private Object propagated;
+	private AbstractXid xid;
 	private long createdTime;
 	private long expiredTime;
-	private boolean compensable;
-	private boolean nonxaResourceAllowed;
-
-	public TransactionContext() {
-		TransactionConfigurator transactionConfigurator = TransactionConfigurator.getInstance();
-		this.nonxaResourceAllowed = transactionConfigurator.isOptimizeEnabled();
-	}
-
-	public TransactionContext(boolean nonxaResourceAllowed) {
-		this.nonxaResourceAllowed = nonxaResourceAllowed;
-	}
 
 	public TransactionContext clone() {
 		TransactionContext that = new TransactionContext();
-		that.currentXid = this.currentXid;
-		that.propagated = this.propagated;
+		that.xid = this.xid;
 		that.createdTime = System.currentTimeMillis();
 		that.expiredTime = this.expiredTime;
-		that.compensable = this.compensable;
-		that.nonxaResourceAllowed = this.nonxaResourceAllowed;
 		return that;
 	}
 
 	public boolean isCoordinator() {
-		return this.coordinator;
-	}
-
-	public TransactionXid getCurrentXid() {
-		return currentXid;
-	}
-
-	public void setCurrentXid(TransactionXid branchXid) {
-		this.currentXid = branchXid;
-	}
-
-	public TransactionXid getGlobalXid() {
-		return this.currentXid.getGlobalXid();
+		return coordinator;
 	}
 
 	public void setCoordinator(boolean coordinator) {
 		this.coordinator = coordinator;
 	}
 
-	public long getExpiredTime() {
-		return expiredTime;
+	public boolean isRecoveried() {
+		return recoveried;
 	}
 
-	public void setExpiredTime(long expiredTime) {
-		this.expiredTime = expiredTime;
+	public void setRecoveried(boolean recoveried) {
+		this.recoveried = recoveried;
+	}
+
+	public AbstractXid getXid() {
+		return xid;
+	}
+
+	public void setXid(AbstractXid xid) {
+		this.xid = xid;
 	}
 
 	public long getCreatedTime() {
@@ -91,56 +69,12 @@ public class TransactionContext implements Serializable, Cloneable {
 		this.createdTime = createdTime;
 	}
 
-	public boolean isCompensable() {
-		return compensable;
+	public long getExpiredTime() {
+		return expiredTime;
 	}
 
-	public void setCompensable(boolean compensable) {
-		this.compensable = compensable;
-	}
-
-	public boolean isFresh() {
-		return this.recovery == false;
-	}
-
-	public boolean isRecovery() {
-		return recovery;
-	}
-
-	public void setRecovery(boolean recovery) {
-		this.recovery = recovery;
-	}
-
-	public boolean isOptimized() {
-		return optimized;
-	}
-
-	public void setOptimized(boolean optimized) {
-		this.optimized = optimized;
-	}
-
-	public int getPrepareVote() {
-		return prepareVote;
-	}
-
-	public void setPrepareVote(int prepareVote) {
-		this.prepareVote = prepareVote;
-	}
-
-	public Object getPropagated() {
-		return propagated;
-	}
-
-	public void setPropagated(Object propagated) {
-		this.propagated = propagated;
-	}
-
-	public boolean isNonxaResourceAllowed() {
-		return nonxaResourceAllowed;
-	}
-
-	public void setNonxaResourceAllowed(boolean nonxaResourceAllowed) {
-		this.nonxaResourceAllowed = nonxaResourceAllowed;
+	public void setExpiredTime(long expiredTime) {
+		this.expiredTime = expiredTime;
 	}
 
 }
