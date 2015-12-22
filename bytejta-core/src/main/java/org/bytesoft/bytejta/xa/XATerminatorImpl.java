@@ -15,9 +15,9 @@
  */
 package org.bytesoft.bytejta.xa;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 
 import javax.transaction.RollbackException;
 import javax.transaction.SystemException;
@@ -40,7 +40,7 @@ public class XATerminatorImpl implements XATerminator {
 	static final Logger logger = Logger.getLogger(XATerminatorImpl.class.getSimpleName());
 	private TransactionContext transactionContext;
 	private int transactionTimeout;
-	private final List<XAResourceArchive> resources = new ArrayList<XAResourceArchive>();
+	private final Set<XAResourceArchive> resources = new TreeSet<XAResourceArchive>();
 
 	public XATerminatorImpl(TransactionContext txContext) {
 		this.transactionContext = txContext;
@@ -48,8 +48,8 @@ public class XATerminatorImpl implements XATerminator {
 
 	public synchronized int prepare(Xid xid) throws XAException {
 		int globalVote = XAResource.XA_RDONLY;
-		for (int i = 0; i < this.resources.size(); i++) {
-			XAResourceArchive archive = this.resources.get(i);
+		for (Iterator<XAResourceArchive> itr = this.resources.iterator(); itr.hasNext();) {
+			XAResourceArchive archive = itr.next();
 			Xid branchXid = archive.getXid();
 			int branchVote = archive.prepare(branchXid);
 			if (branchVote == XAResource.XA_RDONLY) {
@@ -75,7 +75,8 @@ public class XATerminatorImpl implements XATerminator {
 
 	private void fireOnePhaseCommit(Xid xid) throws XAException {
 		if (this.resources.isEmpty() == false) {
-			XAResourceArchive archive = this.resources.get(0);
+			XAResourceArchive[] archives = this.resources.toArray(new XAResourceArchive[0]);
+			XAResourceArchive archive = archives[0];
 			try {
 				Xid branchXid = archive.getXid();
 				archive.commit(branchXid, true);
@@ -106,14 +107,16 @@ public class XATerminatorImpl implements XATerminator {
 					logger.warn("An unexpected error occurred in one phase commit: code = " + xa.errorCode);
 					break;
 				case XAException.XAER_RMFAIL: {
-					String txid = ByteUtils.byteArrayToString(this.transactionContext.getXid().getGlobalTransactionId());
+					String txid = ByteUtils
+							.byteArrayToString(this.transactionContext.getXid().getGlobalTransactionId());
 					logger.warn("An error occurred in one phase commit: txid = " + txid);
 					throw xa;
 				}
 				case XAException.XAER_NOTA:
 				case XAException.XAER_INVAL:
 				case XAException.XAER_PROTO: {
-					String txid = ByteUtils.byteArrayToString(this.transactionContext.getXid().getGlobalTransactionId());
+					String txid = ByteUtils
+							.byteArrayToString(this.transactionContext.getXid().getGlobalTransactionId());
 					logger.warn("An error occurred in one phase commit: txid = " + txid);
 					throw xa;
 				}
@@ -131,12 +134,11 @@ public class XATerminatorImpl implements XATerminator {
 	}
 
 	private void fireTwoPhaseCommit(Xid xid) throws XAException {
-		int length = this.resources.size();
 		boolean commitExists = false;
 		boolean rollbackExists = false;
 		boolean unFinishExists = false;
-		for (int i = 0; i < length; i++) {
-			XAResourceArchive archive = this.resources.get(i);
+		for (Iterator<XAResourceArchive> itr = this.resources.iterator(); itr.hasNext();) {
+			XAResourceArchive archive = itr.next();
 			Xid branchXid = archive.getXid();
 			try {
 				if (archive.isCompleted()) {
@@ -283,12 +285,11 @@ public class XATerminatorImpl implements XATerminator {
 	}
 
 	public synchronized void rollback(Xid xid) throws TransactionException, XAException {
-		int length = this.resources.size();
 		boolean commitExists = false;
 		boolean rollbackExists = false;
 		boolean unFinishExists = false;
-		for (int i = 0; i < length; i++) {
-			XAResourceArchive archive = this.resources.get(i);
+		for (Iterator<XAResourceArchive> itr = this.resources.iterator(); itr.hasNext();) {
+			XAResourceArchive archive = itr.next();
 			Xid branchXid = archive.getXid();
 			try {
 				if (archive.isCompleted()) {
@@ -448,8 +449,8 @@ public class XATerminatorImpl implements XATerminator {
 	}
 
 	public void forget(Xid xid) throws XAException {
-		for (int i = 0; i < this.resources.size(); i++) {
-			XAResourceArchive archive = this.resources.get(i);
+		for (Iterator<XAResourceArchive> itr = this.resources.iterator(); itr.hasNext();) {
+			XAResourceArchive archive = itr.next();
 			if (archive.isHeuristic()) {
 				try {
 					Xid branchXid = archive.getXid();
@@ -476,7 +477,8 @@ public class XATerminatorImpl implements XATerminator {
 		}// end-for
 	}
 
-	public boolean delistResource(XAResourceDescriptor descriptor, int flag) throws IllegalStateException, SystemException {
+	public boolean delistResource(XAResourceDescriptor descriptor, int flag) throws IllegalStateException,
+			SystemException {
 
 		XAResourceArchive archive = this.locateExisted(descriptor);
 		if (archive == null) {
@@ -487,7 +489,8 @@ public class XATerminatorImpl implements XATerminator {
 
 	}
 
-	private boolean delistResource(XAResourceArchive archive, int flag) throws SystemException, RollbackRequiredException {
+	private boolean delistResource(XAResourceArchive archive, int flag) throws SystemException,
+			RollbackRequiredException {
 		try {
 			Xid branchXid = archive.getXid();
 			archive.end(branchXid, flag);
@@ -636,8 +639,8 @@ public class XATerminatorImpl implements XATerminator {
 	public void resumeAllResource() throws RollbackException, SystemException {
 		boolean rollbackRequired = false;
 		boolean errorExists = false;
-		for (int i = 0; i < this.resources.size(); i++) {
-			XAResourceArchive xares = this.resources.get(i);
+		for (Iterator<XAResourceArchive> itr = this.resources.iterator(); itr.hasNext();) {
+			XAResourceArchive xares = itr.next();
 			if (xares.isDelisted()) {
 				try {
 					this.enlistResource(xares, XAResource.TMRESUME);
@@ -662,8 +665,8 @@ public class XATerminatorImpl implements XATerminator {
 	public void suspendAllResource() throws RollbackException, SystemException {
 		boolean rollbackRequired = false;
 		boolean errorExists = false;
-		for (int i = 0; i < this.resources.size(); i++) {
-			XAResourceArchive xares = this.resources.get(i);
+		for (Iterator<XAResourceArchive> itr = this.resources.iterator(); itr.hasNext();) {
+			XAResourceArchive xares = itr.next();
 			if (xares.isDelisted() == false) {
 				try {
 					this.delistResource(xares, XAResource.TMSUSPEND);
@@ -687,8 +690,8 @@ public class XATerminatorImpl implements XATerminator {
 	public void delistAllResource() throws RollbackException, SystemException {
 		boolean rollbackRequired = false;
 		boolean errorExists = false;
-		for (int i = 0; i < this.resources.size(); i++) {
-			XAResourceArchive xares = this.resources.get(i);
+		for (Iterator<XAResourceArchive> itr = this.resources.iterator(); itr.hasNext();) {
+			XAResourceArchive xares = itr.next();
 			if (xares.isDelisted() == false) {
 				try {
 					this.delistResource(xares, XAResource.TMSUCCESS);
@@ -710,7 +713,7 @@ public class XATerminatorImpl implements XATerminator {
 
 	}
 
-	public List<XAResourceArchive> getResourceArchives() {
+	public Set<XAResourceArchive> getResourceArchives() {
 		return this.resources;
 	}
 

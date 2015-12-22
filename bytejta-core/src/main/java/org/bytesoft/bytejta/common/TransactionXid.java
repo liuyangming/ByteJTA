@@ -41,8 +41,8 @@ public class TransactionXid extends AbstractXid implements Xid, Serializable {
 		if (this.globalTransactionId == null || this.globalTransactionId.length == 0) {
 			throw new IllegalStateException();
 		} else if (this.branchQualifier != null && this.branchQualifier.length > 0) {
-			TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
-			XidFactory xidFactory = transactionConfigurator.getXidFactory();
+			TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
+			XidFactory xidFactory = beanFactory.getXidFactory();
 			return xidFactory.createGlobalXid(this.globalTransactionId);
 		} else {
 			return this;
@@ -55,8 +55,8 @@ public class TransactionXid extends AbstractXid implements Xid, Serializable {
 		} else if (this.branchQualifier != null && this.branchQualifier.length > 0) {
 			throw new IllegalStateException();
 		} else {
-			TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
-			XidFactory xidFactory = transactionConfigurator.getXidFactory();
+			TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
+			XidFactory xidFactory = beanFactory.getXidFactory();
 			return xidFactory.createBranchXid(this);
 		}
 	}

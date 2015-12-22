@@ -32,9 +32,9 @@ public class TransactionWork implements Work {
 
 	public void run() {
 
-		TransactionBeanFactory configurator = TransactionBeanFactory.getInstance();
-		TransactionTimer transactionTimer = configurator.getTransactionTimer();
-		TransactionRecovery transactionRecovery = configurator.getTransactionRecovery();
+		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
+		TransactionTimer transactionTimer = beanFactory.getTransactionTimer();
+		TransactionRecovery transactionRecovery = beanFactory.getTransactionRecovery();
 		try {
 			transactionRecovery.startupRecover(true);
 		} catch (RuntimeException rex) {

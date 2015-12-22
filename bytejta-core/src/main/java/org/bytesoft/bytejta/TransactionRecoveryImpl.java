@@ -39,8 +39,8 @@ public class TransactionRecoveryImpl implements TransactionRecovery {
 	private boolean initialized;
 
 	public synchronized void timingRecover() {
-		TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
-		TransactionRepository transactionRepository = transactionConfigurator.getTransactionRepository();
+		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
+		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
 		List<TransactionImpl> transactions = transactionRepository.getErrorTransactionList();
 		for (int i = 0; i < transactions.size(); i++) {
 			TransactionImpl transaction = transactions.get(i);
@@ -54,8 +54,8 @@ public class TransactionRecoveryImpl implements TransactionRecovery {
 
 	public synchronized void recoverTransaction(TransactionImpl transaction) {
 
-		TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
-		TransactionRepository transactionRepository = transactionConfigurator.getTransactionRepository();
+		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
+		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
 
 		TransactionContext transactionContext = transaction.getTransactionContext();
 		boolean coordinator = transactionContext.isCoordinator();
@@ -121,9 +121,9 @@ public class TransactionRecoveryImpl implements TransactionRecovery {
 	}
 
 	private synchronized void processStartupRecover() {
-		TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
-		TransactionRepository transactionRepository = transactionConfigurator.getTransactionRepository();
-		TransactionLogger transactionLogger = transactionConfigurator.getTransactionLogger();
+		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
+		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
+		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		List<TransactionArchive> archives = transactionLogger.getTransactionArchiveList();
 		for (int i = 0; i < archives.size(); i++) {
 			TransactionArchive archive = archives.get(i);
@@ -168,11 +168,11 @@ public class TransactionRecoveryImpl implements TransactionRecovery {
 	private void deleteRecoveryTransaction(TransactionImpl transaction) {
 
 		TransactionArchive archive = transaction.getTransactionArchive();
-		TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
-		TransactionLogger transactionLogger = transactionConfigurator.getTransactionLogger();
+		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
+		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		transactionLogger.deleteTransaction(archive);
 
-		TransactionRepository transactionRepository = transactionConfigurator.getTransactionRepository();
+		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
 		AbstractXid globalXid = transaction.getTransactionContext().getXid();
 		transactionRepository.removeTransaction(globalXid);
 		transactionRepository.removeErrorTransaction(globalXid);

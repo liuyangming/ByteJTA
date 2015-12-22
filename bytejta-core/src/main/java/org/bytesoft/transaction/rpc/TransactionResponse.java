@@ -15,11 +15,13 @@
  */
 package org.bytesoft.transaction.rpc;
 
+import javax.transaction.xa.XAResource;
+
 import org.bytesoft.transaction.TransactionContext;
 
 public interface TransactionResponse {
 
-	public TransactionResource getTransactionResource();
+	public XAResource getSourceTransactionalResource();
 
 	public TransactionContext getTransactionContext();
 

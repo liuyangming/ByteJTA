@@ -15,7 +15,7 @@
  */
 package org.bytesoft.transaction.xa;
 
-import java.util.List;
+import java.util.Set;
 
 import javax.transaction.RollbackException;
 import javax.transaction.SystemException;
@@ -34,6 +34,6 @@ public interface XATerminator extends javax.transaction.xa.XAResource {
 
 	public void delistAllResource() throws RollbackException, SystemException;
 
-	public List<XAResourceArchive> getResourceArchives();
+	public Set<XAResourceArchive> getResourceArchives();
 
 }

@@ -102,8 +102,8 @@ public class TransactionImpl implements Transaction {
 		} /* else active, marked_rollback, preparing {} */
 
 		// stop-timing
-		TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
-		TransactionTimer transactionTimer = transactionConfigurator.getTransactionTimer();
+		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
+		TransactionTimer transactionTimer = beanFactory.getTransactionTimer();
 		transactionTimer.stopTiming(this);
 
 		// before-completion
@@ -128,7 +128,7 @@ public class TransactionImpl implements Transaction {
 		TransactionArchive archive = this.getTransactionArchive();
 
 		int firstVote = XAResource.XA_RDONLY;
-		TransactionLogger transactionLogger = transactionConfigurator.getTransactionLogger();
+		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		try {
 			this.transactionStatus = Status.STATUS_PREPARING;
 			archive.setStatus(this.transactionStatus);
@@ -199,8 +199,8 @@ public class TransactionImpl implements Transaction {
 
 		AbstractXid xid = this.transactionContext.getXid();
 		TransactionArchive archive = this.getTransactionArchive();
-		TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
-		TransactionLogger transactionLogger = transactionConfigurator.getTransactionLogger();
+		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
+		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 
 		this.transactionStatus = Status.STATUS_COMMITTING;
 		this.transactionListenerList.commitStart();
@@ -297,8 +297,8 @@ public class TransactionImpl implements Transaction {
 	private synchronized void delegateCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
 			SecurityException, IllegalStateException, CommitRequiredException, SystemException {
 		// stop-timing
-		TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
-		TransactionTimer transactionTimer = transactionConfigurator.getTransactionTimer();
+		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
+		TransactionTimer transactionTimer = beanFactory.getTransactionTimer();
 		transactionTimer.stopTiming(this);
 
 		// before-completion
@@ -378,8 +378,8 @@ public class TransactionImpl implements Transaction {
 		TransactionArchive archive = this.getTransactionArchive();// new TransactionArchive();
 
 		int firstVote = XAResource.XA_RDONLY;
-		TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
-		TransactionLogger transactionLogger = transactionConfigurator.getTransactionLogger();
+		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
+		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		try {
 			this.transactionStatus = Status.STATUS_PREPARING;// .setStatusPreparing();
 			archive.setStatus(this.transactionStatus);
@@ -614,8 +614,8 @@ public class TransactionImpl implements Transaction {
 
 	private synchronized void delegateRollback() throws IllegalStateException, RollbackRequiredException, SystemException {
 		// stop-timing
-		TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
-		TransactionTimer transactionTimer = transactionConfigurator.getTransactionTimer();
+		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
+		TransactionTimer transactionTimer = beanFactory.getTransactionTimer();
 		transactionTimer.stopTiming(this);
 
 		// before-completion
@@ -646,8 +646,8 @@ public class TransactionImpl implements Transaction {
 
 		this.transactionListenerList.rollbackStart();
 
-		TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
-		TransactionLogger transactionLogger = transactionConfigurator.getTransactionLogger();
+		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
+		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		transactionLogger.createTransaction(archive);
 
 		// rollback the native-resource
@@ -982,8 +982,8 @@ public class TransactionImpl implements Transaction {
 
 			if (transactionCompleted) {
 				TransactionArchive archive = this.getTransactionArchive();// new TransactionArchive();
-				TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
-				TransactionLogger transactionLogger = transactionConfigurator.getTransactionLogger();
+				TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
+				TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 
 				this.transactionStatus = Status.STATUS_ROLLEDBACK;
 				archive.setStatus(this.transactionStatus);
@@ -1089,8 +1089,8 @@ public class TransactionImpl implements Transaction {
 			if (transactionCompleted) {
 				TransactionArchive archive = this.getTransactionArchive();// new TransactionArchive();
 
-				TransactionBeanFactory transactionConfigurator = TransactionBeanFactory.getInstance();
-				TransactionLogger transactionLogger = transactionConfigurator.getTransactionLogger();
+				TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
+				TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 
 				this.transactionStatus = Status.STATUS_COMMITTED;
 				archive.setStatus(this.transactionStatus);
