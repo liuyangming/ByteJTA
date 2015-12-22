@@ -17,3 +17,4 @@ hs_err_pid*
 /bytejta-supports/.classpath
 /bytejta-supports/.gitignore
 /bytejta-supports/.project
+target
