@@ -37,8 +37,8 @@ import org.bytesoft.transaction.TransactionListener;
 import org.bytesoft.transaction.TransactionTimer;
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.internal.SynchronizationList;
-import org.bytesoft.transaction.internal.TransactionListenerList;
 import org.bytesoft.transaction.internal.TransactionException;
+import org.bytesoft.transaction.internal.TransactionListenerList;
 import org.bytesoft.transaction.logger.TransactionLogger;
 import org.bytesoft.transaction.xa.AbstractXid;
 import org.bytesoft.transaction.xa.XAResourceDescriptor;
@@ -48,6 +48,7 @@ public class TransactionImpl implements Transaction {
 	static final Logger logger = Logger.getLogger(TransactionImpl.class.getSimpleName());
 
 	private transient boolean timing = true;
+	private TransactionBeanFactory beanFactory;
 
 	private int transactionStatus;
 	private int transactionTimeout;
@@ -64,8 +65,8 @@ public class TransactionImpl implements Transaction {
 		this.remoteTerminator = new XATerminatorImpl(this.transactionContext);
 	}
 
-	private synchronized void checkBeforeCommit() throws RollbackException, IllegalStateException, RollbackRequiredException,
-			CommitRequiredException {
+	private synchronized void checkBeforeCommit() throws RollbackException, IllegalStateException,
+			RollbackRequiredException, CommitRequiredException {
 
 		if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
 			throw new RollbackException();
@@ -102,7 +103,6 @@ public class TransactionImpl implements Transaction {
 		} /* else active, marked_rollback, preparing {} */
 
 		// stop-timing
-		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
 		TransactionTimer transactionTimer = beanFactory.getTransactionTimer();
 		transactionTimer.stopTiming(this);
 
@@ -177,8 +177,9 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	public synchronized void participantCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
-			SecurityException, IllegalStateException, CommitRequiredException, SystemException {
+	public synchronized void participantCommit() throws RollbackException, HeuristicMixedException,
+			HeuristicRollbackException, SecurityException, IllegalStateException, CommitRequiredException,
+			SystemException {
 
 		if (this.transactionStatus == Status.STATUS_ACTIVE) {
 			throw new IllegalStateException();
@@ -199,7 +200,6 @@ public class TransactionImpl implements Transaction {
 
 		AbstractXid xid = this.transactionContext.getXid();
 		TransactionArchive archive = this.getTransactionArchive();
-		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 
 		this.transactionStatus = Status.STATUS_COMMITTING;
@@ -294,10 +294,10 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	private synchronized void delegateCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
-			SecurityException, IllegalStateException, CommitRequiredException, SystemException {
+	private synchronized void delegateCommit() throws RollbackException, HeuristicMixedException,
+			HeuristicRollbackException, SecurityException, IllegalStateException, CommitRequiredException,
+			SystemException {
 		// stop-timing
-		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
 		TransactionTimer transactionTimer = beanFactory.getTransactionTimer();
 		transactionTimer.stopTiming(this);
 
@@ -378,7 +378,6 @@ public class TransactionImpl implements Transaction {
 		TransactionArchive archive = this.getTransactionArchive();// new TransactionArchive();
 
 		int firstVote = XAResource.XA_RDONLY;
-		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		try {
 			this.transactionStatus = Status.STATUS_PREPARING;// .setStatusPreparing();
@@ -510,7 +509,8 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	public synchronized boolean delistResource(XAResource xaRes, int flag) throws IllegalStateException, SystemException {
+	public synchronized boolean delistResource(XAResource xaRes, int flag) throws IllegalStateException,
+			SystemException {
 		if (this.getStatus() != Status.STATUS_ACTIVE && this.getStatus() != Status.STATUS_MARKED_ROLLBACK) {
 			throw new IllegalStateException();
 		}
@@ -571,8 +571,8 @@ public class TransactionImpl implements Transaction {
 		return this.transactionStatus;
 	}
 
-	public synchronized void registerSynchronization(Synchronization sync) throws RollbackException, IllegalStateException,
-			SystemException {
+	public synchronized void registerSynchronization(Synchronization sync) throws RollbackException,
+			IllegalStateException, SystemException {
 
 		if (this.getStatus() == Status.STATUS_MARKED_ROLLBACK) {
 			throw new RollbackException();
@@ -612,9 +612,9 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	private synchronized void delegateRollback() throws IllegalStateException, RollbackRequiredException, SystemException {
+	private synchronized void delegateRollback() throws IllegalStateException, RollbackRequiredException,
+			SystemException {
 		// stop-timing
-		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
 		TransactionTimer transactionTimer = beanFactory.getTransactionTimer();
 		transactionTimer.stopTiming(this);
 
@@ -646,7 +646,6 @@ public class TransactionImpl implements Transaction {
 
 		this.transactionListenerList.rollbackStart();
 
-		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		transactionLogger.createTransaction(archive);
 
@@ -982,7 +981,6 @@ public class TransactionImpl implements Transaction {
 
 			if (transactionCompleted) {
 				TransactionArchive archive = this.getTransactionArchive();// new TransactionArchive();
-				TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
 				TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 
 				this.transactionStatus = Status.STATUS_ROLLEDBACK;
@@ -1089,7 +1087,6 @@ public class TransactionImpl implements Transaction {
 			if (transactionCompleted) {
 				TransactionArchive archive = this.getTransactionArchive();// new TransactionArchive();
 
-				TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
 				TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 
 				this.transactionStatus = Status.STATUS_COMMITTED;
@@ -1172,6 +1169,10 @@ public class TransactionImpl implements Transaction {
 
 	public void setTransactionTimeout(int transactionTimeout) {
 		this.transactionTimeout = transactionTimeout;
+	}
+
+	public void setTransactionBeanFactory(TransactionBeanFactory tbf) {
+		this.beanFactory = tbf;
 	}
 
 }

@@ -24,6 +24,7 @@ import org.bytesoft.transaction.xa.XidFactory;
 
 public class TransactionXid extends AbstractXid implements Xid, Serializable {
 	private static final long serialVersionUID = 1L;
+	private transient XidFactory xidFactory;
 
 	public TransactionXid(byte[] global) {
 		this(global, new byte[0]);
@@ -37,28 +38,32 @@ public class TransactionXid extends AbstractXid implements Xid, Serializable {
 		return XidFactory.JTA_FORMAT_ID;
 	}
 
-	public AbstractXid getGlobalXid() {
+	public TransactionXid getGlobalXid() {
 		if (this.globalTransactionId == null || this.globalTransactionId.length == 0) {
 			throw new IllegalStateException();
 		} else if (this.branchQualifier != null && this.branchQualifier.length > 0) {
-			TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
-			XidFactory xidFactory = beanFactory.getXidFactory();
-			return xidFactory.createGlobalXid(this.globalTransactionId);
+			return (TransactionXid) xidFactory.createGlobalXid(this.globalTransactionId);
 		} else {
 			return this;
 		}
 	}
 
-	public AbstractXid createBranchXid() {
+	public TransactionXid createBranchXid() {
 		if (this.globalTransactionId == null || this.globalTransactionId.length == 0) {
 			throw new IllegalStateException();
 		} else if (this.branchQualifier != null && this.branchQualifier.length > 0) {
 			throw new IllegalStateException();
 		} else {
-			TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
-			XidFactory xidFactory = beanFactory.getXidFactory();
-			return xidFactory.createBranchXid(this);
+			return (TransactionXid) xidFactory.createBranchXid(this);
 		}
+	}
+
+	public XidFactory getXidFactory() {
+		return xidFactory;
+	}
+
+	public void setXidFactory(XidFactory xidFactory) {
+		this.xidFactory = xidFactory;
 	}
 
 }

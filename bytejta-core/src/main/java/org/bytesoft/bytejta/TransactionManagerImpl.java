@@ -31,17 +31,19 @@ import javax.transaction.SystemException;
 import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
 
+import org.bytesoft.bytejta.aware.TransactionBeanFactoryAware;
 import org.bytesoft.bytejta.common.TransactionBeanFactory;
 import org.bytesoft.bytejta.common.TransactionRepository;
+import org.bytesoft.bytejta.common.TransactionXid;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.TransactionTimer;
-import org.bytesoft.transaction.xa.AbstractXid;
 import org.bytesoft.transaction.xa.XidFactory;
 
-public class TransactionManagerImpl implements TransactionManager, TransactionTimer {
+public class TransactionManagerImpl implements TransactionManager, TransactionTimer, TransactionBeanFactoryAware {
 
+	private TransactionBeanFactory beanFactory;
 	private int timeoutSeconds = 5 * 60;
 	private final Map<Thread, TransactionImpl> associateds = new ConcurrentHashMap<Thread, TransactionImpl>();
 
@@ -58,17 +60,17 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		long expiredTime = createdTime + (timeoutSeconds * 1000L);
 		transactionContext.setCreatedTime(createdTime);
 		transactionContext.setExpiredTime(expiredTime);
-		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
-		XidFactory xidFactory = beanFactory.getXidFactory();
-		AbstractXid globalXid = xidFactory.createGlobalXid();
+		XidFactory xidFactory = this.beanFactory.getXidFactory();
+		TransactionXid globalXid = xidFactory.createGlobalXid();
 		transactionContext.setXid(globalXid); // TODO
 
 		TransactionImpl transaction = new TransactionImpl(transactionContext);
+		transaction.setTransactionBeanFactory(this.beanFactory);
 		transaction.setTransactionTimeout(this.timeoutSeconds);
 
 		// transaction.setThread(Thread.currentThread());
 		this.associateds.put(Thread.currentThread(), transaction);
-		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
+		TransactionRepository<TransactionImpl> transactionRepository = this.beanFactory.getTransactionRepository();
 		transactionRepository.putTransaction(transactionContext.getXid(), transaction);
 		// this.transactionStatistic.fireBeginTransaction(transaction);
 
@@ -79,10 +81,10 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 			throw new NotSupportedException();
 		}
 
-		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
-		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
+		TransactionRepository<TransactionImpl> transactionRepository = this.beanFactory.getTransactionRepository();
 
 		TransactionImpl transaction = new TransactionImpl(transactionContext);
+		transaction.setTransactionBeanFactory(this.beanFactory);
 
 		long expired = transactionContext.getExpiredTime();
 		long current = System.currentTimeMillis();
@@ -103,14 +105,14 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 			throw new NotSupportedException();
 		}
 
-		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
-		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
+		TransactionRepository<TransactionImpl> transactionRepository = this.beanFactory.getTransactionRepository();
 
-		AbstractXid propagationXid = transactionContext.getXid();
-		AbstractXid globalXid = propagationXid.getGlobalXid();
+		TransactionXid propagationXid = transactionContext.getXid();
+		TransactionXid globalXid = propagationXid.getGlobalXid();
 		TransactionImpl transaction = transactionRepository.getTransaction(globalXid);
 		if (transaction == null) {
 			transaction = new TransactionImpl(transactionContext);
+			transaction.setTransactionBeanFactory(this.beanFactory);
 
 			long expired = transactionContext.getExpiredTime();
 			long current = System.currentTimeMillis();
@@ -149,9 +151,8 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		}
 
 		TransactionContext transactionContext = transaction.getTransactionContext();
-		AbstractXid globalXid = transactionContext.getXid();
-		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
-		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
+		TransactionXid globalXid = transactionContext.getXid();
+		TransactionRepository<TransactionImpl> transactionRepository = this.beanFactory.getTransactionRepository();
 		boolean transactionDone = false;
 		try {
 			transaction.commit();
@@ -222,9 +223,8 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		}
 
 		TransactionContext transactionContext = transaction.getTransactionContext();
-		AbstractXid globalXid = transactionContext.getXid();
-		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
-		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
+		TransactionXid globalXid = transactionContext.getXid();
+		TransactionRepository<TransactionImpl> transactionRepository = this.beanFactory.getTransactionRepository();
 		boolean transactionDone = false;
 		try {
 			transaction.rollback();
@@ -304,9 +304,9 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 			if (transaction.getStatus() == Status.STATUS_ACTIVE
 					|| transaction.getStatus() == Status.STATUS_MARKED_ROLLBACK) {
 				TransactionContext transactionContext = transaction.getTransactionContext();
-				AbstractXid globalXid = transactionContext.getXid();
-				TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
-				TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
+				TransactionXid globalXid = transactionContext.getXid();
+				TransactionRepository<TransactionImpl> transactionRepository = this.beanFactory
+						.getTransactionRepository();
 				try {
 					transaction.rollback();
 					transactionRepository.removeTransaction(globalXid);
@@ -334,6 +334,10 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 
 	public void setTimeoutSeconds(int timeoutSeconds) {
 		this.timeoutSeconds = timeoutSeconds;
+	}
+
+	public void setBeanFactory(TransactionBeanFactory tbf) {
+		this.beanFactory = tbf;
 	}
 
 }

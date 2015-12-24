@@ -54,7 +54,7 @@ public class XidFactoryImpl implements XidFactory {
 		}
 	}
 
-	public AbstractXid createGlobalXid() {
+	public TransactionXid createGlobalXid() {
 		byte[] global = new byte[GLOBAL_TRANSACTION_LENGTH];
 		byte[] applicationBytes = new byte[10];
 		byte[] fromBytes = this.application.getBytes();
@@ -78,10 +78,12 @@ public class XidFactoryImpl implements XidFactory {
 				this.hardwareAddress.length + applicationBytes.length + endByteArray.length + millisByteArray.length,//
 				atomicByteArray.length);
 
-		return new TransactionXid(global);
+		TransactionXid xid = new TransactionXid(global);
+		xid.setXidFactory(this);
+		return xid;
 	}
 
-	public AbstractXid createGlobalXid(byte[] globalTransactionId) {
+	public TransactionXid createGlobalXid(byte[] globalTransactionId) {
 		if (globalTransactionId == null) {
 			throw new IllegalArgumentException("The globalTransactionId cannot be null.");
 		} else if (globalTransactionId.length > AbstractXid.MAXGTRIDSIZE) {
@@ -89,10 +91,12 @@ public class XidFactoryImpl implements XidFactory {
 		}
 		byte[] global = new byte[globalTransactionId.length];
 		System.arraycopy(globalTransactionId, 0, global, 0, global.length);
-		return new TransactionXid(global);
+		TransactionXid xid = new TransactionXid(global);
+		xid.setXidFactory(this);
+		return xid;
 	}
 
-	public AbstractXid createBranchXid(AbstractXid globalXid) {
+	public TransactionXid createBranchXid(AbstractXid globalXid) {
 		if (globalXid == null) {
 			throw new IllegalArgumentException("Xid cannot be null.");
 		} else if (globalXid.getGlobalTransactionId() == null) {
@@ -127,10 +131,12 @@ public class XidFactoryImpl implements XidFactory {
 				this.hardwareAddress.length + applicationBytes.length + endByteArray.length + millisByteArray.length,//
 				atomicByteArray.length);
 
-		return new TransactionXid(global, branch);
+		TransactionXid xid = new TransactionXid(global, branch);
+		xid.setXidFactory(this);
+		return xid;
 	}
 
-	public AbstractXid createBranchXid(AbstractXid globalXid, byte[] branchQualifier) {
+	public TransactionXid createBranchXid(AbstractXid globalXid, byte[] branchQualifier) {
 		if (globalXid == null) {
 			throw new IllegalArgumentException("Xid cannot be null.");
 		} else if (globalXid.getGlobalTransactionId() == null) {
@@ -148,7 +154,9 @@ public class XidFactoryImpl implements XidFactory {
 		byte[] global = new byte[globalXid.getGlobalTransactionId().length];
 		System.arraycopy(globalXid.getGlobalTransactionId(), 0, global, 0, global.length);
 
-		return new TransactionXid(global, branchQualifier);
+		TransactionXid xid = new TransactionXid(global, branchQualifier);
+		xid.setXidFactory(this);
+		return xid;
 	}
 
 	public byte[] generateUniqueKey() {

@@ -17,7 +17,7 @@ package org.bytesoft.transaction;
 
 import java.io.Serializable;
 
-import org.bytesoft.transaction.xa.AbstractXid;
+import org.bytesoft.bytejta.common.TransactionXid;
 
 public class TransactionContext implements Serializable, Cloneable {
 	private static final long serialVersionUID = 1L;
@@ -25,7 +25,7 @@ public class TransactionContext implements Serializable, Cloneable {
 	private transient boolean coordinator;
 	private transient boolean recoveried;
 
-	private AbstractXid xid;
+	private TransactionXid xid;
 	private long createdTime;
 	private long expiredTime;
 
@@ -53,11 +53,11 @@ public class TransactionContext implements Serializable, Cloneable {
 		this.recoveried = recoveried;
 	}
 
-	public AbstractXid getXid() {
+	public TransactionXid getXid() {
 		return xid;
 	}
 
-	public void setXid(AbstractXid xid) {
+	public void setXid(TransactionXid xid) {
 		this.xid = xid;
 	}
 

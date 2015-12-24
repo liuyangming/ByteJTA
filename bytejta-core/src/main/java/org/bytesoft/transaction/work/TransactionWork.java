@@ -18,12 +18,15 @@ package org.bytesoft.transaction.work;
 import javax.resource.spi.work.Work;
 
 import org.apache.log4j.Logger;
+import org.bytesoft.bytejta.aware.TransactionBeanFactoryAware;
 import org.bytesoft.bytejta.common.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionTimer;
 import org.bytesoft.transaction.recovery.TransactionRecovery;
 
-public class TransactionWork implements Work {
+public class TransactionWork implements Work, TransactionBeanFactoryAware {
 	static final Logger logger = Logger.getLogger(TransactionWork.class.getSimpleName());
+
+	private TransactionBeanFactory beanFactory;
 
 	static final long SECOND_MILLIS = 1000L;
 	private long stopTimeMillis = -1;
@@ -32,7 +35,6 @@ public class TransactionWork implements Work {
 
 	public void run() {
 
-		TransactionBeanFactory beanFactory = TransactionBeanFactory.getInstance();
 		TransactionTimer transactionTimer = beanFactory.getTransactionTimer();
 		TransactionRecovery transactionRecovery = beanFactory.getTransactionRecovery();
 		try {
@@ -93,4 +95,7 @@ public class TransactionWork implements Work {
 		this.delayOfStoping = delayOfStoping;
 	}
 
+	public void setBeanFactory(TransactionBeanFactory tbf) {
+		this.beanFactory = tbf;
+	}
 }

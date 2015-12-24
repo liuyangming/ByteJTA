@@ -74,9 +74,9 @@ public class XATerminatorImpl implements XATerminator {
 	}
 
 	private void fireOnePhaseCommit(Xid xid) throws XAException {
-		if (this.resources.isEmpty() == false) {
-			XAResourceArchive[] archives = this.resources.toArray(new XAResourceArchive[0]);
-			XAResourceArchive archive = archives[0];
+		Iterator<XAResourceArchive> itr = this.resources.iterator();
+		if (itr.hasNext()) {
+			XAResourceArchive archive = itr.next();
 			try {
 				Xid branchXid = archive.getXid();
 				archive.commit(branchXid, true);

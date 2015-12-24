@@ -23,6 +23,7 @@ import java.util.List;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
+import org.bytesoft.bytejta.aware.TransactionBeanFactoryAware;
 import org.bytesoft.bytejta.common.TransactionBeanFactory;
 import org.bytesoft.bytejta.logger.store.SimpleTransactionStorageObject;
 import org.bytesoft.transaction.archive.TransactionArchive;
@@ -37,8 +38,10 @@ import org.bytesoft.transaction.xa.AbstractXid;
 import org.bytesoft.transaction.xa.XAResourceDescriptor;
 import org.bytesoft.transaction.xa.XidFactory;
 
-public class SimpleTransactionLogger implements TransactionLogger, TransactionArchiveSerializer {
+public class SimpleTransactionLogger implements TransactionLogger, TransactionArchiveSerializer,
+		TransactionBeanFactoryAware {
 
+	private TransactionBeanFactory beanFactory;
 	private TransactionStorageManager storageManager;
 	private XAResourceSerializer resourceSerializer;
 
@@ -182,7 +185,7 @@ public class SimpleTransactionLogger implements TransactionLogger, TransactionAr
 		byte[] transactionId = new byte[XidFactory.GLOBAL_TRANSACTION_LENGTH];
 		buffer.get(transactionId);
 
-		XidFactory xidFactory = TransactionBeanFactory.getInstance().getXidFactory();
+		XidFactory xidFactory = this.beanFactory.getXidFactory();
 		AbstractXid globalXid = xidFactory.createGlobalXid(transactionId);
 		archive.setXid(globalXid);
 
@@ -222,7 +225,7 @@ public class SimpleTransactionLogger implements TransactionLogger, TransactionAr
 		int rolledbackValue = buffer.get();
 		int heuristicValue = buffer.get();
 		XAResourceArchive resourceArchive = new XAResourceArchive();
-		XidFactory xidFactory = TransactionBeanFactory.getInstance().getXidFactory();
+		XidFactory xidFactory = this.beanFactory.getXidFactory();
 		AbstractXid branchXid = xidFactory.createBranchXid(globalXid, branchQualifier);
 		resourceArchive.setXid(branchXid);
 		resourceArchive.setVote(branchVote);
@@ -266,6 +269,10 @@ public class SimpleTransactionLogger implements TransactionLogger, TransactionAr
 
 	public void setResourceSerializer(XAResourceSerializer resourceSerializer) {
 		this.resourceSerializer = resourceSerializer;
+	}
+
+	public void setBeanFactory(TransactionBeanFactory tbf) {
+		this.beanFactory = tbf;
 	}
 
 }
