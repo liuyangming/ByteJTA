@@ -15,8 +15,6 @@
  */
 package org.bytesoft.transaction.xa;
 
-import org.bytesoft.bytejta.common.TransactionXid;
-
 public interface XidFactory {
 	public static final int JTA_FORMAT_ID = 1207;
 	public static final int TCC_FORMAT_ID = 8127;
@@ -24,11 +22,13 @@ public interface XidFactory {
 	public static final int GLOBAL_TRANSACTION_LENGTH = 32;
 	public static final int BRANCH_QUALIFIER_LENGTH = 32;
 
+	public int getFormatId();
+
 	public TransactionXid createGlobalXid();
 
 	public TransactionXid createGlobalXid(byte[] globalTransactionId);
 
-	public TransactionXid createBranchXid(AbstractXid globalXid);
+	public TransactionXid createBranchXid(TransactionXid globalXid);
 
-	public TransactionXid createBranchXid(AbstractXid globalXid, byte[] branchQualifier);
+	public TransactionXid createBranchXid(TransactionXid globalXid, byte[] branchQualifier);
 }

@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.bytesoft.bytejta.common.TransactionRepository;
-import org.bytesoft.bytejta.common.TransactionXid;
+import org.bytesoft.transaction.xa.TransactionXid;
 
 public class TransactionRepositoryImpl implements TransactionRepository<TransactionImpl> {
 	private final Map<TransactionXid, TransactionImpl> xidToTxMap = new ConcurrentHashMap<TransactionXid, TransactionImpl>();

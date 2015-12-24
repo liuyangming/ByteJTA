@@ -17,7 +17,7 @@ package org.bytesoft.transaction;
 
 import java.io.Serializable;
 
-import org.bytesoft.bytejta.common.TransactionXid;
+import org.bytesoft.transaction.xa.TransactionXid;
 
 public class TransactionContext implements Serializable, Cloneable {
 	private static final long serialVersionUID = 1L;

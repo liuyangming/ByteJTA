@@ -17,7 +17,7 @@ package org.bytesoft.transaction.serialize;
 
 import java.io.IOException;
 
-import org.bytesoft.transaction.xa.XAResourceDescriptor;
+import org.bytesoft.transaction.common.XAResourceDescriptor;
 
 public interface XAResourceSerializer {
 

@@ -27,22 +27,22 @@ import javax.transaction.xa.XAResource;
 
 import org.apache.log4j.Logger;
 import org.bytesoft.bytejta.common.TransactionBeanFactory;
+import org.bytesoft.bytejta.common.XATerminatorImpl;
 import org.bytesoft.bytejta.utils.ByteUtils;
 import org.bytesoft.bytejta.utils.CommonUtils;
-import org.bytesoft.bytejta.xa.XATerminatorImpl;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.TransactionListener;
 import org.bytesoft.transaction.TransactionTimer;
 import org.bytesoft.transaction.archive.TransactionArchive;
+import org.bytesoft.transaction.common.XAResourceDescriptor;
+import org.bytesoft.transaction.common.XATerminator;
 import org.bytesoft.transaction.internal.SynchronizationList;
 import org.bytesoft.transaction.internal.TransactionException;
 import org.bytesoft.transaction.internal.TransactionListenerList;
 import org.bytesoft.transaction.logger.TransactionLogger;
-import org.bytesoft.transaction.xa.AbstractXid;
-import org.bytesoft.transaction.xa.XAResourceDescriptor;
-import org.bytesoft.transaction.xa.XATerminator;
+import org.bytesoft.transaction.xa.TransactionXid;
 
 public class TransactionImpl implements Transaction {
 	static final Logger logger = Logger.getLogger(TransactionImpl.class.getSimpleName());
@@ -123,7 +123,7 @@ public class TransactionImpl implements Transaction {
 			throw new RollbackRequiredException();
 		}
 
-		AbstractXid xid = this.transactionContext.getXid();
+		TransactionXid xid = this.transactionContext.getXid();
 
 		TransactionArchive archive = this.getTransactionArchive();
 
@@ -198,7 +198,7 @@ public class TransactionImpl implements Transaction {
 			return;
 		} /* else preparing, prepared, committing {} */
 
-		AbstractXid xid = this.transactionContext.getXid();
+		TransactionXid xid = this.transactionContext.getXid();
 		TransactionArchive archive = this.getTransactionArchive();
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 
@@ -334,7 +334,7 @@ public class TransactionImpl implements Transaction {
 
 	public synchronized void fireOnePhaseCommit() throws HeuristicRollbackException, HeuristicMixedException,
 			CommitRequiredException, SystemException {
-		AbstractXid xid = this.transactionContext.getXid();
+		TransactionXid xid = this.transactionContext.getXid();
 		try {
 			this.transactionListenerList.commitStart();
 			if (this.nativeTerminator.getResourceArchives().size() > 0) {
@@ -373,7 +373,7 @@ public class TransactionImpl implements Transaction {
 
 	public synchronized void fireTwoPhaseCommit() throws HeuristicRollbackException, HeuristicMixedException,
 			CommitRequiredException, SystemException {
-		AbstractXid xid = this.transactionContext.getXid();
+		TransactionXid xid = this.transactionContext.getXid();
 
 		TransactionArchive archive = this.getTransactionArchive();// new TransactionArchive();
 
@@ -637,7 +637,7 @@ public class TransactionImpl implements Transaction {
 		boolean commitExists = false;
 		boolean mixedExists = false;
 		boolean transactionCompleted = false;
-		AbstractXid xid = this.transactionContext.getXid();
+		TransactionXid xid = this.transactionContext.getXid();
 
 		TransactionArchive archive = this.getTransactionArchive();// new TransactionArchive();
 
@@ -865,7 +865,7 @@ public class TransactionImpl implements Transaction {
 
 	public synchronized void cleanup() {
 
-		AbstractXid xid = this.transactionContext.getXid();
+		TransactionXid xid = this.transactionContext.getXid();
 
 		try {
 			this.nativeTerminator.forget(xid);
@@ -883,7 +883,7 @@ public class TransactionImpl implements Transaction {
 
 	public synchronized void recoveryRollback() throws RollbackRequiredException, SystemException {
 
-		AbstractXid xid = this.transactionContext.getXid();
+		TransactionXid xid = this.transactionContext.getXid();
 
 		// boolean optimized = this.transactionContext.isOptimized();
 		boolean committedExists = this.transactionStatus == Status.STATUS_COMMITTING;
@@ -994,7 +994,7 @@ public class TransactionImpl implements Transaction {
 
 	public synchronized void recoveryCommit() throws HeuristicMixedException, CommitRequiredException, SystemException {
 
-		AbstractXid xid = this.transactionContext.getXid();
+		TransactionXid xid = this.transactionContext.getXid();
 
 		this.transactionStatus = Status.STATUS_COMMITTING;// .setStatusCommiting();
 		// boolean nativeReadOnly = this.nativeTerminator.checkReadOnlyForRecovery();
@@ -1112,7 +1112,7 @@ public class TransactionImpl implements Transaction {
 	}
 
 	public int hashCode() {
-		AbstractXid transactionXid = this.transactionContext == null ? null : this.transactionContext.getXid();
+		TransactionXid transactionXid = this.transactionContext == null ? null : this.transactionContext.getXid();
 		int hash = transactionXid == null ? 0 : transactionXid.hashCode();
 		return hash;
 	}
@@ -1126,8 +1126,8 @@ public class TransactionImpl implements Transaction {
 		TransactionImpl that = (TransactionImpl) obj;
 		TransactionContext thisContext = this.transactionContext;
 		TransactionContext thatContext = that.transactionContext;
-		AbstractXid thisXid = thisContext == null ? null : thisContext.getXid();
-		AbstractXid thatXid = thatContext == null ? null : thatContext.getXid();
+		TransactionXid thisXid = thisContext == null ? null : thisContext.getXid();
+		TransactionXid thatXid = thatContext == null ? null : thatContext.getXid();
 		return CommonUtils.equals(thisXid, thatXid);
 	}
 

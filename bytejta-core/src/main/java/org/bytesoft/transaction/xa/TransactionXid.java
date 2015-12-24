@@ -22,17 +22,19 @@ import javax.transaction.xa.Xid;
 
 import org.bytesoft.bytejta.utils.ByteUtils;
 
-public abstract class AbstractXid implements Xid, Serializable {
+public class TransactionXid implements Xid, Serializable {
 	private static final long serialVersionUID = 1L;
 
 	protected byte[] globalTransactionId;
 	protected byte[] branchQualifier;
 
-	public AbstractXid(byte[] global) {
+	private transient XidFactory xidFactory;
+
+	public TransactionXid(byte[] global) {
 		this(global, new byte[0]);
 	}
 
-	public AbstractXid(byte[] global, byte[] branch) {
+	public TransactionXid(byte[] global, byte[] branch) {
 		if (global == null) {
 			throw new IllegalArgumentException("globalTransactionId cannot be null.");
 		} else if (global.length > MAXGTRIDSIZE) {
@@ -48,18 +50,28 @@ public abstract class AbstractXid implements Xid, Serializable {
 		this.branchQualifier = branch;
 	}
 
-	public abstract int getFormatId();
-
-	public abstract AbstractXid getGlobalXid();
-
-	public abstract AbstractXid createBranchXid();
-
-	public byte[] getBranchQualifier() {
-		return this.branchQualifier;
+	public int getFormatId() {
+		return this.xidFactory.getFormatId();
 	}
 
-	public byte[] getGlobalTransactionId() {
-		return this.globalTransactionId;
+	public TransactionXid getGlobalXid() {
+		if (this.globalTransactionId == null || this.globalTransactionId.length == 0) {
+			throw new IllegalStateException();
+		} else if (this.branchQualifier != null && this.branchQualifier.length > 0) {
+			return (TransactionXid) xidFactory.createGlobalXid(this.globalTransactionId);
+		} else {
+			return this;
+		}
+	}
+
+	public TransactionXid createBranchXid() {
+		if (this.globalTransactionId == null || this.globalTransactionId.length == 0) {
+			throw new IllegalStateException();
+		} else if (this.branchQualifier != null && this.branchQualifier.length > 0) {
+			throw new IllegalStateException();
+		} else {
+			return (TransactionXid) xidFactory.createBranchXid(this);
+		}
 	}
 
 	public int hashCode() {
@@ -79,7 +91,7 @@ public abstract class AbstractXid implements Xid, Serializable {
 		} else if (getClass() != obj.getClass()) {
 			return false;
 		}
-		AbstractXid other = (AbstractXid) obj;
+		TransactionXid other = (TransactionXid) obj;
 		if (this.getFormatId() != other.getFormatId()) {
 			return false;
 		} else if (Arrays.equals(branchQualifier, other.branchQualifier) == false) {
@@ -96,4 +108,19 @@ public abstract class AbstractXid implements Xid, Serializable {
 		return String.format("%s-%s-%s", this.getFormatId(), global, branch);
 	}
 
+	public XidFactory getXidFactory() {
+		return xidFactory;
+	}
+
+	public void setXidFactory(XidFactory xidFactory) {
+		this.xidFactory = xidFactory;
+	}
+
+	public byte[] getBranchQualifier() {
+		return this.branchQualifier;
+	}
+
+	public byte[] getGlobalTransactionId() {
+		return this.globalTransactionId;
+	}
 }

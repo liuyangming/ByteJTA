@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.bytejta.xa;
+package org.bytesoft.bytejta.common;
 
 import java.util.Iterator;
 import java.util.Set;
@@ -31,10 +31,10 @@ import org.bytesoft.bytejta.utils.CommonUtils;
 import org.bytesoft.transaction.RollbackRequiredException;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.archive.XAResourceArchive;
+import org.bytesoft.transaction.common.XAResourceDescriptor;
+import org.bytesoft.transaction.common.XATerminator;
 import org.bytesoft.transaction.internal.TransactionException;
-import org.bytesoft.transaction.xa.AbstractXid;
-import org.bytesoft.transaction.xa.XAResourceDescriptor;
-import org.bytesoft.transaction.xa.XATerminator;
+import org.bytesoft.transaction.xa.TransactionXid;
 
 public class XATerminatorImpl implements XATerminator {
 	static final Logger logger = Logger.getLogger(XATerminatorImpl.class.getSimpleName());
@@ -540,7 +540,7 @@ public class XATerminatorImpl implements XATerminator {
 		if (archive == null) {
 			archive = new XAResourceArchive();
 			archive.setDescriptor(descriptor);
-			AbstractXid globalXid = this.transactionContext.getXid().getGlobalXid();
+			TransactionXid globalXid = this.transactionContext.getXid().getGlobalXid();
 			archive.setXid(globalXid.createBranchXid());
 		} else {
 			flags = XAResource.TMJOIN;

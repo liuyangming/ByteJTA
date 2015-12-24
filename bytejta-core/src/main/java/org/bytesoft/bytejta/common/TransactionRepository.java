@@ -17,6 +17,8 @@ package org.bytesoft.bytejta.common;
 
 import java.util.List;
 
+import org.bytesoft.transaction.xa.TransactionXid;
+
 public interface TransactionRepository<T> {
 
 	public void putTransaction(TransactionXid xid, T transaction);

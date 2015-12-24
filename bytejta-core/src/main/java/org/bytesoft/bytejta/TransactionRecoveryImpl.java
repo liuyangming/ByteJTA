@@ -25,15 +25,15 @@ import javax.transaction.xa.XAResource;
 import org.bytesoft.bytejta.aware.TransactionBeanFactoryAware;
 import org.bytesoft.bytejta.common.TransactionBeanFactory;
 import org.bytesoft.bytejta.common.TransactionRepository;
-import org.bytesoft.bytejta.common.TransactionXid;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.archive.XAResourceArchive;
+import org.bytesoft.transaction.common.XATerminator;
 import org.bytesoft.transaction.logger.TransactionLogger;
 import org.bytesoft.transaction.recovery.TransactionRecovery;
-import org.bytesoft.transaction.xa.XATerminator;
+import org.bytesoft.transaction.xa.TransactionXid;
 
 public class TransactionRecoveryImpl implements TransactionRecovery, TransactionBeanFactoryAware {
 

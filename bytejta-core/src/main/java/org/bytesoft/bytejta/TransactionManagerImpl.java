@@ -34,11 +34,11 @@ import javax.transaction.TransactionManager;
 import org.bytesoft.bytejta.aware.TransactionBeanFactoryAware;
 import org.bytesoft.bytejta.common.TransactionBeanFactory;
 import org.bytesoft.bytejta.common.TransactionRepository;
-import org.bytesoft.bytejta.common.TransactionXid;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.TransactionTimer;
+import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
 
 public class TransactionManagerImpl implements TransactionManager, TransactionTimer, TransactionBeanFactoryAware {
