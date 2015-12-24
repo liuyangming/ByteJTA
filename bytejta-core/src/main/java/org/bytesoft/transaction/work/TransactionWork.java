@@ -19,9 +19,9 @@ import javax.resource.spi.work.Work;
 
 import org.apache.log4j.Logger;
 import org.bytesoft.bytejta.aware.TransactionBeanFactoryAware;
-import org.bytesoft.bytejta.common.TransactionBeanFactory;
-import org.bytesoft.transaction.TransactionTimer;
-import org.bytesoft.transaction.recovery.TransactionRecovery;
+import org.bytesoft.transaction.TransactionBeanFactory;
+import org.bytesoft.transaction.TransactionRecovery;
+import org.bytesoft.transaction.supports.TransactionTimer;
 
 public class TransactionWork implements Work, TransactionBeanFactoryAware {
 	static final Logger logger = Logger.getLogger(TransactionWork.class.getSimpleName());

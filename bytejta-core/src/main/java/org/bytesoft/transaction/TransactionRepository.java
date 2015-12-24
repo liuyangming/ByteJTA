@@ -13,12 +13,28 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.bytejta.aware;
+package org.bytesoft.transaction;
 
-import org.bytesoft.transaction.TransactionBeanFactory;
+import java.util.List;
 
-public interface TransactionBeanFactoryAware {
+import org.bytesoft.transaction.xa.TransactionXid;
 
-	public void setBeanFactory(TransactionBeanFactory tbf);
+public interface TransactionRepository<T> {
+
+	public void putTransaction(TransactionXid xid, T transaction);
+
+	public T getTransaction(TransactionXid xid);
+
+	public T removeTransaction(TransactionXid xid);
+
+	public void putErrorTransaction(TransactionXid xid, T transaction);
+
+	public T getErrorTransaction(TransactionXid xid);
+
+	public T removeErrorTransaction(TransactionXid xid);
+
+	public List<T> getErrorTransactionList();
+
+	public List<T> getActiveTransactionList();
 
 }

@@ -22,7 +22,7 @@ import java.net.UnknownHostException;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.bytesoft.bytejta.utils.ByteUtils;
+import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
 

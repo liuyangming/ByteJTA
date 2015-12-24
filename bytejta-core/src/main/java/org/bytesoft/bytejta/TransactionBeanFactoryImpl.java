@@ -17,14 +17,14 @@ package org.bytesoft.bytejta;
 
 import javax.transaction.TransactionManager;
 
-import org.bytesoft.bytejta.common.TransactionBeanFactory;
-import org.bytesoft.bytejta.common.TransactionRepository;
 import org.bytesoft.bytejta.wire.TransactionManagerSkeleton;
-import org.bytesoft.transaction.TransactionTimer;
-import org.bytesoft.transaction.logger.TransactionLogger;
-import org.bytesoft.transaction.logger.TransactionLoggerProxy;
-import org.bytesoft.transaction.recovery.TransactionRecovery;
-import org.bytesoft.transaction.rpc.TransactionInterceptor;
+import org.bytesoft.transaction.TransactionBeanFactory;
+import org.bytesoft.transaction.TransactionRecovery;
+import org.bytesoft.transaction.TransactionRepository;
+import org.bytesoft.transaction.supports.TransactionTimer;
+import org.bytesoft.transaction.supports.logger.TransactionLogger;
+import org.bytesoft.transaction.supports.logger.TransactionLoggerProxy;
+import org.bytesoft.transaction.supports.rpc.TransactionInterceptor;
 import org.bytesoft.transaction.xa.XidFactory;
 
 public class TransactionBeanFactoryImpl implements TransactionBeanFactory {

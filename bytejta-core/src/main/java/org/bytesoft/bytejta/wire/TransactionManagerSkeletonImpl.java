@@ -25,10 +25,10 @@ import javax.transaction.xa.Xid;
 
 import org.bytesoft.bytejta.TransactionImpl;
 import org.bytesoft.bytejta.aware.TransactionBeanFactoryAware;
-import org.bytesoft.bytejta.common.TransactionBeanFactory;
-import org.bytesoft.bytejta.common.TransactionRepository;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
+import org.bytesoft.transaction.TransactionBeanFactory;
+import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.xa.TransactionXid;
 
 public class TransactionManagerSkeletonImpl implements TransactionBeanFactoryAware {

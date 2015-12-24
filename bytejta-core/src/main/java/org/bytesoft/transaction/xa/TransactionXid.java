@@ -20,7 +20,7 @@ import java.util.Arrays;
 
 import javax.transaction.xa.Xid;
 
-import org.bytesoft.bytejta.utils.ByteUtils;
+import org.bytesoft.common.utils.ByteUtils;
 
 public class TransactionXid implements Xid, Serializable {
 	private static final long serialVersionUID = 1L;

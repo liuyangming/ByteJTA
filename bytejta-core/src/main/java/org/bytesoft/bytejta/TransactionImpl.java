@@ -26,22 +26,22 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 
 import org.apache.log4j.Logger;
-import org.bytesoft.bytejta.common.TransactionBeanFactory;
-import org.bytesoft.bytejta.common.XATerminatorImpl;
-import org.bytesoft.bytejta.utils.ByteUtils;
-import org.bytesoft.bytejta.utils.CommonUtils;
+import org.bytesoft.bytejta.resource.XATerminatorImpl;
+import org.bytesoft.common.utils.ByteUtils;
+import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
+import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
-import org.bytesoft.transaction.TransactionListener;
-import org.bytesoft.transaction.TransactionTimer;
 import org.bytesoft.transaction.archive.TransactionArchive;
-import org.bytesoft.transaction.common.XAResourceDescriptor;
-import org.bytesoft.transaction.common.XATerminator;
 import org.bytesoft.transaction.internal.SynchronizationList;
 import org.bytesoft.transaction.internal.TransactionException;
 import org.bytesoft.transaction.internal.TransactionListenerList;
-import org.bytesoft.transaction.logger.TransactionLogger;
+import org.bytesoft.transaction.resource.XAResourceDescriptor;
+import org.bytesoft.transaction.resource.XATerminator;
+import org.bytesoft.transaction.supports.TransactionListener;
+import org.bytesoft.transaction.supports.TransactionTimer;
+import org.bytesoft.transaction.supports.logger.TransactionLogger;
 import org.bytesoft.transaction.xa.TransactionXid;
 
 public class TransactionImpl implements Transaction {

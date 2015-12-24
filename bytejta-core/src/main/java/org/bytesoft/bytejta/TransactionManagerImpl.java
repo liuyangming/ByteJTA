@@ -32,12 +32,12 @@ import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
 
 import org.bytesoft.bytejta.aware.TransactionBeanFactoryAware;
-import org.bytesoft.bytejta.common.TransactionBeanFactory;
-import org.bytesoft.bytejta.common.TransactionRepository;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
+import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
-import org.bytesoft.transaction.TransactionTimer;
+import org.bytesoft.transaction.TransactionRepository;
+import org.bytesoft.transaction.supports.TransactionTimer;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
 

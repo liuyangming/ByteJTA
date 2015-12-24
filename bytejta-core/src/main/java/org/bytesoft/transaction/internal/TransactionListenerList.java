@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.log4j.Logger;
-import org.bytesoft.transaction.TransactionListener;
+import org.bytesoft.transaction.supports.TransactionListener;
 
 public class TransactionListenerList implements TransactionListener {
 	static final Logger logger = Logger.getLogger(TransactionListenerList.class.getSimpleName());
