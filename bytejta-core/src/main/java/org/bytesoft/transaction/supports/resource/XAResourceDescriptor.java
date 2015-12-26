@@ -13,16 +13,14 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.transaction.supports.serialize;
+package org.bytesoft.transaction.supports.resource;
 
-import java.io.IOException;
+import javax.transaction.xa.XAResource;
 
-import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
+public interface XAResourceDescriptor extends XAResource {
 
-public interface XAResourceSerializer {
+	public String getIdentifier();
 
-	public String serialize(XAResourceDescriptor resource) throws IOException;
-
-	public XAResourceDescriptor deserialize(String identifier) throws IOException;
+	public void setTransactionTimeoutQuietly(int timeout);
 
 }

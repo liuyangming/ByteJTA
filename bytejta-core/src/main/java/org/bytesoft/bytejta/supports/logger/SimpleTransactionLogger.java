@@ -28,8 +28,8 @@ import org.bytesoft.bytejta.supports.store.SimpleTransactionStorageObject;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.archive.XAResourceArchive;
-import org.bytesoft.transaction.resource.XAResourceDescriptor;
 import org.bytesoft.transaction.supports.logger.TransactionLogger;
+import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 import org.bytesoft.transaction.supports.serialize.TransactionArchiveSerializer;
 import org.bytesoft.transaction.supports.serialize.XAResourceSerializer;
 import org.bytesoft.transaction.supports.store.TransactionStorageKey;
@@ -38,8 +38,7 @@ import org.bytesoft.transaction.supports.store.TransactionStorageObject;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
 
-public class SimpleTransactionLogger implements TransactionLogger, TransactionArchiveSerializer,
-		TransactionBeanFactoryAware {
+public class SimpleTransactionLogger implements TransactionLogger, TransactionArchiveSerializer, TransactionBeanFactoryAware {
 
 	private TransactionBeanFactory beanFactory;
 	private TransactionStorageManager storageManager;
@@ -64,28 +63,28 @@ public class SimpleTransactionLogger implements TransactionLogger, TransactionAr
 	private void registerResourceIfNecessary(TransactionArchive archive) {
 		List<XAResourceArchive> nativeResources = archive.getNativeResources();
 		for (int i = 0; i < nativeResources.size(); i++) {
-			XAResourceArchive resourceArchive = nativeResources.get(i);
-			XAResourceDescriptor descriptor = resourceArchive.getDescriptor();
-			if (/* descriptor.isSupportsXA() && */descriptor.getDescriptorId() <= 0) {
-				String identifier = descriptor.getIdentifier();
-				int descriptorId = this.storageManager.registerResource(identifier);
-				descriptor.setDescriptorId(descriptorId);
-			} else if (/* descriptor.isSupportsXA() == false && */descriptor.getDescriptorId() == 0) {
-				descriptor.setDescriptorId(-1);
-			}
+			// XAResourceArchive resourceArchive = nativeResources.get(i);
+			// XAResourceDescriptor descriptor = resourceArchive.getDescriptor();
+			// if (/* descriptor.isSupportsXA() && */descriptor.getDescriptorId() <= 0) {
+			// String identifier = descriptor.getIdentifier();
+			// int descriptorId = this.storageManager.registerResource(identifier);
+			// descriptor.setDescriptorId(descriptorId);
+			// } else if (/* descriptor.isSupportsXA() == false && */descriptor.getDescriptorId() == 0) {
+			// descriptor.setDescriptorId(-1);
+			// }
 		}
 
 		List<XAResourceArchive> remoteResources = archive.getRemoteResources();
 		for (int i = 0; i < remoteResources.size(); i++) {
-			XAResourceArchive resourceArchive = remoteResources.get(i);
-			XAResourceDescriptor descriptor = resourceArchive.getDescriptor();
-			if (/* descriptor.isSupportsXA() && */descriptor.getDescriptorId() <= 0) {
-				String identifier = descriptor.getIdentifier();
-				int descriptorId = this.storageManager.registerResource(identifier);
-				descriptor.setDescriptorId(descriptorId);
-			} else if (/* descriptor.isSupportsXA() == false && */descriptor.getDescriptorId() == 0) {
-				descriptor.setDescriptorId(-1);
-			}
+			// XAResourceArchive resourceArchive = remoteResources.get(i);
+			// XAResourceDescriptor descriptor = resourceArchive.getDescriptor();
+			// if (/* descriptor.isSupportsXA() && */descriptor.getDescriptorId() <= 0) {
+			// String identifier = descriptor.getIdentifier();
+			// int descriptorId = this.storageManager.registerResource(identifier);
+			// descriptor.setDescriptorId(descriptorId);
+			// } else if (/* descriptor.isSupportsXA() == false && */descriptor.getDescriptorId() == 0) {
+			// descriptor.setDescriptorId(-1);
+			// }
 		}
 	}
 
@@ -127,12 +126,8 @@ public class SimpleTransactionLogger implements TransactionLogger, TransactionAr
 		buffer.put((byte) status);
 		int vote = archive.getVote();
 		buffer.put((byte) vote);
-		byte compensable = archive.isCompensable() ? (byte) 1 : (byte) 0;
-		buffer.put((byte) compensable);
 		byte coordinator = archive.isCoordinator() ? (byte) 1 : (byte) 0;
 		buffer.put((byte) coordinator);
-		byte optimized = archive.isOptimized() ? (byte) 1 : (byte) 0;
-		buffer.put((byte) optimized);
 
 		List<XAResourceArchive> nativeResources = archive.getNativeResources();
 		List<XAResourceArchive> remoteResources = archive.getRemoteResources();
@@ -160,8 +155,8 @@ public class SimpleTransactionLogger implements TransactionLogger, TransactionAr
 	}
 
 	private void serializeXAResourceArchive(ByteBuffer buffer, XAResourceArchive resourceArchive) {
-		XAResourceDescriptor descriptor = resourceArchive.getDescriptor();
-		byte descriptorId = (byte) descriptor.getDescriptorId();
+		// XAResourceDescriptor descriptor = resourceArchive.getDescriptor();
+		byte descriptorId = -1; // TODO (byte) descriptor.getDescriptorId();
 		Xid branchXid = resourceArchive.getXid();
 
 		byte[] branchQualifier = branchXid.getBranchQualifier();
@@ -191,15 +186,11 @@ public class SimpleTransactionLogger implements TransactionLogger, TransactionAr
 
 		int status = buffer.get();
 		int vote = buffer.get();
-		int compensableValue = buffer.get();
 		int coordinatorValue = buffer.get();
-		int optimizedValue = buffer.get();
 
 		archive.setStatus(status);
 		archive.setVote(vote);
-		archive.setCompensable(compensableValue != 0);
 		archive.setCoordinator(coordinatorValue != 0);
-		archive.setOptimized(optimizedValue != 0);
 
 		int nativeNumber = buffer.get();
 		int remoteNumber = buffer.get();
@@ -241,14 +232,14 @@ public class SimpleTransactionLogger implements TransactionLogger, TransactionAr
 		if (descriptorId >= 0) {
 			String identifier = this.storageManager.getRegisteredResource(descriptorId);
 			XAResourceDescriptor descriptor = this.resourceSerializer.deserialize(identifier);
-			descriptor.setDescriptorId(descriptorId);
+			// descriptor.setDescriptorId(descriptorId);
 			resourceArchive.setDescriptor(descriptor);
 		} else {
-			XAResourceDescriptor descriptor = new XAResourceDescriptor();
-			descriptor.setRemote(false);
+			// XAResourceDescriptor descriptor = new XAResourceDescriptor();
+			// descriptor.setRemote(false);
 			// descriptor.setSupportsXA(false);
-			descriptor.setDescriptorId(descriptorId);
-			resourceArchive.setDescriptor(descriptor);
+			// descriptor.setDescriptorId(descriptorId);
+			// resourceArchive.setDescriptor(descriptor);
 		}
 
 		return resourceArchive;

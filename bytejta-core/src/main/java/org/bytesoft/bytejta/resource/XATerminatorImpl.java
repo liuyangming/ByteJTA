@@ -32,8 +32,8 @@ import org.bytesoft.transaction.RollbackRequiredException;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.archive.XAResourceArchive;
 import org.bytesoft.transaction.internal.TransactionException;
-import org.bytesoft.transaction.resource.XAResourceDescriptor;
 import org.bytesoft.transaction.resource.XATerminator;
+import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 import org.bytesoft.transaction.xa.TransactionXid;
 
 public class XATerminatorImpl implements XATerminator {

@@ -21,6 +21,7 @@ import javax.transaction.RollbackException;
 import javax.transaction.SystemException;
 
 import org.bytesoft.transaction.archive.XAResourceArchive;
+import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 
 public interface XATerminator extends javax.transaction.xa.XAResource {
 

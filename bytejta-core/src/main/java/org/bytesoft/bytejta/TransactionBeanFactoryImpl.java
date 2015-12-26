@@ -17,7 +17,7 @@ package org.bytesoft.bytejta;
 
 import javax.transaction.TransactionManager;
 
-import org.bytesoft.bytejta.wire.TransactionManagerSkeleton;
+import org.bytesoft.bytejta.supports.wire.TransactionManagerSkeleton;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionRecovery;
 import org.bytesoft.transaction.TransactionRepository;

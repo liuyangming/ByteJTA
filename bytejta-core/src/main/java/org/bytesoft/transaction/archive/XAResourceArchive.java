@@ -19,7 +19,7 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
-import org.bytesoft.transaction.resource.XAResourceDescriptor;
+import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 
 public class XAResourceArchive implements XAResource {
 

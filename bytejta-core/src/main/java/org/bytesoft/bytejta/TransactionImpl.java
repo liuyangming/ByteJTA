@@ -27,6 +27,9 @@ import javax.transaction.xa.XAResource;
 
 import org.apache.log4j.Logger;
 import org.bytesoft.bytejta.resource.XATerminatorImpl;
+import org.bytesoft.bytejta.supports.resource.GenericResourceDescriptor;
+import org.bytesoft.bytejta.supports.resource.UnresolvedResourceDescriptor;
+import org.bytesoft.bytejta.supports.wire.TransactionManagerStub;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.CommitRequiredException;
@@ -37,11 +40,11 @@ import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.internal.SynchronizationList;
 import org.bytesoft.transaction.internal.TransactionException;
 import org.bytesoft.transaction.internal.TransactionListenerList;
-import org.bytesoft.transaction.resource.XAResourceDescriptor;
 import org.bytesoft.transaction.resource.XATerminator;
 import org.bytesoft.transaction.supports.TransactionListener;
 import org.bytesoft.transaction.supports.TransactionTimer;
 import org.bytesoft.transaction.supports.logger.TransactionLogger;
+import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 import org.bytesoft.transaction.xa.TransactionXid;
 
 public class TransactionImpl implements Transaction {
@@ -65,8 +68,8 @@ public class TransactionImpl implements Transaction {
 		this.remoteTerminator = new XATerminatorImpl(this.transactionContext);
 	}
 
-	private synchronized void checkBeforeCommit() throws RollbackException, IllegalStateException,
-			RollbackRequiredException, CommitRequiredException {
+	private synchronized void checkBeforeCommit() throws RollbackException, IllegalStateException, RollbackRequiredException,
+			CommitRequiredException {
 
 		if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
 			throw new RollbackException();
@@ -177,9 +180,8 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	public synchronized void participantCommit() throws RollbackException, HeuristicMixedException,
-			HeuristicRollbackException, SecurityException, IllegalStateException, CommitRequiredException,
-			SystemException {
+	public synchronized void participantCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
+			SecurityException, IllegalStateException, CommitRequiredException, SystemException {
 
 		if (this.transactionStatus == Status.STATUS_ACTIVE) {
 			throw new IllegalStateException();
@@ -294,9 +296,8 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	private synchronized void delegateCommit() throws RollbackException, HeuristicMixedException,
-			HeuristicRollbackException, SecurityException, IllegalStateException, CommitRequiredException,
-			SystemException {
+	private synchronized void delegateCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
+			SecurityException, IllegalStateException, CommitRequiredException, SystemException {
 		// stop-timing
 		TransactionTimer transactionTimer = beanFactory.getTransactionTimer();
 		transactionTimer.stopTiming(this);
@@ -509,34 +510,25 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	public synchronized boolean delistResource(XAResource xaRes, int flag) throws IllegalStateException,
-			SystemException {
+	public synchronized boolean delistResource(XAResource xaRes, int flag) throws IllegalStateException, SystemException {
 		if (this.getStatus() != Status.STATUS_ACTIVE && this.getStatus() != Status.STATUS_MARKED_ROLLBACK) {
 			throw new IllegalStateException();
 		}
 
-		XAResourceDescriptor descriptor = null;
 		if (XAResourceDescriptor.class.isInstance(xaRes)) {
-			descriptor = (XAResourceDescriptor) xaRes;
+			XAResourceDescriptor descriptor = (XAResourceDescriptor) xaRes;
+			if (GenericResourceDescriptor.class.isInstance(xaRes)) {
+				return this.nativeTerminator.delistResource(descriptor, flag);
+			} else if (TransactionManagerStub.class.isInstance(xaRes)) {
+				return this.nativeTerminator.delistResource(descriptor, flag);
+			} else {
+				return this.remoteTerminator.delistResource(descriptor, flag);
+			}
 		} else {
-			descriptor = this.constructResourceDescriptor(xaRes);
-		}
-
-		if (descriptor.isRemote()) {
+			UnresolvedResourceDescriptor descriptor = new UnresolvedResourceDescriptor(xaRes);
 			return this.remoteTerminator.delistResource(descriptor, flag);
-		} else {
-			return this.nativeTerminator.delistResource(descriptor, flag);
 		}
 
-	}
-
-	private XAResourceDescriptor constructResourceDescriptor(XAResource xaRes) {
-		XAResourceDescriptor descriptor;
-		descriptor = new XAResourceDescriptor();
-		descriptor.setDelegate(xaRes);
-		descriptor.setRemote(false);
-		// descriptor.setSupportsXA(false);
-		return descriptor;
 	}
 
 	public synchronized boolean enlistResource(XAResource xaRes) throws RollbackException, IllegalStateException,
@@ -548,21 +540,24 @@ public class TransactionImpl implements Transaction {
 			throw new IllegalStateException();
 		}
 
-		XAResourceDescriptor descriptor = null;
 		if (XAResourceDescriptor.class.isInstance(xaRes)) {
-			descriptor = (XAResourceDescriptor) xaRes;
+			XAResourceDescriptor descriptor = (XAResourceDescriptor) xaRes;
+			descriptor.setTransactionTimeoutQuietly(this.transactionTimeout);
+
+			if (GenericResourceDescriptor.class.isInstance(xaRes)) {
+				// return this.enlistNativeResource(descriptor);
+				return this.nativeTerminator.enlistResource(descriptor);
+			} else if (TransactionManagerStub.class.isInstance(xaRes)) {
+				return this.nativeTerminator.enlistResource(descriptor);
+			} else {
+				return this.remoteTerminator.enlistResource(descriptor);
+			}
 		} else {
-			descriptor = this.constructResourceDescriptor(xaRes);
-		}
+			UnresolvedResourceDescriptor descriptor = new UnresolvedResourceDescriptor(xaRes);
+			descriptor.setTransactionTimeoutQuietly(this.transactionTimeout);
 
-		descriptor.setTransactionTimeoutQuietly(this.transactionTimeout);
-
-		if (descriptor.isRemote()) {
 			// return this.enlistRemoteResource(descriptor);
 			return this.remoteTerminator.enlistResource(descriptor);
-		} else {
-			// return this.enlistNativeResource(descriptor);
-			return this.nativeTerminator.enlistResource(descriptor);
 		}
 
 	}
@@ -571,8 +566,8 @@ public class TransactionImpl implements Transaction {
 		return this.transactionStatus;
 	}
 
-	public synchronized void registerSynchronization(Synchronization sync) throws RollbackException,
-			IllegalStateException, SystemException {
+	public synchronized void registerSynchronization(Synchronization sync) throws RollbackException, IllegalStateException,
+			SystemException {
 
 		if (this.getStatus() == Status.STATUS_MARKED_ROLLBACK) {
 			throw new RollbackException();
@@ -612,8 +607,7 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	private synchronized void delegateRollback() throws IllegalStateException, RollbackRequiredException,
-			SystemException {
+	private synchronized void delegateRollback() throws IllegalStateException, RollbackRequiredException, SystemException {
 		// stop-timing
 		TransactionTimer transactionTimer = beanFactory.getTransactionTimer();
 		transactionTimer.stopTiming(this);

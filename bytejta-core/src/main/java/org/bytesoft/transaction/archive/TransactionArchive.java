@@ -25,8 +25,6 @@ public class TransactionArchive {
 	private int status;
 	private int vote;
 	private boolean coordinator;
-	private boolean compensable;
-	private boolean optimized;
 	private final List<XAResourceArchive> nativeResources = new ArrayList<XAResourceArchive>();
 	private final List<XAResourceArchive> remoteResources = new ArrayList<XAResourceArchive>();
 
@@ -54,22 +52,6 @@ public class TransactionArchive {
 		this.vote = vote;
 	}
 
-	public List<XAResourceArchive> getNativeResources() {
-		return nativeResources;
-	}
-
-	public List<XAResourceArchive> getRemoteResources() {
-		return remoteResources;
-	}
-
-	public boolean isOptimized() {
-		return optimized;
-	}
-
-	public void setOptimized(boolean optimized) {
-		this.optimized = optimized;
-	}
-
 	public boolean isCoordinator() {
 		return coordinator;
 	}
@@ -78,12 +60,12 @@ public class TransactionArchive {
 		this.coordinator = coordinator;
 	}
 
-	public boolean isCompensable() {
-		return compensable;
+	public List<XAResourceArchive> getNativeResources() {
+		return nativeResources;
 	}
 
-	public void setCompensable(boolean compensable) {
-		this.compensable = compensable;
+	public List<XAResourceArchive> getRemoteResources() {
+		return remoteResources;
 	}
 
 }
