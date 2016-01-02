@@ -29,9 +29,11 @@ import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionRepository;
+import org.bytesoft.transaction.archive.TransactionArchive;
+import org.bytesoft.transaction.supports.logger.TransactionLogger;
 import org.bytesoft.transaction.xa.TransactionXid;
 
-public class TransactionManagerSkeletonImpl implements TransactionBeanFactoryAware {
+public class RemoteCoordinatorImpl implements TransactionBeanFactoryAware {
 	private TransactionBeanFactory beanFactory;
 
 	public void commit(Xid xid, boolean onePhase) throws XAException {
@@ -82,6 +84,23 @@ public class TransactionManagerSkeletonImpl implements TransactionBeanFactoryAwa
 	}
 
 	public void forget(Xid xid) throws XAException {
+		TransactionXid branchXid = (TransactionXid) xid;
+		TransactionXid globalXid = branchXid.getGlobalXid();
+		TransactionRepository<TransactionImpl> repository = beanFactory.getTransactionRepository();
+		TransactionImpl transaction = repository.getTransaction(globalXid);
+		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
+		if (transaction != null) {
+			try {
+				TransactionArchive archive = transaction.getTransactionArchive();
+				transactionLogger.deleteTransaction(archive);
+
+				repository.removeErrorTransaction(globalXid);
+				repository.removeTransaction(globalXid);
+			} catch (RuntimeException rex) {
+				// TODO
+				throw new XAException(XAException.XAER_RMERR);
+			}
+		}
 	}
 
 	public int getTransactionTimeout() throws XAException {
@@ -89,7 +108,7 @@ public class TransactionManagerSkeletonImpl implements TransactionBeanFactoryAwa
 	}
 
 	public boolean isSameRM(XAResource xares) throws XAException {
-		return false;
+		throw new XAException(XAException.XAER_RMERR);
 	}
 
 	public int prepare(Xid xid) throws XAException {
@@ -108,7 +127,7 @@ public class TransactionManagerSkeletonImpl implements TransactionBeanFactoryAwa
 	}
 
 	public Xid[] recover(int flag) throws XAException {
-		return null;
+		return null; // TODO
 	}
 
 	public void rollback(Xid xid) throws XAException {

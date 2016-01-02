@@ -18,30 +18,30 @@ package org.bytesoft.bytejta.supports.wire;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class TransactionManagerStubRegistry {
-	static final TransactionManagerStubRegistry instance = new TransactionManagerStubRegistry();
+public class RemoteCoordinatorRegistry {
+	static final RemoteCoordinatorRegistry instance = new RemoteCoordinatorRegistry();
 
-	private final Map<String, TransactionManagerStub> txManagerMap = new ConcurrentHashMap<String, TransactionManagerStub>();
+	private final Map<String, RemoteCoordinator> mappings = new ConcurrentHashMap<String, RemoteCoordinator>();
 
-	public void putTransactionManagerStub(String address, TransactionManagerStub stub) {
-		this.txManagerMap.put(address, stub);
+	public void putTransactionManagerStub(String address, RemoteCoordinator stub) {
+		this.mappings.put(address, stub);
 	}
 
-	public TransactionManagerStub getTransactionManagerStub(String address) {
-		return this.txManagerMap.get(address);
+	public RemoteCoordinator getTransactionManagerStub(String address) {
+		return this.mappings.get(address);
 	}
 
 	public void removeTransactionManagerStub(String address) {
-		this.txManagerMap.remove(address);
+		this.mappings.remove(address);
 	}
 
-	private TransactionManagerStubRegistry() {
+	private RemoteCoordinatorRegistry() {
 		if (instance != null) {
 			throw new IllegalStateException();
 		}
 	}
 
-	public static TransactionManagerStubRegistry getInstance() {
+	public static RemoteCoordinatorRegistry getInstance() {
 		return instance;
 	}
 

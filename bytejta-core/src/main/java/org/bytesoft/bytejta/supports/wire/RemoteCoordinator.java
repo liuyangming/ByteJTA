@@ -17,5 +17,5 @@ package org.bytesoft.bytejta.supports.wire;
 
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 
-public interface TransactionManagerStub extends XAResourceDescriptor {
+public interface RemoteCoordinator extends XAResourceDescriptor {
 }
