@@ -17,7 +17,7 @@ package org.bytesoft.transaction;
 
 import javax.transaction.TransactionManager;
 
-import org.bytesoft.bytejta.supports.wire.TransactionManagerSkeleton;
+import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.transaction.supports.TransactionTimer;
 import org.bytesoft.transaction.supports.logger.TransactionLogger;
 import org.bytesoft.transaction.supports.rpc.TransactionInterceptor;
@@ -37,7 +37,7 @@ public interface TransactionBeanFactory {
 
 	public TransactionRecovery getTransactionRecovery();
 
-	public TransactionManagerSkeleton getTransactionManagerSkeleton();
+	public RemoteCoordinator getNativeCoordinator();
 
 	public TransactionLogger getTransactionLogger();
 

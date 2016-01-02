@@ -33,8 +33,12 @@ import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.supports.logger.TransactionLogger;
 import org.bytesoft.transaction.xa.TransactionXid;
 
-public class RemoteCoordinatorImpl implements TransactionBeanFactoryAware {
+public class RemoteCoordinatorImpl implements RemoteCoordinator, TransactionBeanFactoryAware {
 	private TransactionBeanFactory beanFactory;
+
+	public String getIdentifier() {
+		return null;
+	}
 
 	public void commit(Xid xid, boolean onePhase) throws XAException {
 		TransactionXid branchXid = (TransactionXid) xid;
@@ -163,6 +167,9 @@ public class RemoteCoordinatorImpl implements TransactionBeanFactoryAware {
 
 	public boolean setTransactionTimeout(int seconds) throws XAException {
 		return false;
+	}
+
+	public void setTransactionTimeoutQuietly(int timeout) {
 	}
 
 	public void start(Xid xid, int flags) throws XAException {

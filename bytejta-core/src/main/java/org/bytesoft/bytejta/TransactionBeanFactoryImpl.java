@@ -17,7 +17,7 @@ package org.bytesoft.bytejta;
 
 import javax.transaction.TransactionManager;
 
-import org.bytesoft.bytejta.supports.wire.TransactionManagerSkeleton;
+import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionRecovery;
 import org.bytesoft.transaction.TransactionRepository;
@@ -35,7 +35,7 @@ public class TransactionBeanFactoryImpl implements TransactionBeanFactory {
 	private TransactionRepository<TransactionImpl> transactionRepository;
 	private TransactionInterceptor transactionInterceptor;
 	private TransactionRecovery transactionRecovery;
-	private TransactionManagerSkeleton transactionManagerSkeleton;
+	private RemoteCoordinator nativeCoordinator;
 
 	public void setTransactionLogger(TransactionLogger transactionLogger) {
 		this.transactionLogger.setDelegate(transactionLogger);
@@ -90,12 +90,12 @@ public class TransactionBeanFactoryImpl implements TransactionBeanFactory {
 		this.transactionRecovery = transactionRecovery;
 	}
 
-	public TransactionManagerSkeleton getTransactionManagerSkeleton() {
-		return transactionManagerSkeleton;
+	public RemoteCoordinator getNativeCoordinator() {
+		return nativeCoordinator;
 	}
 
-	public void setTransactionManagerSkeleton(TransactionManagerSkeleton transactionManagerSkeleton) {
-		this.transactionManagerSkeleton = transactionManagerSkeleton;
+	public void setNativeCoordinator(RemoteCoordinator nativeCoordinator) {
+		this.nativeCoordinator = nativeCoordinator;
 	}
 
 	public TransactionLoggerProxy getTransactionLogger() {

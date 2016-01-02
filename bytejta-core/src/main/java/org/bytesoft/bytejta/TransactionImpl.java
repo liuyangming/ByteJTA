@@ -29,7 +29,7 @@ import org.apache.log4j.Logger;
 import org.bytesoft.bytejta.resource.XATerminatorImpl;
 import org.bytesoft.bytejta.supports.resource.GenericResourceDescriptor;
 import org.bytesoft.bytejta.supports.resource.UnresolvedResourceDescriptor;
-import org.bytesoft.bytejta.supports.wire.TransactionManagerStub;
+import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.CommitRequiredException;
@@ -519,7 +519,7 @@ public class TransactionImpl implements Transaction {
 			XAResourceDescriptor descriptor = (XAResourceDescriptor) xaRes;
 			if (GenericResourceDescriptor.class.isInstance(xaRes)) {
 				return this.nativeTerminator.delistResource(descriptor, flag);
-			} else if (TransactionManagerStub.class.isInstance(xaRes)) {
+			} else if (RemoteCoordinator.class.isInstance(xaRes)) {
 				return this.nativeTerminator.delistResource(descriptor, flag);
 			} else {
 				return this.remoteTerminator.delistResource(descriptor, flag);
@@ -547,7 +547,7 @@ public class TransactionImpl implements Transaction {
 			if (GenericResourceDescriptor.class.isInstance(xaRes)) {
 				// return this.enlistNativeResource(descriptor);
 				return this.nativeTerminator.enlistResource(descriptor);
-			} else if (TransactionManagerStub.class.isInstance(xaRes)) {
+			} else if (RemoteCoordinator.class.isInstance(xaRes)) {
 				return this.nativeTerminator.enlistResource(descriptor);
 			} else {
 				return this.remoteTerminator.enlistResource(descriptor);
