@@ -21,17 +21,10 @@ import javax.transaction.xa.Xid;
 
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 
-public class UnresolvedResourceDescriptor implements XAResourceDescriptor {
+public class RemoteResourceDescriptor implements XAResourceDescriptor {
 
 	private XAResource delegate;
-
-	public UnresolvedResourceDescriptor(XAResource xares) {
-		this.delegate = xares;
-	}
-
-	public String getIdentifier() {
-		return null;
-	}
+	private String identifier;
 
 	public void setTransactionTimeoutQuietly(int timeout) {
 		try {
@@ -79,6 +72,22 @@ public class UnresolvedResourceDescriptor implements XAResourceDescriptor {
 
 	public void start(Xid arg0, int arg1) throws XAException {
 		delegate.start(arg0, arg1);
+	}
+
+	public XAResource getDelegate() {
+		return delegate;
+	}
+
+	public void setDelegate(XAResource delegate) {
+		this.delegate = delegate;
+	}
+
+	public String getIdentifier() {
+		return identifier;
+	}
+
+	public void setIdentifier(String identifier) {
+		this.identifier = identifier;
 	}
 
 }

@@ -15,7 +15,7 @@
  */
 package org.bytesoft.bytejta.supports.wire;
 
-import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
+import javax.transaction.xa.XAResource;
 
-public interface RemoteCoordinator extends XAResourceDescriptor {
+public interface RemoteCoordinator extends XAResource {
 }

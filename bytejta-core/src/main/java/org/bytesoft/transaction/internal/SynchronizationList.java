@@ -18,15 +18,12 @@ package org.bytesoft.transaction.internal;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.transaction.RollbackException;
 import javax.transaction.Synchronization;
-import javax.transaction.SystemException;
 
 public class SynchronizationList implements Synchronization {
 	private final List<Synchronization> synchronizations = new ArrayList<Synchronization>();
 
-	public synchronized void registerSynchronization(Synchronization sync) throws RollbackException, IllegalStateException,
-			SystemException {
+	public synchronized void registerSynchronizationQuietly(Synchronization sync) {
 		SynchronizationImpl synchronization = new SynchronizationImpl(sync);
 		this.synchronizations.add(synchronization);
 	}
