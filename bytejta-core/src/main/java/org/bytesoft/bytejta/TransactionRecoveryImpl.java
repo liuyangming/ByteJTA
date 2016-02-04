@@ -60,7 +60,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		TransactionContext transactionContext = transaction.getTransactionContext();
 		boolean coordinator = transactionContext.isCoordinator();
 		if (coordinator) {
-			int status = transaction.getStatus();
+			int status = transaction.getTransactionStatus();
 			switch (status) {
 			case Status.STATUS_ACTIVE:
 			case Status.STATUS_MARKED_ROLLBACK:

@@ -28,14 +28,14 @@ import javax.transaction.NotSupportedException;
 import javax.transaction.RollbackException;
 import javax.transaction.Status;
 import javax.transaction.SystemException;
-import javax.transaction.Transaction;
-import javax.transaction.TransactionManager;
 
 import org.bytesoft.bytejta.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
+import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
+import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.supports.TransactionTimer;
 import org.bytesoft.transaction.xa.TransactionXid;
@@ -139,14 +139,14 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		TransactionImpl transaction = this.associateds.remove(Thread.currentThread());
 		if (transaction == null) {
 			throw new IllegalStateException();
-		} else if (transaction.getStatus() == Status.STATUS_ROLLEDBACK) {
+		} else if (transaction.getTransactionStatus() == Status.STATUS_ROLLEDBACK) {
 			throw new RollbackException();
-		} else if (transaction.getStatus() == Status.STATUS_COMMITTED) {
+		} else if (transaction.getTransactionStatus() == Status.STATUS_COMMITTED) {
 			return;
-		} else if (transaction.getStatus() == Status.STATUS_MARKED_ROLLBACK) {
+		} else if (transaction.getTransactionStatus() == Status.STATUS_MARKED_ROLLBACK) {
 			this.rollback();
 			throw new HeuristicRollbackException();
-		} else if (transaction.getStatus() != Status.STATUS_ACTIVE) {
+		} else if (transaction.getTransactionStatus() != Status.STATUS_ACTIVE) {
 			throw new IllegalStateException();
 		}
 
@@ -182,13 +182,15 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 
 	public int getStatus() throws SystemException {
 		Transaction transaction = this.getTransaction();
-		return transaction == null ? Status.STATUS_NO_TRANSACTION : transaction.getStatus();
+		return transaction == null ? Status.STATUS_NO_TRANSACTION : transaction.getTransactionStatus();
 	}
 
-	public TransactionImpl getCurrentTransaction() {
+	public Transaction getTransactionQuietly() {
 		try {
 			return this.getTransaction();
-		} catch (Exception ex) {
+		} catch (SystemException ex) {
+			return null;
+		} catch (RuntimeException ex) {
 			return null;
 		}
 	}
@@ -197,7 +199,8 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		return this.associateds.get(Thread.currentThread());
 	}
 
-	public void resume(Transaction tobj) throws InvalidTransactionException, IllegalStateException, SystemException {
+	public void resume(javax.transaction.Transaction tobj) throws InvalidTransactionException, IllegalStateException,
+			SystemException {
 
 		if (TransactionImpl.class.isInstance(tobj) == false) {
 			throw new InvalidTransactionException();
@@ -216,9 +219,9 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		TransactionImpl transaction = this.associateds.remove(Thread.currentThread());
 		if (transaction == null) {
 			throw new IllegalStateException();
-		} else if (transaction.getStatus() == Status.STATUS_ROLLEDBACK) {
+		} else if (transaction.getTransactionStatus() == Status.STATUS_ROLLEDBACK) {
 			return;
-		} else if (transaction.getStatus() == Status.STATUS_COMMITTED) {
+		} else if (transaction.getTransactionStatus() == Status.STATUS_COMMITTED) {
 			throw new SystemException();
 		}
 
@@ -274,7 +277,7 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		}
 	}
 
-	public TransactionImpl suspend() throws SystemException {
+	public Transaction suspend() throws SystemException {
 		TransactionImpl transaction = this.associateds.remove(Thread.currentThread());
 		transaction.suspend();
 		return transaction;
@@ -301,8 +304,8 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		Iterator<TransactionImpl> expiredItr = expiredTransactions.iterator();
 		while (activeItr.hasNext()) {
 			TransactionImpl transaction = expiredItr.next();
-			if (transaction.getStatus() == Status.STATUS_ACTIVE
-					|| transaction.getStatus() == Status.STATUS_MARKED_ROLLBACK) {
+			if (transaction.getTransactionStatus() == Status.STATUS_ACTIVE
+					|| transaction.getTransactionStatus() == Status.STATUS_MARKED_ROLLBACK) {
 				TransactionContext transactionContext = transaction.getTransactionContext();
 				TransactionXid globalXid = transactionContext.getXid();
 				TransactionRepository<TransactionImpl> transactionRepository = this.beanFactory

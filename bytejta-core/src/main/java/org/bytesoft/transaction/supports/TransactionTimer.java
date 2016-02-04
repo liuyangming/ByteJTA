@@ -15,7 +15,7 @@
  */
 package org.bytesoft.transaction.supports;
 
-import javax.transaction.Transaction;
+import org.bytesoft.transaction.Transaction;
 
 public interface TransactionTimer {
 

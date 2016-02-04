@@ -1,5 +1,5 @@
 /**
- * Copyright 2014-2015 yangming.liu<liuyangming@gmail.com>.
+ * Copyright 2014-2016 yangming.liu<liuyangming@gmail.com>.
  *
  * This copyrighted material is made available to anyone wishing to use, modify,
  * copy, or redistribute it subject to the terms and conditions of the GNU
@@ -13,12 +13,16 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.bytejta.supports.wire;
+package org.bytesoft.transaction;
 
-import javax.transaction.xa.XAResource;
+import javax.transaction.SystemException;
 
-public interface RemoteCoordinator extends XAResource {
+public interface TransactionManager extends javax.transaction.TransactionManager {
 
-	public String getIdentifier();
+	public Transaction getTransactionQuietly();
+
+	public Transaction getTransaction() throws SystemException;
+
+	public Transaction suspend() throws SystemException;
 
 }

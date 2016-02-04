@@ -24,12 +24,12 @@ import javax.resource.spi.ManagedConnection;
 import javax.resource.spi.ManagedConnectionFactory;
 import javax.sql.XADataSource;
 
-public class ManagedConnectionFactoryInterceptor implements InvocationHandler {
+public class ManagedConnectionFactoryHandler implements InvocationHandler {
 
 	private final Object delegate;
 	private String identifier;
 
-	public ManagedConnectionFactoryInterceptor(Object xads) {
+	public ManagedConnectionFactoryHandler(Object xads) {
 		this.delegate = xads;
 	}
 
@@ -52,7 +52,7 @@ public class ManagedConnectionFactoryInterceptor implements InvocationHandler {
 		}
 
 		if (XADataSource.class.equals(declaringClass) && javax.sql.XAConnection.class.equals(returningClass)) {
-			ManagedConnectionInterceptor interceptor = new ManagedConnectionInterceptor(resultObject);
+			ManagedConnectionHandler interceptor = new ManagedConnectionHandler(resultObject);
 			interceptor.setIdentifier(this.identifier);
 
 			Object finalObject = null;
@@ -65,8 +65,9 @@ public class ManagedConnectionFactoryInterceptor implements InvocationHandler {
 				finalObject = Proxy.newProxyInstance(cl, interfaceArray, interceptor);
 			}
 			return (javax.sql.XAConnection) finalObject;
-		} else if (XAConnectionFactory.class.equals(declaringClass) && javax.jms.XAConnection.class.equals(returningClass)) {
-			ManagedConnectionInterceptor interceptor = new ManagedConnectionInterceptor(resultObject);
+		} else if (XAConnectionFactory.class.equals(declaringClass)
+				&& javax.jms.XAConnection.class.equals(returningClass)) {
+			ManagedConnectionHandler interceptor = new ManagedConnectionHandler(resultObject);
 			interceptor.setIdentifier(this.identifier);
 
 			Object finalObject = null;
@@ -79,8 +80,9 @@ public class ManagedConnectionFactoryInterceptor implements InvocationHandler {
 				finalObject = Proxy.newProxyInstance(cl, interfaceArray, interceptor);
 			}
 			return (javax.jms.XAConnection) finalObject;
-		} else if (ManagedConnectionFactory.class.equals(declaringClass) && ManagedConnection.class.equals(returningClass)) {
-			ManagedConnectionInterceptor interceptor = new ManagedConnectionInterceptor(resultObject);
+		} else if (ManagedConnectionFactory.class.equals(declaringClass)
+				&& ManagedConnection.class.equals(returningClass)) {
+			ManagedConnectionHandler interceptor = new ManagedConnectionHandler(resultObject);
 			interceptor.setIdentifier(this.identifier);
 
 			Object finalObject = null;

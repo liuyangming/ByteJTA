@@ -21,14 +21,14 @@ import java.lang.reflect.Method;
 import javax.resource.spi.ManagedConnection;
 import javax.transaction.xa.XAResource;
 
-import org.bytesoft.transaction.xa.XAResourceDescriptor;
+import org.bytesoft.bytejta.supports.resource.CommonResourceDescriptor;
 
-public class ManagedConnectionInterceptor implements InvocationHandler {
+public class ManagedConnectionHandler implements InvocationHandler {
 
 	private final Object delegate;
 	private String identifier;
 
-	public ManagedConnectionInterceptor(Object managed) {
+	public ManagedConnectionHandler(Object managed) {
 		this.delegate = managed;
 	}
 
@@ -50,11 +50,9 @@ public class ManagedConnectionInterceptor implements InvocationHandler {
 	}
 
 	private XAResource createProxyResource(XAResource xares) {
-		XAResourceDescriptor descriptor = new XAResourceDescriptor();
+		CommonResourceDescriptor descriptor = new CommonResourceDescriptor();
 		descriptor.setIdentifier(this.identifier);
 		descriptor.setDelegate(xares);
-		descriptor.setRemote(false);
-		descriptor.setSupportsXA(true);
 		return descriptor;
 	}
 

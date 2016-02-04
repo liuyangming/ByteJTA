@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.transaction.supports.spring;
+package org.bytesoft.transaction.supports.serialize;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -24,9 +24,10 @@ import javax.sql.XAConnection;
 import javax.sql.XADataSource;
 import javax.transaction.xa.XAResource;
 
-import org.bytesoft.transaction.rpc.TransactionResource;
-import org.bytesoft.transaction.serialize.XAResourceSerializer;
-import org.bytesoft.transaction.xa.XAResourceDescriptor;
+import org.bytesoft.bytejta.supports.resource.CommonResourceDescriptor;
+import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
+import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
+import org.bytesoft.transaction.supports.serialize.XAResourceSerializer;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -35,7 +36,7 @@ public abstract class AbstractXAResourceSerializer implements XAResourceSerializ
 	private static Pattern pattern = Pattern.compile("^[^:]+\\s*:\\s*\\d+$");
 	private ApplicationContext applicationContext;
 
-	public abstract TransactionResource deserializeTransactionResource(String identifier) throws IOException;
+	public abstract XAResourceDescriptor deserializeTransactionResource(String identifier) throws IOException;
 
 	public XAResourceDescriptor deserialize(String identifier) throws IOException {
 		Object bean = null;
@@ -54,22 +55,18 @@ public abstract class AbstractXAResourceSerializer implements XAResourceSerializ
 				XADataSource xaDataSource = (XADataSource) bean;
 				XAConnection xaConnection = xaDataSource.getXAConnection();
 				XAResource xaResource = xaConnection.getXAResource();
-				XAResourceDescriptor descriptor = new XAResourceDescriptor();
+				CommonResourceDescriptor descriptor = new CommonResourceDescriptor();
 				descriptor.setIdentifier(identifier);
 				descriptor.setDelegate(xaResource);
-				descriptor.setRemote(false);
-				descriptor.setSupportsXA(true);
 				return descriptor;
 			} catch (SQLException ex) {
 				throw new IOException(ex);
 			}
-		} else if (bean != null && TransactionResource.class.isInstance(bean)) {
-			TransactionResource resource = (TransactionResource) bean;
-			XAResourceDescriptor descriptor = new XAResourceDescriptor();
+		} else if (bean != null && XAResourceDescriptor.class.isInstance(bean)) {
+			XAResourceDescriptor resource = (XAResourceDescriptor) bean;
+			RemoteResourceDescriptor descriptor = new RemoteResourceDescriptor();
 			descriptor.setDelegate(resource);
 			descriptor.setIdentifier(resource.getIdentifier());
-			descriptor.setRemote(true);
-			descriptor.setSupportsXA(true);
 			return descriptor;
 		}
 		throw new IllegalStateException();

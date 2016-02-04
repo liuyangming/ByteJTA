@@ -36,6 +36,11 @@ import org.bytesoft.transaction.xa.TransactionXid;
 public class RemoteCoordinatorImpl implements RemoteCoordinator, TransactionBeanFactoryAware {
 	private TransactionBeanFactory beanFactory;
 
+	public String getIdentifier() {
+		// TODO
+		return null;
+	}
+
 	public void commit(Xid xid, boolean onePhase) throws XAException {
 		TransactionXid branchXid = (TransactionXid) xid;
 		TransactionXid globalXid = branchXid.getGlobalXid();

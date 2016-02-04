@@ -18,7 +18,7 @@
 		<dependency>
 			<groupId>org.bytesoft</groupId>
 			<artifactId>bytejta-core</artifactId>
-			<version>0.2.0-alpha</version>
+			<version>0.2.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.bytesoft</groupId>

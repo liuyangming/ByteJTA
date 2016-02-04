@@ -13,15 +13,15 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.transaction.supports.spring;
+package org.bytesoft.transaction.supports.serialize;
 
 import java.io.IOException;
 
-import org.bytesoft.transaction.rpc.TransactionResource;
+import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 
 public class XAResourceSerializerImpl extends AbstractXAResourceSerializer {
 
-	public TransactionResource deserializeTransactionResource(String identifier) throws IOException {
+	public XAResourceDescriptor deserializeTransactionResource(String identifier) throws IOException {
 		throw new IOException("Not supported yet!");
 	}
 

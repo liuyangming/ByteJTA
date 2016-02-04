@@ -15,50 +15,41 @@
  */
 package org.bytesoft.transaction.supports.rpc;
 
-import javax.transaction.NotSupportedException;
 import javax.transaction.RollbackException;
 import javax.transaction.SystemException;
 import javax.transaction.xa.XAResource;
 
 import org.apache.log4j.Logger;
-import org.bytesoft.bytejta.TransactionImpl;
-import org.bytesoft.bytejta.TransactionManagerImpl;
-import org.bytesoft.bytejta.common.TransactionConfigurator;
+import org.bytesoft.bytejta.aware.TransactionBeanFactoryAware;
+import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
+import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
+import org.bytesoft.transaction.Transaction;
+import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
-import org.bytesoft.transaction.rpc.TransactionInterceptor;
-import org.bytesoft.transaction.rpc.TransactionRequest;
-import org.bytesoft.transaction.rpc.TransactionResource;
-import org.bytesoft.transaction.rpc.TransactionResponse;
+import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.xa.TransactionXid;
-import org.bytesoft.transaction.xa.XAResourceDescriptor;
 
-public class TransactionInterceptorImpl implements TransactionInterceptor {
+public class TransactionInterceptorImpl implements TransactionInterceptor, TransactionBeanFactoryAware {
 	static final Logger logger = Logger.getLogger(TransactionInterceptorImpl.class.getSimpleName());
+	private TransactionBeanFactory transactionBeanFactory;
 
 	public void beforeSendRequest(TransactionRequest request) throws IllegalStateException {
-		TransactionConfigurator transactionConfigurator = TransactionConfigurator.getInstance();
-		TransactionManagerImpl transactionManager = transactionConfigurator.getTransactionManager();
-		TransactionImpl transaction = transactionManager.getCurrentTransaction();
+		TransactionManager transactionManager = this.transactionBeanFactory.getTransactionManager();
+		Transaction transaction = transactionManager.getTransactionQuietly();
 		if (transaction != null) {
 			TransactionContext srcTransactionContext = transaction.getTransactionContext();
 			TransactionContext transactionContext = srcTransactionContext.clone();
-			TransactionXid currentXid = srcTransactionContext.getCurrentXid();
+			TransactionXid currentXid = srcTransactionContext.getXid();
 			TransactionXid globalXid = currentXid.getGlobalXid();
-			transactionContext.setCurrentXid(globalXid);
-			byte[] bytes = currentXid.getBranchQualifier();
-			TransactionCredential credential = new TransactionCredential(bytes);
-			transactionContext.setPropagated(credential);
+			transactionContext.setXid(globalXid);
 			request.setTransactionContext(transactionContext);
 
 			try {
-				TransactionResource resource = request.getTransactionResource();
-				boolean supportXA = transactionContext.isNonxaResourceAllowed();
+				RemoteCoordinator resource = request.getTargetTransactionCoordinator();
 
-				XAResourceDescriptor descriptor = new XAResourceDescriptor();
+				RemoteResourceDescriptor descriptor = new RemoteResourceDescriptor();
 				descriptor.setDelegate(resource);
 				descriptor.setIdentifier(resource.getIdentifier());
-				descriptor.setRemote(true);
-				descriptor.setSupportsXA(supportXA);
 
 				transaction.enlistResource(descriptor);
 			} catch (IllegalStateException ex) {
@@ -76,9 +67,8 @@ public class TransactionInterceptorImpl implements TransactionInterceptor {
 	}
 
 	public void beforeSendResponse(TransactionResponse response) throws IllegalStateException {
-		TransactionConfigurator transactionConfigurator = TransactionConfigurator.getInstance();
-		TransactionManagerImpl transactionManager = transactionConfigurator.getTransactionManager();
-		TransactionImpl transaction = transactionManager.getCurrentTransaction();
+		TransactionManager transactionManager = this.transactionBeanFactory.getTransactionManager();
+		Transaction transaction = transactionManager.getTransactionQuietly();
 		if (transaction != null) {
 			TransactionContext srcTransactionContext = transaction.getTransactionContext();
 			TransactionContext transactionContext = srcTransactionContext.clone();
@@ -88,69 +78,56 @@ public class TransactionInterceptorImpl implements TransactionInterceptor {
 
 	public void afterReceiveRequest(TransactionRequest request) throws IllegalStateException {
 
-		TransactionConfigurator transactionConfigurator = TransactionConfigurator.getInstance();
-		TransactionManagerImpl transactionManager = transactionConfigurator.getTransactionManager();
+		// TransactionManager transactionManager = this.transactionBeanFactory.getTransactionManager();
 
 		TransactionContext srcTransactionContext = request.getTransactionContext();
 		if (srcTransactionContext != null) {
-			TransactionContext transactionContext = srcTransactionContext.clone();
-			try {
-				transactionManager.propagationBegin(transactionContext);
-			} catch (SystemException ex) {
-				IllegalStateException exception = new IllegalStateException();
-				exception.initCause(ex);
-				throw exception;
-			} catch (NotSupportedException ex) {
-				IllegalStateException exception = new IllegalStateException();
-				exception.initCause(ex);
-				throw exception;
-			}
+			// TransactionContext transactionContext = srcTransactionContext.clone();
+			// try {
+			// transactionManager.propagationBegin(transactionContext);
+			// } catch (SystemException ex) {
+			// IllegalStateException exception = new IllegalStateException();
+			// exception.initCause(ex);
+			// throw exception;
+			// } catch (NotSupportedException ex) {
+			// IllegalStateException exception = new IllegalStateException();
+			// exception.initCause(ex);
+			// throw exception;
+			// }
 		}
 	}
 
 	public void afterReceiveResponse(TransactionResponse response) throws IllegalStateException {
 
-		TransactionConfigurator transactionConfigurator = TransactionConfigurator.getInstance();
-		TransactionManagerImpl transactionManager = transactionConfigurator.getTransactionManager();
-		TransactionImpl transaction = transactionManager.getCurrentTransaction();
+		TransactionManager transactionManager = this.transactionBeanFactory.getTransactionManager();
+		Transaction transaction = transactionManager.getTransactionQuietly();
 		if (transaction != null) {
-			TransactionContext nativeTransactionContext = transaction.getTransactionContext();
+			// TransactionContext nativeTransactionContext = transaction.getTransactionContext();
 			TransactionContext remoteTransactionContext = response.getTransactionContext();
 			if (remoteTransactionContext != null) {
 
-				TransactionXid currentXid = nativeTransactionContext.getCurrentXid();
-				byte[] bytes = currentXid.getBranchQualifier();
-				Object nativeCredential = new TransactionCredential(bytes);
-				Object remoteCredential = remoteTransactionContext.getPropagated();
+				try {
+					RemoteCoordinator resource = response.getSourceTransactionCoordinator();
 
-				if (nativeCredential.equals(remoteCredential)) {
-					try {
-						TransactionResource resource = response.getTransactionResource();
-						boolean nativeAllowedNonxaResource = nativeTransactionContext.isNonxaResourceAllowed();
-						boolean remoteAllowedNonxaResource = remoteTransactionContext.isNonxaResourceAllowed();
-						if (nativeAllowedNonxaResource && remoteAllowedNonxaResource == false) {
-							nativeTransactionContext.setNonxaResourceAllowed(false);
-						}
-						boolean supportXA = remoteAllowedNonxaResource;
+					RemoteResourceDescriptor descriptor = new RemoteResourceDescriptor();
+					descriptor.setDelegate(resource);
+					descriptor.setIdentifier(resource.getIdentifier());
 
-						XAResourceDescriptor descriptor = new XAResourceDescriptor();
-						descriptor.setDelegate(resource);
-						descriptor.setIdentifier(resource.getIdentifier());
-						descriptor.setRemote(true);
-						descriptor.setSupportsXA(supportXA);
-
-						transaction.delistResource(descriptor, XAResource.TMSUCCESS);
-					} catch (IllegalStateException ex) {
-						logger.error("TransactionInterceptorImpl.afterReceiveResponse(TransactionRequest)", ex);
-						throw ex;
-					} catch (SystemException ex) {
-						logger.error("TransactionInterceptorImpl.afterReceiveResponse(TransactionRequest)", ex);
-						throw new IllegalStateException(ex);
-					}
+					transaction.delistResource(descriptor, XAResource.TMSUCCESS);
+				} catch (IllegalStateException ex) {
+					logger.error("TransactionInterceptorImpl.afterReceiveResponse(TransactionRequest)", ex);
+					throw ex;
+				} catch (SystemException ex) {
+					logger.error("TransactionInterceptorImpl.afterReceiveResponse(TransactionRequest)", ex);
+					throw new IllegalStateException(ex);
 				}
 			}
 		}// end-if(transaction!=null)
 
+	}
+
+	public void setBeanFactory(TransactionBeanFactory tbf) {
+		this.transactionBeanFactory = tbf;
 	}
 
 }

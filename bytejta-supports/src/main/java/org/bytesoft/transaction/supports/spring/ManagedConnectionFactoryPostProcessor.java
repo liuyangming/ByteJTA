@@ -21,11 +21,11 @@ import javax.jms.XAConnectionFactory;
 import javax.resource.spi.ManagedConnectionFactory;
 import javax.sql.XADataSource;
 
-import org.bytesoft.transaction.supports.resource.ManagedConnectionFactoryInterceptor;
+import org.bytesoft.transaction.supports.resource.ManagedConnectionFactoryHandler;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 
-public class ManagedConnectionFactoryProcessor implements BeanPostProcessor {
+public class ManagedConnectionFactoryPostProcessor implements BeanPostProcessor {
 
 	public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
 		return bean;
@@ -39,15 +39,15 @@ public class ManagedConnectionFactoryProcessor implements BeanPostProcessor {
 		Class<?>[] interfaces = clazz.getInterfaces();
 
 		if (XADataSource.class.isInstance(bean)) {
-			ManagedConnectionFactoryInterceptor interceptor = new ManagedConnectionFactoryInterceptor(bean);
+			ManagedConnectionFactoryHandler interceptor = new ManagedConnectionFactoryHandler(bean);
 			interceptor.setIdentifier(beanName);
 			return Proxy.newProxyInstance(cl, interfaces, interceptor);
 		} else if (XAConnectionFactory.class.isInstance(bean)) {
-			ManagedConnectionFactoryInterceptor interceptor = new ManagedConnectionFactoryInterceptor(bean);
+			ManagedConnectionFactoryHandler interceptor = new ManagedConnectionFactoryHandler(bean);
 			interceptor.setIdentifier(beanName);
 			return Proxy.newProxyInstance(cl, interfaces, interceptor);
 		} else if (ManagedConnectionFactory.class.isInstance(bean)) {
-			ManagedConnectionFactoryInterceptor interceptor = new ManagedConnectionFactoryInterceptor(bean);
+			ManagedConnectionFactoryHandler interceptor = new ManagedConnectionFactoryHandler(bean);
 			interceptor.setIdentifier(beanName);
 			return Proxy.newProxyInstance(cl, interfaces, interceptor);
 		} else {

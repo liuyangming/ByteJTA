@@ -15,8 +15,6 @@
  */
 package org.bytesoft.transaction;
 
-import javax.transaction.TransactionManager;
-
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.transaction.supports.TransactionTimer;
 import org.bytesoft.transaction.supports.logger.TransactionLogger;

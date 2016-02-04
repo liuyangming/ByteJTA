@@ -15,13 +15,12 @@
  */
 package org.bytesoft.transaction.supports.rpc;
 
-import javax.transaction.xa.XAResource;
-
+import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.transaction.TransactionContext;
 
 public interface TransactionResponse {
 
-	public XAResource getSourceTransactionalResource();
+	public RemoteCoordinator getSourceTransactionCoordinator();
 
 	public TransactionContext getTransactionContext();
 

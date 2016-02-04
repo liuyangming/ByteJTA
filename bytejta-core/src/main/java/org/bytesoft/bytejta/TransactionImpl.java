@@ -21,7 +21,6 @@ import javax.transaction.RollbackException;
 import javax.transaction.Status;
 import javax.transaction.Synchronization;
 import javax.transaction.SystemException;
-import javax.transaction.Transaction;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 
@@ -34,6 +33,7 @@ import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
+import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.archive.TransactionArchive;
@@ -516,7 +516,7 @@ public class TransactionImpl implements Transaction {
 
 	public synchronized boolean delistResource(XAResource xaRes, int flag) throws IllegalStateException,
 			SystemException {
-		if (this.getStatus() != Status.STATUS_ACTIVE && this.getStatus() != Status.STATUS_MARKED_ROLLBACK) {
+		if (this.transactionStatus != Status.STATUS_ACTIVE && this.transactionStatus != Status.STATUS_MARKED_ROLLBACK) {
 			throw new IllegalStateException();
 		}
 
@@ -539,9 +539,9 @@ public class TransactionImpl implements Transaction {
 	public synchronized boolean enlistResource(XAResource xaRes) throws RollbackException, IllegalStateException,
 			SystemException {
 
-		if (this.getStatus() == Status.STATUS_MARKED_ROLLBACK) {
+		if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
 			throw new RollbackException();
-		} else if (this.getStatus() != Status.STATUS_ACTIVE) {
+		} else if (this.transactionStatus != Status.STATUS_ACTIVE) {
 			throw new IllegalStateException();
 		}
 
@@ -574,9 +574,9 @@ public class TransactionImpl implements Transaction {
 	public synchronized void registerSynchronization(Synchronization sync) throws RollbackException,
 			IllegalStateException, SystemException {
 
-		if (this.getStatus() == Status.STATUS_MARKED_ROLLBACK) {
+		if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
 			throw new RollbackException();
-		} else if (this.getStatus() == Status.STATUS_ACTIVE) {
+		} else if (this.transactionStatus == Status.STATUS_ACTIVE) {
 			this.synchronizationList.registerSynchronizationQuietly(sync);
 			logger.info(String.format("[%s] register-sync: sync= %s"//
 					, ByteUtils.byteArrayToString(this.transactionContext.getXid().getGlobalTransactionId()), sync));
