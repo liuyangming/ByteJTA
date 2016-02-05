@@ -19,12 +19,17 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
+import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 
 public class RemoteResourceDescriptor implements XAResourceDescriptor {
 
-	private XAResource delegate;
+	private RemoteCoordinator delegate;
 	private String identifier;
+
+	public String toString() {
+		return String.format("remote-resource[id= %s, delegate= %s]", this.identifier, this.delegate);
+	}
 
 	public void setTransactionTimeoutQuietly(int timeout) {
 		try {
@@ -74,11 +79,11 @@ public class RemoteResourceDescriptor implements XAResourceDescriptor {
 		delegate.start(arg0, arg1);
 	}
 
-	public XAResource getDelegate() {
+	public RemoteCoordinator getDelegate() {
 		return delegate;
 	}
 
-	public void setDelegate(XAResource delegate) {
+	public void setDelegate(RemoteCoordinator delegate) {
 		this.delegate = delegate;
 	}
 

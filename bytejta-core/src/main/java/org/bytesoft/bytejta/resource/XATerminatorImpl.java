@@ -16,11 +16,13 @@
 package org.bytesoft.bytejta.resource;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
 import javax.transaction.RollbackException;
+import javax.transaction.Status;
 import javax.transaction.SystemException;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
@@ -31,6 +33,7 @@ import org.bytesoft.bytejta.supports.resource.UnidentifiedResourceDescriptor;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.RollbackRequiredException;
+import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.archive.XAResourceArchive;
 import org.bytesoft.transaction.internal.TransactionException;
@@ -42,6 +45,7 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 	static final Logger logger = Logger.getLogger(XATerminatorImpl.class.getSimpleName());
 	private TransactionContext transactionContext;
 	private int transactionTimeout;
+	// private TransactionBeanFactory beanFactory;
 	private final List<XAResourceArchive> resources = new ArrayList<XAResourceArchive>();
 
 	public XATerminatorImpl(TransactionContext txContext) {
@@ -77,8 +81,9 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 			} else {
 				globalVote = XAResource.XA_OK;
 			}
-			logger.info(String.format("\t[%s] prepare: xares= %s, vote= %s",
-					ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), archive, branchVote));
+			logger.info(String.format("[%s] prepare: xares= %s, branch=%s, vote= %s",
+					ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
+					ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), branchVote));
 		}
 		return globalVote;
 
@@ -100,8 +105,9 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 			archive.setCommitted(true);
 			archive.setCompleted(true);
 
-			logger.info(String.format("\t[%s] commit: xares= %s, opc= %s",
-					ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), archive, true));
+			logger.info(String.format("[%s] commit: xares= %s, branch= %s, opc= %s",
+					ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
+					ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), true));
 		} catch (XAException xa) {
 			switch (xa.errorCode) {
 			case XAException.XA_RBCOMMFAIL:
@@ -168,8 +174,9 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 					commitExists = true;
 					archive.setCommitted(true);
 					archive.setCompleted(true);
-					logger.info(String.format("\t[%s] commit: xares= %s, onePhaseCommit= %s",
-							ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), archive, false));
+					logger.info(String.format("[%s] commit: xares= %s, branch= %s, onePhaseCommit= %s",
+							ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
+							ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), false));
 				}
 			} catch (XAException xaex) {
 				if (commitExists) {
@@ -319,8 +326,9 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 					rollbackExists = true;
 					archive.setRolledback(true);
 					archive.setCompleted(true);
-					logger.info(String.format("\t[%s] rollback: xares= %s",
-							ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), archive));
+					logger.info(String.format("[%s] rollback: xares= %s, branch= %s",
+							ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
+							ByteUtils.byteArrayToString(branchXid.getBranchQualifier())));
 				}
 			} catch (XAException xaex) {
 				// * @exception XAException An error has occurred. Possible XAExceptions are
@@ -462,6 +470,149 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		throw new XAException(XAException.XAER_RMFAIL);
 	}
 
+	public void recover(Transaction transaction) throws RollbackRequiredException, SystemException {
+		TransactionXid globalXid = this.transactionContext.getXid();
+		int transactionStatus = transaction.getTransactionStatus();
+
+		if (transactionStatus != Status.STATUS_PREPARING && transactionStatus != Status.STATUS_PREPARED
+				&& transactionStatus != Status.STATUS_COMMITTING && transactionStatus != Status.STATUS_ROLLING_BACK) {
+			return;
+		}
+
+		for (int i = 0; i < this.resources.size(); i++) {
+			XAResourceArchive archive = this.resources.get(i);
+			if (archive.isRecovered()) {
+				continue;
+			} else if (archive.isReadonly()) {
+				continue;
+			} else if (archive.isCommitted()) {
+				continue;
+			} else if (archive.isRolledback()) {
+				continue;
+			}
+
+			Xid thisXid = archive.getXid();
+			boolean xidRecovered = false;
+			byte[] thisGlobalTransactionId = thisXid.getGlobalTransactionId();
+			byte[] thisBranchQualifier = thisXid.getBranchQualifier();
+			try {
+				Xid[] array = archive.recover(XAResource.TMSTARTRSCAN | XAResource.TMENDRSCAN);
+				for (int j = 0; array != null && j < array.length; j++) {
+					Xid thatXid = array[j];
+					byte[] thatGlobalTransactionId = thatXid.getGlobalTransactionId();
+					byte[] thatBranchQualifier = thatXid.getBranchQualifier();
+					if (thisXid.getFormatId() == thatXid.getFormatId()
+							&& Arrays.equals(thisGlobalTransactionId, thatGlobalTransactionId)
+							&& Arrays.equals(thisBranchQualifier, thatBranchQualifier)) {
+						xidRecovered = true;
+						break;
+					}
+				}
+			} catch (Exception ex) {
+				logger.error(String.format("[%s] recover-transaction failed. branch= %s",
+						ByteUtils.byteArrayToString(globalXid.getGlobalTransactionId()),
+						ByteUtils.byteArrayToString(globalXid.getBranchQualifier())));
+				continue;
+			}
+
+			if (transactionStatus == Status.STATUS_PREPARING) {
+				this.recoverForPreparingTransaction(archive, xidRecovered);
+			} else if (transactionStatus == Status.STATUS_PREPARED) {
+				this.recoverForPreparedTransaction(archive, xidRecovered);
+			} else if (transactionStatus == Status.STATUS_COMMITTING) {
+				this.recoverForCommittingTransaction(archive, xidRecovered);
+			} else if (transactionStatus == Status.STATUS_ROLLING_BACK) {
+				this.recoverForRollingBackTransaction(archive, xidRecovered);
+			}
+
+			archive.setRecovered(true);
+
+		}
+
+	}
+
+	protected void recoverForPreparingTransaction(XAResourceArchive archive, boolean xidRecovered) {
+		TransactionXid xid = (TransactionXid) archive.getXid();
+		boolean branchPrepared = archive.getVote() != XAResource.XA_RDONLY;
+
+		if (branchPrepared && xidRecovered) {
+			// ignore
+		} else if (branchPrepared && xidRecovered == false) {
+			logger.error(String.format(
+					"[%s] recover failed: branch= %s, status= preparing, branchPrepared= true, xidRecovered= false",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+					ByteUtils.byteArrayToString(xid.getBranchQualifier())));
+		} else if (branchPrepared == false && xidRecovered) {
+			archive.setVote(XAResource.XA_OK);
+		} else if (branchPrepared == false && xidRecovered == false) {
+			// rollback required
+		}
+	}
+
+	protected void recoverForPreparedTransaction(XAResourceArchive archive, boolean xidRecovered) {
+		TransactionXid xid = (TransactionXid) archive.getXid();
+		boolean branchPrepared = archive.getVote() != XAResource.XA_RDONLY;
+		if (branchPrepared == false) {
+			logger.error(String.format("[%s] recover failed: branch= %s, status= prepared, branchPrepared= false",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+					ByteUtils.byteArrayToString(xid.getBranchQualifier())));
+		} else if (xidRecovered == false) {
+			// TODO archive.setHeuristic(true);
+			logger.error(String.format(
+					"[%s] recover failed: branch= %s, status= prepared, branchPrepared= true, xidRecovered= false",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+					ByteUtils.byteArrayToString(xid.getBranchQualifier())));
+		}
+	}
+
+	protected void recoverForCommittingTransaction(XAResourceArchive archive, boolean xidRecovered) {
+		TransactionXid xid = (TransactionXid) archive.getXid();
+		// boolean branchCompleted = archive.isCompleted();
+		boolean branchCommitted = archive.isCommitted();
+		if (branchCommitted && xidRecovered) {
+			logger.warn(String.format(
+					"[%s] recover failed: branch= %s, status= committing, branchCommitted= true, xidRecovered= true",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+					ByteUtils.byteArrayToString(xid.getBranchQualifier())));
+			archive.forgetQuietly(xid); // Branch has already been committed.
+		} else if (branchCommitted && xidRecovered == false) {
+			// ignore
+		} else if (branchCommitted == false && xidRecovered) {
+			// ignore
+		} else if (branchCommitted == false && xidRecovered == false) {
+			logger.warn(String.format(
+					"[%s] recover failed: branch= %s, status= committing, branchCommitted= false, xidRecovered= false",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+					ByteUtils.byteArrayToString(xid.getBranchQualifier())));
+			archive.setCommitted(true);
+			archive.setCompleted(true);
+		}
+	}
+
+	protected void recoverForRollingBackTransaction(XAResourceArchive archive, boolean xidRecovered) {
+		TransactionXid xid = (TransactionXid) archive.getXid();
+		// boolean branchCompleted = archive.isCompleted();
+		boolean branchRolledback = archive.isRolledback();
+		if (branchRolledback && xidRecovered) {
+			logger.warn(String.format(
+					"[%s] recover failed: branch= %s, status= rollingback, branchRolledback= true, xidRecovered= true",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+					ByteUtils.byteArrayToString(xid.getBranchQualifier())));
+			archive.forgetQuietly(xid); // Branch has already been committed.
+		} else if (branchRolledback && xidRecovered == false) {
+			// ignore
+		} else if (branchRolledback == false && xidRecovered) {
+			// ignore
+		} else if (branchRolledback == false && xidRecovered == false) {
+			logger.warn(String
+					.format("[%s] recover failed: branch= %s, status= rollingback, branchRolledback= false, xidRecovered= false",
+							ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+							ByteUtils.byteArrayToString(xid.getBranchQualifier())));
+			archive.setRolledback(true);
+			archive.setCompleted(true);
+		}
+	}
+
 	public void forget(Xid xid) throws XAException {
 		for (int i = 0; i < this.resources.size(); i++) {
 			XAResourceArchive archive = this.resources.get(i);
@@ -509,8 +660,9 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 			Xid branchXid = archive.getXid();
 			archive.end(branchXid, flag);
 			archive.setDelisted(true);
-			logger.info(String.format("\t[%s] delist: xares= %s, flags= %s",
-					ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), archive, flag));
+			logger.info(String.format("[%s] delist: xares= %s, branch= %s, flags= %s",
+					ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
+					ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), flag));
 		} catch (XAException xae) {
 			logger.error("XATerminatorImpl.delistResource(XAResourceArchive, int)", xae);
 
@@ -554,7 +706,7 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		if (archive == null) {
 			archive = new XAResourceArchive();
 			archive.setDescriptor(descriptor);
-			TransactionXid globalXid = this.transactionContext.getXid().getGlobalXid();
+			TransactionXid globalXid = this.transactionContext.getXid();
 			archive.setXid(globalXid.createBranchXid());
 		} else {
 			flags = XAResource.TMJOIN;
@@ -566,8 +718,9 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 	private boolean enlistResource(XAResourceArchive archive, int flags) throws SystemException, RollbackException {
 		try {
 			Xid branchXid = archive.getXid();
-			logger.info(String.format("\t[%s] enlist: xares= %s, flags: %s",
-					ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), archive, flags));
+			logger.info(String.format("[%s] enlist: xares= %s, branch= %s, flags: %s",
+					ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
+					ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), flags));
 
 			if (flags == XAResource.TMNOFLAGS) {
 				long expired = this.transactionContext.getExpiredTime();

@@ -13,7 +13,9 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.bytejta.supports.wire;
+package org.bytesoft.bytejta;
+
+import java.util.List;
 
 import javax.transaction.HeuristicMixedException;
 import javax.transaction.HeuristicRollbackException;
@@ -23,32 +25,76 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
-import org.bytesoft.bytejta.TransactionImpl;
 import org.bytesoft.bytejta.aware.TransactionBeanFactoryAware;
+import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
+import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionBeanFactory;
+import org.bytesoft.transaction.TransactionContext;
+import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.archive.TransactionArchive;
+import org.bytesoft.transaction.internal.TransactionException;
 import org.bytesoft.transaction.supports.logger.TransactionLogger;
 import org.bytesoft.transaction.xa.TransactionXid;
 
-public class RemoteCoordinatorImpl implements RemoteCoordinator, TransactionBeanFactoryAware {
+public class TransactionCoordinator implements RemoteCoordinator, TransactionBeanFactoryAware {
 	private TransactionBeanFactory beanFactory;
 
 	public String getIdentifier() {
-		// TODO
-		return null;
+		throw new IllegalStateException();
+	}
+
+	public void start(TransactionContext transactionContext, int flags) throws TransactionException {
+
+		TransactionRepository transactionRepository = this.beanFactory.getTransactionRepository();
+		TransactionManager transactionManager = this.beanFactory.getTransactionManager();
+		// if (transactionManager.getTransaction() != null) {
+		// throw new NotSupportedException(); // TODO
+		// }
+
+		TransactionXid globalXid = (TransactionXid) transactionContext.getXid();
+		Transaction transaction = transactionRepository.getTransaction(globalXid);
+		if (transaction == null) {
+			transaction = new TransactionImpl(transactionContext);
+			transaction.setBeanFactory(this.beanFactory);
+
+			long expired = transactionContext.getExpiredTime();
+			long current = System.currentTimeMillis();
+			long timeoutMillis = (expired - current) / 1000L;
+			transaction.setTransactionTimeout((int) timeoutMillis);
+
+			transactionRepository.putTransaction(transactionContext.getXid(), transaction);
+		}
+
+		transactionManager.associateThread(transaction);
+		// this.transactionStatistic.fireBeginTransaction(transaction);
+
+	}
+
+	public void end(TransactionContext transactionContext, int flags) throws TransactionException {
+		TransactionManager transactionManager = this.beanFactory.getTransactionManager();
+		transactionManager.desociateThread();
+	}
+
+	public void start(Xid xid, int flags) throws XAException {
+	}
+
+	public void end(Xid xid, int flags) throws XAException {
 	}
 
 	public void commit(Xid xid, boolean onePhase) throws XAException {
 		TransactionXid branchXid = (TransactionXid) xid;
 		TransactionXid globalXid = branchXid.getGlobalXid();
-		TransactionRepository<TransactionImpl> repository = beanFactory.getTransactionRepository();
-		TransactionImpl transaction = repository.getTransaction(globalXid);
+		TransactionRepository repository = beanFactory.getTransactionRepository();
+		Transaction transaction = repository.getTransaction(globalXid);
+		TransactionContext transactionContext = transaction.getTransactionContext();
 		boolean transactionDone = true;
 		try {
 			if (onePhase) {
+				transaction.commit();
+			} else if (transactionContext.isCoordinator()) {
 				transaction.commit();
 			} else {
 				transaction.participantCommit();
@@ -68,7 +114,7 @@ public class RemoteCoordinatorImpl implements RemoteCoordinator, TransactionBean
 		} catch (RollbackException ignore) {
 			throw new XAException(XAException.XA_HEURRB);
 		} catch (HeuristicMixedException ignore) {
-			transactionDone = false;// TODO
+			transactionDone = false;
 			repository.putErrorTransaction(globalXid, transaction);
 			throw new XAException(XAException.XA_HEURMIX);
 		} catch (HeuristicRollbackException ignore) {
@@ -85,14 +131,11 @@ public class RemoteCoordinatorImpl implements RemoteCoordinator, TransactionBean
 		}
 	}
 
-	public void end(Xid xid, int flags) throws XAException {
-	}
-
 	public void forget(Xid xid) throws XAException {
 		TransactionXid branchXid = (TransactionXid) xid;
 		TransactionXid globalXid = branchXid.getGlobalXid();
-		TransactionRepository<TransactionImpl> repository = beanFactory.getTransactionRepository();
-		TransactionImpl transaction = repository.getTransaction(globalXid);
+		TransactionRepository repository = beanFactory.getTransactionRepository();
+		Transaction transaction = repository.getErrorTransaction(globalXid);
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		if (transaction != null) {
 			try {
@@ -119,8 +162,8 @@ public class RemoteCoordinatorImpl implements RemoteCoordinator, TransactionBean
 	public int prepare(Xid xid) throws XAException {
 		TransactionXid branchXid = (TransactionXid) xid;
 		TransactionXid globalXid = branchXid.getGlobalXid();
-		TransactionRepository<TransactionImpl> repository = beanFactory.getTransactionRepository();
-		TransactionImpl transaction = repository.getTransaction(globalXid);
+		TransactionRepository repository = beanFactory.getTransactionRepository();
+		Transaction transaction = repository.getTransaction(globalXid);
 		try {
 			transaction.participantPrepare();
 		} catch (CommitRequiredException crex) {
@@ -132,14 +175,23 @@ public class RemoteCoordinatorImpl implements RemoteCoordinator, TransactionBean
 	}
 
 	public Xid[] recover(int flag) throws XAException {
-		return null; // TODO
+		TransactionRepository repository = beanFactory.getTransactionRepository();
+		List<Transaction> transactionList = repository.getErrorTransactionList();
+		TransactionXid[] xidArray = new TransactionXid[transactionList.size()];
+		for (int i = 0; i < transactionList.size(); i++) {
+			Transaction transaction = transactionList.get(i);
+			TransactionContext transactionContext = transaction.getTransactionContext();
+			TransactionXid xid = transactionContext.getXid();
+			xidArray[i] = xid;
+		}
+		return xidArray;
 	}
 
 	public void rollback(Xid xid) throws XAException {
 		TransactionXid branchXid = (TransactionXid) xid;
 		TransactionXid globalXid = branchXid.getGlobalXid();
-		TransactionRepository<TransactionImpl> repository = beanFactory.getTransactionRepository();
-		TransactionImpl transaction = repository.getTransaction(globalXid);
+		TransactionRepository repository = beanFactory.getTransactionRepository();
+		Transaction transaction = repository.getTransaction(globalXid);
 
 		boolean transactionDone = true;
 		try {
@@ -168,9 +220,6 @@ public class RemoteCoordinatorImpl implements RemoteCoordinator, TransactionBean
 
 	public boolean setTransactionTimeout(int seconds) throws XAException {
 		return false;
-	}
-
-	public void start(Xid xid, int flags) throws XAException {
 	}
 
 	public void setBeanFactory(TransactionBeanFactory tbf) {

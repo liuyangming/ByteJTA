@@ -19,22 +19,22 @@ import java.util.List;
 
 import org.bytesoft.transaction.xa.TransactionXid;
 
-public interface TransactionRepository<T> {
+public interface TransactionRepository {
 
-	public void putTransaction(TransactionXid xid, T transaction);
+	public void putTransaction(TransactionXid xid, Transaction transaction);
 
-	public T getTransaction(TransactionXid xid);
+	public Transaction getTransaction(TransactionXid xid);
 
-	public T removeTransaction(TransactionXid xid);
+	public Transaction removeTransaction(TransactionXid xid);
 
-	public void putErrorTransaction(TransactionXid xid, T transaction);
+	public void putErrorTransaction(TransactionXid xid, Transaction transaction);
 
-	public T getErrorTransaction(TransactionXid xid);
+	public Transaction getErrorTransaction(TransactionXid xid);
 
-	public T removeErrorTransaction(TransactionXid xid);
+	public Transaction removeErrorTransaction(TransactionXid xid);
 
-	public List<T> getErrorTransactionList();
+	public List<Transaction> getErrorTransactionList();
 
-	public List<T> getActiveTransactionList();
+	public List<Transaction> getActiveTransactionList();
 
 }

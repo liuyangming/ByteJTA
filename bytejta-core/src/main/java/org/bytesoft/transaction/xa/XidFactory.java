@@ -19,8 +19,8 @@ public interface XidFactory {
 	public static final int JTA_FORMAT_ID = 1207;
 	public static final int TCC_FORMAT_ID = 8127;
 
-	public static final int GLOBAL_TRANSACTION_LENGTH = 32;
-	public static final int BRANCH_QUALIFIER_LENGTH = 32;
+	public static final int GLOBAL_TRANSACTION_LENGTH = 20;
+	public static final int BRANCH_QUALIFIER_LENGTH = 20;
 
 	public int getFormatId();
 

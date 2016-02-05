@@ -21,6 +21,8 @@ import javax.transaction.RollbackException;
 import javax.transaction.Synchronization;
 import javax.transaction.SystemException;
 
+import org.bytesoft.transaction.RollbackRequiredException;
+import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.archive.XAResourceArchive;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 
@@ -38,5 +40,7 @@ public interface XATerminator extends javax.transaction.xa.XAResource, Synchroni
 	public void delistAllResource() throws RollbackException, SystemException;
 
 	public List<XAResourceArchive> getResourceArchives();
+
+	public void recover(Transaction transaction) throws RollbackRequiredException, SystemException;
 
 }

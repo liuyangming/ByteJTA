@@ -41,11 +41,22 @@ public class TransactionListenerList implements TransactionListener {
 		}
 	}
 
-	public void prepareComplete(boolean success) {
+	public void prepareSuccess() {
 		for (int i = 0; i < this.listeners.size(); i++) {
 			try {
 				TransactionListener listener = this.listeners.get(i);
-				listener.prepareComplete(success);
+				listener.prepareSuccess();
+			} catch (RuntimeException rex) {
+				logger.debug(rex.getMessage(), rex);
+			}
+		}
+	}
+
+	public void prepareFailure() {
+		for (int i = 0; i < this.listeners.size(); i++) {
+			try {
+				TransactionListener listener = this.listeners.get(i);
+				listener.prepareFailure();
 			} catch (RuntimeException rex) {
 				logger.debug(rex.getMessage(), rex);
 			}
@@ -74,11 +85,33 @@ public class TransactionListenerList implements TransactionListener {
 		}
 	}
 
-	public void commitFailure(int optcode) {
+	public void commitFailure() {
 		for (int i = 0; i < this.listeners.size(); i++) {
 			try {
 				TransactionListener listener = this.listeners.get(i);
-				listener.commitFailure(optcode);
+				listener.commitFailure();
+			} catch (RuntimeException rex) {
+				logger.debug(rex.getMessage(), rex);
+			}
+		}
+	}
+
+	public void commitHeuristicMixed() {
+		for (int i = 0; i < this.listeners.size(); i++) {
+			try {
+				TransactionListener listener = this.listeners.get(i);
+				listener.commitHeuristicMixed();
+			} catch (RuntimeException rex) {
+				logger.debug(rex.getMessage(), rex);
+			}
+		}
+	}
+
+	public void commitHeuristicRolledback() {
+		for (int i = 0; i < this.listeners.size(); i++) {
+			try {
+				TransactionListener listener = this.listeners.get(i);
+				listener.commitHeuristicRolledback();
 			} catch (RuntimeException rex) {
 				logger.debug(rex.getMessage(), rex);
 			}
@@ -107,11 +140,11 @@ public class TransactionListenerList implements TransactionListener {
 		}
 	}
 
-	public void rollbackFailure(int optcode) {
+	public void rollbackFailure() {
 		for (int i = 0; i < this.listeners.size(); i++) {
 			try {
 				TransactionListener listener = this.listeners.get(i);
-				listener.rollbackFailure(optcode);
+				listener.rollbackFailure();
 			} catch (RuntimeException rex) {
 				logger.debug(rex.getMessage(), rex);
 			}

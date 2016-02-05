@@ -17,8 +17,15 @@ package org.bytesoft.bytejta.supports.wire;
 
 import javax.transaction.xa.XAResource;
 
+import org.bytesoft.transaction.TransactionContext;
+import org.bytesoft.transaction.internal.TransactionException;
+
 public interface RemoteCoordinator extends XAResource {
 
 	public String getIdentifier();
+
+	public void start(TransactionContext transactionContext, int flags) throws TransactionException;
+
+	public void end(TransactionContext transactionContext, int flags) throws TransactionException;
 
 }

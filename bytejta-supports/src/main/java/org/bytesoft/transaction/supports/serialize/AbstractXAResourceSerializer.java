@@ -25,9 +25,7 @@ import javax.sql.XADataSource;
 import javax.transaction.xa.XAResource;
 
 import org.bytesoft.bytejta.supports.resource.CommonResourceDescriptor;
-import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
-import org.bytesoft.transaction.supports.serialize.XAResourceSerializer;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -62,13 +60,14 @@ public abstract class AbstractXAResourceSerializer implements XAResourceSerializ
 			} catch (SQLException ex) {
 				throw new IOException(ex);
 			}
-		} else if (bean != null && XAResourceDescriptor.class.isInstance(bean)) {
-			XAResourceDescriptor resource = (XAResourceDescriptor) bean;
-			RemoteResourceDescriptor descriptor = new RemoteResourceDescriptor();
-			descriptor.setDelegate(resource);
-			descriptor.setIdentifier(resource.getIdentifier());
-			return descriptor;
 		}
+		// else if (bean != null && XAResourceDescriptor.class.isInstance(bean)) {
+		// XAResourceDescriptor resource = (XAResourceDescriptor) bean;
+		// RemoteResourceDescriptor descriptor = new RemoteResourceDescriptor();
+		// descriptor.setDelegate(resource);
+		// descriptor.setIdentifier(resource.getIdentifier());
+		// return descriptor;
+		// }
 		throw new IllegalStateException();
 	}
 

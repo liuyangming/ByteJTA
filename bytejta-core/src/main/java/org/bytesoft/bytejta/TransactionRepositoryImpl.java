@@ -20,43 +20,44 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.xa.TransactionXid;
 
-public class TransactionRepositoryImpl implements TransactionRepository<TransactionImpl> {
-	private final Map<TransactionXid, TransactionImpl> xidToTxMap = new ConcurrentHashMap<TransactionXid, TransactionImpl>();
-	private final Map<TransactionXid, TransactionImpl> xidToErrTxMap = new ConcurrentHashMap<TransactionXid, TransactionImpl>();
+public class TransactionRepositoryImpl implements TransactionRepository {
+	private final Map<TransactionXid, Transaction> xidToTxMap = new ConcurrentHashMap<TransactionXid, Transaction>();
+	private final Map<TransactionXid, Transaction> xidToErrTxMap = new ConcurrentHashMap<TransactionXid, Transaction>();
 
-	public void putTransaction(TransactionXid globalXid, TransactionImpl transaction) {
+	public void putTransaction(TransactionXid globalXid, Transaction transaction) {
 		this.xidToTxMap.put(globalXid, transaction);
 	}
 
-	public TransactionImpl getTransaction(TransactionXid globalXid) {
+	public Transaction getTransaction(TransactionXid globalXid) {
 		return this.xidToTxMap.get(globalXid);
 	}
 
-	public TransactionImpl removeTransaction(TransactionXid globalXid) {
+	public Transaction removeTransaction(TransactionXid globalXid) {
 		return this.xidToTxMap.remove(globalXid);
 	}
 
-	public void putErrorTransaction(TransactionXid globalXid, TransactionImpl transaction) {
+	public void putErrorTransaction(TransactionXid globalXid, Transaction transaction) {
 		this.xidToErrTxMap.put(globalXid, transaction);
 	}
 
-	public TransactionImpl getErrorTransaction(TransactionXid globalXid) {
+	public Transaction getErrorTransaction(TransactionXid globalXid) {
 		return this.xidToErrTxMap.get(globalXid);
 	}
 
-	public TransactionImpl removeErrorTransaction(TransactionXid globalXid) {
+	public Transaction removeErrorTransaction(TransactionXid globalXid) {
 		return this.xidToErrTxMap.remove(globalXid);
 	}
 
-	public List<TransactionImpl> getErrorTransactionList() {
-		return new ArrayList<TransactionImpl>(this.xidToErrTxMap.values());
+	public List<Transaction> getErrorTransactionList() {
+		return new ArrayList<Transaction>(this.xidToErrTxMap.values());
 	}
 
-	public List<TransactionImpl> getActiveTransactionList() {
-		return new ArrayList<TransactionImpl>(this.xidToTxMap.values());
+	public List<Transaction> getActiveTransactionList() {
+		return new ArrayList<Transaction>(this.xidToTxMap.values());
 	}
 
 }

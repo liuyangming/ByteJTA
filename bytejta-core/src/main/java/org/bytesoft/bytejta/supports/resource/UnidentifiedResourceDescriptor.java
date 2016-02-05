@@ -23,14 +23,15 @@ import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 
 public class UnidentifiedResourceDescriptor implements XAResourceDescriptor {
 
+	private String identifier;
 	private XAResource delegate;
+
+	public String toString() {
+		return String.format("unknown-resource[id= %s, delegate= %s]", this.identifier, this.delegate);
+	}
 
 	public UnidentifiedResourceDescriptor(XAResource xares) {
 		this.delegate = xares;
-	}
-
-	public String getIdentifier() {
-		return null;
 	}
 
 	public void setTransactionTimeoutQuietly(int timeout) {
@@ -81,4 +82,11 @@ public class UnidentifiedResourceDescriptor implements XAResourceDescriptor {
 		delegate.start(arg0, arg1);
 	}
 
+	public String getIdentifier() {
+		return identifier;
+	}
+
+	public void setIdentifier(String identifier) {
+		this.identifier = identifier;
+	}
 }

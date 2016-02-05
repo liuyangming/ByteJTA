@@ -29,13 +29,13 @@ public interface TransactionBeanFactory {
 
 	public TransactionTimer getTransactionTimer();
 
-	public <T> TransactionRepository<T> getTransactionRepository();
+	public TransactionRepository getTransactionRepository();
 
 	public TransactionInterceptor getTransactionInterceptor();
 
 	public TransactionRecovery getTransactionRecovery();
 
-	public RemoteCoordinator getNativeCoordinator();
+	public RemoteCoordinator getTransactionCoordinator();
 
 	public TransactionLogger getTransactionLogger();
 

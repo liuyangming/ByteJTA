@@ -38,22 +38,18 @@ public class ManagedConnectionHandler implements InvocationHandler {
 
 		Object resultObject = method.invoke(this.delegate, args);
 
-		if (javax.sql.XAConnection.class.equals(declaringClass) && XAResource.class.equals(returningClass)) {
-			return this.createProxyResource((XAResource) resultObject);
-		} else if (javax.jms.XAConnection.class.equals(declaringClass) && XAResource.class.equals(returningClass)) {
-			return this.createProxyResource((XAResource) resultObject);
-		} else if (ManagedConnection.class.equals(declaringClass) && XAResource.class.equals(returningClass)) {
-			return this.createProxyResource((XAResource) resultObject);
-		} else {
-			return resultObject;
-		}
-	}
-
-	private XAResource createProxyResource(XAResource xares) {
 		CommonResourceDescriptor descriptor = new CommonResourceDescriptor();
 		descriptor.setIdentifier(this.identifier);
-		descriptor.setDelegate(xares);
-		return descriptor;
+		if (javax.sql.XAConnection.class.equals(declaringClass) && XAResource.class.equals(returningClass)) {
+			descriptor.setDelegate((XAResource) resultObject);
+		} else if (javax.jms.XAConnection.class.equals(declaringClass) && XAResource.class.equals(returningClass)) {
+			descriptor.setDelegate((XAResource) resultObject);
+		} else if (ManagedConnection.class.equals(declaringClass) && XAResource.class.equals(returningClass)) {
+			descriptor.setDelegate((XAResource) resultObject);
+		}
+
+		return descriptor.getDelegate() != null ? descriptor : resultObject;
+
 	}
 
 	public String getIdentifier() {

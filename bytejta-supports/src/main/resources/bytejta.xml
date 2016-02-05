@@ -30,7 +30,7 @@
 	</bean>
 	<tx:annotation-driven transaction-manager="transactionManager" />
 
-	<!-- <bean id="bytejtaResourceSerializer" class="org.bytesoft.transaction.supports.spring.XAResourceSerializerImpl" />
+	<bean id="bytejtaResourceSerializer" class="org.bytesoft.transaction.supports.serialize.XAResourceSerializerImpl" />
 	<bean id="bytejtaTransactionLogger" class="org.bytesoft.bytejta.supports.logger.SimpleTransactionLogger">
 		<property name="storageManager" ref="bytejtaTransactionStorage" />
 		<property name="resourceSerializer" ref="bytejtaResourceSerializer" />
@@ -39,9 +39,9 @@
 	<bean id="bytejtaTransactionStorage" class="org.bytesoft.bytejta.supports.store.SimpleTransactionStorageManager"
 		init-method="initialize">
 		<constructor-arg value="bytejta/bytejta.dat" />
-	</bean> -->
+	</bean>
 
-	<bean id="bytejtaTransactionCoordinator" class="org.bytesoft.bytejta.supports.wire.RemoteCoordinatorImpl" />
+	<bean id="bytejtaTransactionCoordinator" class="org.bytesoft.bytejta.TransactionCoordinator" />
 	<bean id="bytejtaTransactionRecovery" class="org.bytesoft.bytejta.TransactionRecoveryImpl" />
 	<bean id="bytejtaTransactionRepository" class="org.bytesoft.bytejta.TransactionRepositoryImpl" />
 	<!-- <bean id="bytejtaTransactionInterceptor" class="org.bytesoft.transaction.supports.rpc.TransactionInterceptorImpl" /> -->
@@ -49,11 +49,11 @@
 		<property name="transactionManager" ref="bytejtaTransactionManager" />
 		<property name="xidFactory" ref="bytejtaXidFactory" />
 		<property name="transactionTimer" ref="bytejtaTransactionManager" />
-		<!-- <property name="transactionLogger" ref="bytejtaTransactionLogger" /> -->
+		<property name="transactionLogger" ref="bytejtaTransactionLogger" />
 		<property name="transactionRepository" ref="bytejtaTransactionRepository" />
 		<!-- <property name="transactionInterceptor" ref="bytejtaTransactionInterceptor" /> -->
 		<property name="transactionRecovery" ref="bytejtaTransactionRecovery" />
-		<property name="nativeCoordinator" ref="bytejtaTransactionCoordinator" />
+		<property name="transactionCoordinator" ref="bytejtaTransactionCoordinator" />
 	</bean>
 
 </beans>

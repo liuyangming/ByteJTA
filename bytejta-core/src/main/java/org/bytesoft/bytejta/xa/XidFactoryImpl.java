@@ -20,31 +20,29 @@ import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Random;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
 
 public class XidFactoryImpl implements XidFactory {
+	static final int SIZE_OF_MAC = 6;
+	static final Random random = new Random();
+	static final byte[] hardwareAddress = new byte[SIZE_OF_MAC];
+	static final AtomicInteger atomic = new AtomicInteger();
 
-	private final Random random = new Random();
-	private final AtomicLong atomic = new AtomicLong();
-	private final byte[] hardwareAddress = new byte[6];
-	private String application = "default";
-	private int identifier = 0;
-
-	public XidFactoryImpl() throws IllegalStateException {
+	static {
 		try {
 			InetAddress inetAddress = InetAddress.getLocalHost();
 			NetworkInterface networkInterface = NetworkInterface.getByInetAddress(inetAddress);
 			byte[] hardwareByteArray = networkInterface.getHardwareAddress();
 			int fromLen = hardwareByteArray.length;
-			int distLen = this.hardwareAddress.length;
+			int distLen = hardwareAddress.length;
 			if (fromLen >= distLen) {
-				System.arraycopy(hardwareByteArray, 0, this.hardwareAddress, 0, distLen);
+				System.arraycopy(hardwareByteArray, 0, hardwareAddress, 0, distLen);
 			} else {
-				System.arraycopy(hardwareByteArray, 0, this.hardwareAddress, 0, fromLen);
+				System.arraycopy(hardwareByteArray, 0, hardwareAddress, 0, fromLen);
 			}
 		} catch (UnknownHostException ex) {
 			throw new IllegalStateException(ex);
@@ -59,27 +57,20 @@ public class XidFactoryImpl implements XidFactory {
 
 	public TransactionXid createGlobalXid() {
 		byte[] global = new byte[GLOBAL_TRANSACTION_LENGTH];
-		byte[] applicationBytes = new byte[10];
-		byte[] fromBytes = this.application.getBytes();
-		int copyLength = applicationBytes.length > fromBytes.length ? fromBytes.length : applicationBytes.length;
-		System.arraycopy(fromBytes, 0, applicationBytes, 0, copyLength);
-		byte[] endByteArray = ByteUtils.intToByteArray(this.identifier);
 
 		long millis = System.currentTimeMillis();
 		byte[] millisByteArray = ByteUtils.longToByteArray(millis);
 
-		int index = (int) (this.atomic.incrementAndGet() % Integer.MAX_VALUE);
-		byte[] atomicByteArray = ByteUtils.intToByteArray(index);
+		short value = (short) (atomic.incrementAndGet() % Short.MAX_VALUE);
+		byte[] valueByteArray = ByteUtils.shortToByteArray(value);
 
-		System.arraycopy(this.hardwareAddress, 0, global, 0, this.hardwareAddress.length);
-		System.arraycopy(applicationBytes, 0, global, this.hardwareAddress.length, applicationBytes.length);
-		System.arraycopy(endByteArray, 0, global, //
-				this.hardwareAddress.length + applicationBytes.length, endByteArray.length);
-		System.arraycopy(millisByteArray, 0, global, //
-				this.hardwareAddress.length + applicationBytes.length + endByteArray.length, millisByteArray.length);
-		System.arraycopy(atomicByteArray, 0, global, //
-				this.hardwareAddress.length + applicationBytes.length + endByteArray.length + millisByteArray.length,//
-				atomicByteArray.length);
+		byte[] randomByteArray = new byte[4];
+		random.nextBytes(randomByteArray);
+
+		System.arraycopy(hardwareAddress, 0, global, 0, SIZE_OF_MAC);
+		System.arraycopy(millisByteArray, 0, global, SIZE_OF_MAC, 8);
+		System.arraycopy(valueByteArray, 0, global, SIZE_OF_MAC + 8, 2);
+		System.arraycopy(randomByteArray, 0, global, SIZE_OF_MAC + 10, randomByteArray.length);
 
 		TransactionXid xid = new TransactionXid(global);
 		xid.setXidFactory(this);
@@ -112,27 +103,19 @@ public class XidFactoryImpl implements XidFactory {
 		System.arraycopy(globalXid.getGlobalTransactionId(), 0, global, 0, global.length);
 
 		byte[] branch = new byte[BRANCH_QUALIFIER_LENGTH];
-		byte[] applicationBytes = new byte[10];
-		byte[] fromBytes = this.application.getBytes();
-		int copyLength = applicationBytes.length > fromBytes.length ? fromBytes.length : applicationBytes.length;
-		System.arraycopy(fromBytes, 0, applicationBytes, 0, copyLength);
-		byte[] endByteArray = ByteUtils.intToByteArray(this.identifier);
-
 		long millis = System.currentTimeMillis();
 		byte[] millisByteArray = ByteUtils.longToByteArray(millis);
 
-		int index = (int) (this.atomic.incrementAndGet() % Integer.MAX_VALUE);
-		byte[] atomicByteArray = ByteUtils.intToByteArray(index);
+		short value = (short) (atomic.incrementAndGet() % Short.MAX_VALUE);
+		byte[] valueByteArray = ByteUtils.shortToByteArray(value);
 
-		System.arraycopy(this.hardwareAddress, 0, branch, 0, this.hardwareAddress.length);
-		System.arraycopy(applicationBytes, 0, branch, this.hardwareAddress.length, applicationBytes.length);
-		System.arraycopy(endByteArray, 0, branch, //
-				this.hardwareAddress.length + applicationBytes.length, endByteArray.length);
-		System.arraycopy(millisByteArray, 0, branch, //
-				this.hardwareAddress.length + applicationBytes.length + endByteArray.length, millisByteArray.length);
-		System.arraycopy(atomicByteArray, 0, branch, //
-				this.hardwareAddress.length + applicationBytes.length + endByteArray.length + millisByteArray.length,//
-				atomicByteArray.length);
+		byte[] randomByteArray = new byte[4];
+		random.nextBytes(randomByteArray);
+
+		System.arraycopy(hardwareAddress, 0, branch, 0, SIZE_OF_MAC);
+		System.arraycopy(millisByteArray, 0, branch, SIZE_OF_MAC, 8);
+		System.arraycopy(valueByteArray, 0, branch, SIZE_OF_MAC + 8, 2);
+		System.arraycopy(randomByteArray, 0, branch, SIZE_OF_MAC + 10, randomByteArray.length);
 
 		TransactionXid xid = new TransactionXid(global, branch);
 		xid.setXidFactory(this);

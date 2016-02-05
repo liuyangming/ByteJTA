@@ -15,12 +15,39 @@
  */
 package org.bytesoft.transaction;
 
-public interface Transaction extends javax.transaction.Transaction {
+import javax.transaction.HeuristicMixedException;
+import javax.transaction.HeuristicRollbackException;
+import javax.transaction.RollbackException;
+import javax.transaction.SystemException;
+
+import org.bytesoft.bytejta.aware.TransactionBeanFactoryAware;
+import org.bytesoft.transaction.archive.TransactionArchive;
+
+public interface Transaction extends javax.transaction.Transaction, TransactionBeanFactoryAware {
 
 	public void setRollbackOnlyQuietly();
 
 	public int getTransactionStatus();
 
+	public void suspend() throws SystemException;
+
+	public void forgetQuietly();
+
+	public boolean isTiming();
+
+	public void setTransactionTimeout(int seconds);
+
 	public TransactionContext getTransactionContext();
+
+	public TransactionArchive getTransactionArchive();
+
+	public void participantPrepare() throws RollbackRequiredException, CommitRequiredException;
+
+	public void participantCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
+			SecurityException, IllegalStateException, CommitRequiredException, SystemException;
+
+	public void recoveryRollback() throws RollbackRequiredException, SystemException;
+
+	public void recoveryCommit() throws CommitRequiredException, SystemException;
 
 }

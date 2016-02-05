@@ -19,6 +19,10 @@ import javax.transaction.SystemException;
 
 public interface TransactionManager extends javax.transaction.TransactionManager {
 
+	public void associateThread(Transaction transaction);
+
+	public Transaction desociateThread();
+
 	public Transaction getTransactionQuietly();
 
 	public Transaction getTransaction() throws SystemException;

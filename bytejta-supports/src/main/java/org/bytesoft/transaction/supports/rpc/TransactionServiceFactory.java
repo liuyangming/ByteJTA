@@ -29,8 +29,8 @@ public class TransactionServiceFactory extends ServiceFactoryImpl implements Ser
 	private TransactionBeanFactory transactionBeanFactory;
 
 	public void initialize() {
-		RemoteCoordinator nativeCoordinator = this.transactionBeanFactory.getNativeCoordinator();
-		this.putServiceObject(XAResource.class.getName(), XAResource.class, nativeCoordinator);
+		RemoteCoordinator transactionCoordinator = this.transactionBeanFactory.getTransactionCoordinator();
+		this.putServiceObject(XAResource.class.getName(), XAResource.class, transactionCoordinator);
 
 	}
 

@@ -38,7 +38,8 @@ import org.bytesoft.transaction.supports.store.TransactionStorageObject;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
 
-public class SimpleTransactionLogger implements TransactionLogger, TransactionArchiveSerializer, TransactionBeanFactoryAware {
+public class SimpleTransactionLogger implements TransactionLogger, TransactionArchiveSerializer,
+		TransactionBeanFactoryAware {
 
 	private TransactionBeanFactory beanFactory;
 	private TransactionStorageManager storageManager;
@@ -207,7 +208,8 @@ public class SimpleTransactionLogger implements TransactionLogger, TransactionAr
 		return archive;
 	}
 
-	private XAResourceArchive deserializeXAResourceArchive(TransactionXid globalXid, ByteBuffer buffer) throws IOException {
+	private XAResourceArchive deserializeXAResourceArchive(TransactionXid globalXid, ByteBuffer buffer)
+			throws IOException {
 		byte[] branchQualifier = new byte[XidFactory.BRANCH_QUALIFIER_LENGTH];
 		buffer.get(branchQualifier);
 		int descriptorId = buffer.get();

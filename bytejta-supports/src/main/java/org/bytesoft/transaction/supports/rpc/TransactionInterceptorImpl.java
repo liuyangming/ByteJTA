@@ -39,8 +39,8 @@ public class TransactionInterceptorImpl implements TransactionInterceptor, Trans
 		if (transaction != null) {
 			TransactionContext srcTransactionContext = transaction.getTransactionContext();
 			TransactionContext transactionContext = srcTransactionContext.clone();
-			TransactionXid currentXid = srcTransactionContext.getXid();
-			TransactionXid globalXid = currentXid.getGlobalXid();
+			// TransactionXid currentXid = srcTransactionContext.getXid();
+			TransactionXid globalXid = srcTransactionContext.getXid();
 			transactionContext.setXid(globalXid);
 			request.setTransactionContext(transactionContext);
 

@@ -21,8 +21,8 @@ import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.TransactionRecovery;
 import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.supports.TransactionTimer;
+import org.bytesoft.transaction.supports.logger.EmptyTransactionLogger;
 import org.bytesoft.transaction.supports.logger.TransactionLogger;
-import org.bytesoft.transaction.supports.logger.TransactionLoggerProxy;
 import org.bytesoft.transaction.supports.rpc.TransactionInterceptor;
 import org.bytesoft.transaction.xa.XidFactory;
 
@@ -30,15 +30,11 @@ public class TransactionBeanFactoryImpl implements TransactionBeanFactory {
 	private TransactionManager transactionManager;
 	private XidFactory xidFactory;
 	private TransactionTimer transactionTimer;
-	private final TransactionLoggerProxy transactionLogger = new TransactionLoggerProxy();
-	private TransactionRepository<TransactionImpl> transactionRepository;
+	private TransactionLogger transactionLogger = new EmptyTransactionLogger();
+	private TransactionRepository transactionRepository;
 	private TransactionInterceptor transactionInterceptor;
 	private TransactionRecovery transactionRecovery;
-	private RemoteCoordinator nativeCoordinator;
-
-	public void setTransactionLogger(TransactionLogger transactionLogger) {
-		this.transactionLogger.setDelegate(transactionLogger);
-	}
+	private RemoteCoordinator transactionCoordinator;
 
 	public TransactionManager getTransactionManager() {
 		return transactionManager;
@@ -64,12 +60,11 @@ public class TransactionBeanFactoryImpl implements TransactionBeanFactory {
 		this.transactionTimer = transactionTimer;
 	}
 
-	@SuppressWarnings("unchecked")
-	public TransactionRepository<TransactionImpl> getTransactionRepository() {
+	public TransactionRepository getTransactionRepository() {
 		return transactionRepository;
 	}
 
-	public void setTransactionRepository(TransactionRepository<TransactionImpl> transactionRepository) {
+	public void setTransactionRepository(TransactionRepository transactionRepository) {
 		this.transactionRepository = transactionRepository;
 	}
 
@@ -89,16 +84,20 @@ public class TransactionBeanFactoryImpl implements TransactionBeanFactory {
 		this.transactionRecovery = transactionRecovery;
 	}
 
-	public RemoteCoordinator getNativeCoordinator() {
-		return nativeCoordinator;
+	public RemoteCoordinator getTransactionCoordinator() {
+		return transactionCoordinator;
 	}
 
-	public void setNativeCoordinator(RemoteCoordinator nativeCoordinator) {
-		this.nativeCoordinator = nativeCoordinator;
+	public void setTransactionCoordinator(RemoteCoordinator remoteCoordinator) {
+		this.transactionCoordinator = remoteCoordinator;
 	}
 
-	public TransactionLoggerProxy getTransactionLogger() {
+	public TransactionLogger getTransactionLogger() {
 		return transactionLogger;
+	}
+
+	public void setTransactionLogger(TransactionLogger transactionLogger) {
+		this.transactionLogger = transactionLogger;
 	}
 
 }

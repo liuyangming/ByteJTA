@@ -30,8 +30,10 @@ public class XAResourceArchive implements XAResource {
 	private boolean rolledback;
 	private boolean heuristic;
 
+	private transient boolean recovered;
+
 	private Xid xid;
-	private Integer vote = null;
+	private int vote = XAResource.XA_RDONLY;
 	private XAResourceDescriptor descriptor;
 
 	public void commit(Xid ignore, boolean onePhase) throws XAException {
@@ -54,6 +56,14 @@ public class XAResourceArchive implements XAResource {
 		descriptor.forget(xid);
 	}
 
+	public void forgetQuietly(Xid ignore) {
+		try {
+			descriptor.forget(xid);
+		} catch (XAException ex) {
+			// ignore
+		}
+	}
+
 	public int getTransactionTimeout() throws XAException {
 		return descriptor.getTransactionTimeout();
 	}
@@ -71,10 +81,7 @@ public class XAResourceArchive implements XAResource {
 
 		if (this.readonly) {
 			return XAResource.XA_RDONLY;
-		} else if (this.vote != null) {
-			return this.vote;
 		} else {
-			this.vote = descriptor.prepare(xid);
 			return this.vote;
 		}
 
@@ -180,6 +187,14 @@ public class XAResourceArchive implements XAResource {
 
 	public void setHeuristic(boolean heuristic) {
 		this.heuristic = heuristic;
+	}
+
+	public boolean isRecovered() {
+		return recovered;
+	}
+
+	public void setRecovered(boolean recovered) {
+		this.recovered = recovered;
 	}
 
 }
