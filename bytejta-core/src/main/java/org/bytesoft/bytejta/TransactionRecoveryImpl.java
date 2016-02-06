@@ -21,7 +21,9 @@ import javax.transaction.Status;
 import javax.transaction.SystemException;
 import javax.transaction.xa.XAResource;
 
+import org.apache.log4j.Logger;
 import org.bytesoft.bytejta.aware.TransactionBeanFactoryAware;
+import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
 import org.bytesoft.transaction.Transaction;
@@ -36,28 +38,45 @@ import org.bytesoft.transaction.supports.logger.TransactionLogger;
 import org.bytesoft.transaction.xa.TransactionXid;
 
 public class TransactionRecoveryImpl implements TransactionRecovery, TransactionBeanFactoryAware {
+	static final Logger logger = Logger.getLogger(TransactionRecoveryImpl.class.getSimpleName());
 
-	private boolean initialized;
 	private TransactionBeanFactory beanFactory;
 
 	public synchronized void timingRecover() {
 		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
 		List<Transaction> transactions = transactionRepository.getErrorTransactionList();
-		for (int i = 0; i < transactions.size(); i++) {
+		int total = transactions == null ? 0 : transactions.size();
+		int value = 0;
+		for (int i = 0; transactions != null && i < transactions.size(); i++) {
 			Transaction transaction = transactions.get(i);
+			TransactionContext transactionContext = transaction.getTransactionContext();
+			TransactionXid xid = transactionContext.getXid();
 			try {
 				this.recoverTransaction(transaction);
-				transaction.forgetQuietly();
+				transaction.recoveryForgetQuietly();
 			} catch (CommitRequiredException ex) {
+				logger.debug(String.format("[%s] recover: branch=%s, message= commit-required",
+						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+						ByteUtils.byteArrayToString(xid.getBranchQualifier())));
 				continue;
 			} catch (RollbackRequiredException ex) {
+				logger.debug(String.format("[%s] recover: branch=%s, message= rollback-required",
+						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+						ByteUtils.byteArrayToString(xid.getBranchQualifier())));
 				continue;
 			} catch (SystemException ex) {
+				logger.debug(String.format("[%s] recover: branch=%s, message= %s",
+						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+						ByteUtils.byteArrayToString(xid.getBranchQualifier()), ex.getMessage()));
 				continue;
 			} catch (RuntimeException ex) {
+				logger.debug(String.format("[%s] recover: branch=%s, message= %s",
+						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+						ByteUtils.byteArrayToString(xid.getBranchQualifier()), ex.getMessage()));
 				continue;
 			}
 		}
+		logger.info(String.format("[transaction-recovery] total= %s, success= %s", total, value));
 	}
 
 	public synchronized void recoverTransaction(Transaction transaction) throws CommitRequiredException,
@@ -74,12 +93,10 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 			case Status.STATUS_ROLLING_BACK:
 			case Status.STATUS_UNKNOWN:
 				transaction.recoveryRollback();
-				this.deleteRecoveryTransaction(transaction);
 				break;
 			case Status.STATUS_PREPARED:
 			case Status.STATUS_COMMITTING:
 				transaction.recoveryCommit();
-				this.deleteRecoveryTransaction(transaction);
 				break;
 			case Status.STATUS_COMMITTED:
 			case Status.STATUS_ROLLEDBACK:
@@ -90,21 +107,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 
 	}
 
-	public synchronized void startupRecover(boolean recoverImmediately) {
-		this.fireInitializationIfNecessary();
-		if (recoverImmediately) {
-			this.timingRecover();
-		}
-	}
-
-	private void fireInitializationIfNecessary() {
-		if (this.initialized == false) {
-			this.processStartupRecover();
-			this.initialized = true;
-		}
-	}
-
-	private synchronized void processStartupRecover() {
+	public synchronized void startRecovery() {
 		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		List<TransactionArchive> archives = transactionLogger.getTransactionArchiveList();
@@ -114,6 +117,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 			try {
 				transaction = this.reconstructTransaction(archive);
 			} catch (IllegalStateException ex) {
+				transactionLogger.deleteTransaction(archive);
 				continue;
 			}
 			TransactionContext transactionContext = transaction.getTransactionContext();
@@ -143,23 +147,10 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		remoteTerminator.getResourceArchives().addAll(remoteResources);
 
 		if (archive.getVote() == XAResource.XA_RDONLY) {
-			throw new IllegalStateException();
+			throw new IllegalStateException("Transaction has already been completed!");
 		}
 
 		return transaction;
-	}
-
-	private void deleteRecoveryTransaction(Transaction transaction) {
-
-		TransactionArchive archive = transaction.getTransactionArchive();
-		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
-		transactionLogger.deleteTransaction(archive);
-
-		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
-		TransactionXid globalXid = transaction.getTransactionContext().getXid();
-		transactionRepository.removeTransaction(globalXid);
-		transactionRepository.removeErrorTransaction(globalXid);
-
 	}
 
 	public void setBeanFactory(TransactionBeanFactory tbf) {

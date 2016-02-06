@@ -31,8 +31,6 @@ public interface Transaction extends javax.transaction.Transaction, TransactionB
 
 	public void suspend() throws SystemException;
 
-	public void forgetQuietly();
-
 	public boolean isTiming();
 
 	public void setTransactionTimeout(int seconds);
@@ -45,6 +43,8 @@ public interface Transaction extends javax.transaction.Transaction, TransactionB
 
 	public void participantCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
 			SecurityException, IllegalStateException, CommitRequiredException, SystemException;
+
+	public void recoveryForgetQuietly();
 
 	public void recoveryRollback() throws RollbackRequiredException, SystemException;
 

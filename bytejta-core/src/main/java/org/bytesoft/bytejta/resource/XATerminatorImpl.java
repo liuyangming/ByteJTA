@@ -533,7 +533,7 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 
 	protected void recoverForPreparingTransaction(XAResourceArchive archive, boolean xidRecovered) {
 		TransactionXid xid = (TransactionXid) archive.getXid();
-		boolean branchPrepared = archive.getVote() != XAResource.XA_RDONLY;
+		boolean branchPrepared = archive.getVote() != -1; // default value
 
 		if (branchPrepared && xidRecovered) {
 			// ignore
@@ -551,7 +551,7 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 
 	protected void recoverForPreparedTransaction(XAResourceArchive archive, boolean xidRecovered) {
 		TransactionXid xid = (TransactionXid) archive.getXid();
-		boolean branchPrepared = archive.getVote() != XAResource.XA_RDONLY;
+		boolean branchPrepared = archive.getVote() != -1; // default value
 		if (branchPrepared == false) {
 			logger.error(String.format("[%s] recover failed: branch= %s, status= prepared, branchPrepared= false",
 					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
@@ -616,6 +616,7 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 	public void forget(Xid xid) throws XAException {
 		for (int i = 0; i < this.resources.size(); i++) {
 			XAResourceArchive archive = this.resources.get(i);
+			Xid currentXid = archive.getXid();
 			if (archive.isHeuristic()) {
 				try {
 					Xid branchXid = archive.getXid();
@@ -625,17 +626,23 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 					// , XAER_NOTA, XAER_INVAL, or XAER_PROTO.
 					switch (xae.errorCode) {
 					case XAException.XAER_RMERR:
-						logger.warn("Error Occurred in forget: " + xae.getMessage());
+						logger.error(String.format("[%s] forget: xares= %s, branch=%s, error= %s",
+								ByteUtils.byteArrayToString(currentXid.getGlobalTransactionId()), archive,
+								ByteUtils.byteArrayToString(currentXid.getBranchQualifier()), xae.errorCode));
 						break;
 					case XAException.XAER_RMFAIL:
-						logger.warn("Error Occurred in forget: " + xae.getMessage());
+						logger.error(String.format("[%s] forget: xares= %s, branch=%s, error= %s",
+								ByteUtils.byteArrayToString(currentXid.getGlobalTransactionId()), archive,
+								ByteUtils.byteArrayToString(currentXid.getBranchQualifier()), xae.errorCode));
 						break;
 					case XAException.XAER_NOTA:
 					case XAException.XAER_INVAL:
 					case XAException.XAER_PROTO:
 						break;
 					default:
-						logger.warn("Unknown state in forget.");
+						logger.error(String.format("[%s] forget: xares= %s, branch=%s, error= %s",
+								ByteUtils.byteArrayToString(currentXid.getGlobalTransactionId()), archive,
+								ByteUtils.byteArrayToString(currentXid.getBranchQualifier()), xae.errorCode));
 					}
 				}
 			}// end-if

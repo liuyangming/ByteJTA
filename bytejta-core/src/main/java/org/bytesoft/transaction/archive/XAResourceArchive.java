@@ -33,7 +33,7 @@ public class XAResourceArchive implements XAResource {
 	private transient boolean recovered;
 
 	private Xid xid;
-	private int vote = XAResource.XA_RDONLY;
+	private int vote = -1;
 	private XAResourceDescriptor descriptor;
 
 	public void commit(Xid ignore, boolean onePhase) throws XAException {
@@ -78,12 +78,11 @@ public class XAResourceArchive implements XAResource {
 	}
 
 	public int prepare(Xid ignore) throws XAException {
-
-		if (this.readonly) {
-			return XAResource.XA_RDONLY;
-		} else {
-			return this.vote;
+		if (this.vote == -1) {
+			this.vote = this.descriptor.prepare(this.xid);
+			this.readonly = this.vote == XAResource.XA_RDONLY;
 		}
+		return this.vote;
 
 	}
 
