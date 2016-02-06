@@ -28,7 +28,8 @@ public class RemoteResourceDescriptor implements XAResourceDescriptor {
 	private String identifier;
 
 	public String toString() {
-		return String.format("remote-resource[id= %s, delegate= %s]", this.identifier, this.delegate);
+		return String.format("remote-resource[id= %s]", this.identifier);
+		// return String.format("remote-resource[id= %s, delegate= %s]", this.identifier, this.delegate);
 	}
 
 	public void setTransactionTimeoutQuietly(int timeout) {

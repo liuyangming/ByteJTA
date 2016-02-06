@@ -27,7 +27,8 @@ public class CommonResourceDescriptor implements XAResourceDescriptor {
 	private String identifier;
 
 	public String toString() {
-		return String.format("common-resource[id= %s, delegate= %s]", this.identifier, this.delegate);
+		return String.format("common-resource[id= %s]", this.identifier);
+		// return String.format("common-resource[id= %s, delegate= %s]", this.identifier, this.delegate);
 	}
 
 	public void setTransactionTimeoutQuietly(int timeout) {

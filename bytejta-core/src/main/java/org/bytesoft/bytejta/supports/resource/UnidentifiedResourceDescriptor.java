@@ -27,7 +27,7 @@ public class UnidentifiedResourceDescriptor implements XAResourceDescriptor {
 	private XAResource delegate;
 
 	public String toString() {
-		return String.format("unknown-resource[id= %s, delegate= %s]", this.identifier, this.delegate);
+		return String.format("unknown-resource[%s]", this.delegate);
 	}
 
 	public UnidentifiedResourceDescriptor(XAResource xares) {

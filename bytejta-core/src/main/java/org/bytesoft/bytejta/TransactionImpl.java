@@ -577,11 +577,13 @@ public class TransactionImpl implements Transaction {
 			} else {
 				return this.remoteTerminator.enlistResource(descriptor);
 			}
-		} else {
+		} else if (this.transactionContext.isCoordinator()) {
 			UnidentifiedResourceDescriptor descriptor = new UnidentifiedResourceDescriptor(xaRes);
 			descriptor.setTransactionTimeoutQuietly(this.transactionTimeout);
 
 			return this.remoteTerminator.enlistResource(descriptor);
+		} else {
+			throw new SystemException("Unknown xa resource!");
 		}
 
 	}
@@ -913,21 +915,16 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	public synchronized void recoveryInit() throws RollbackRequiredException, SystemException {
-		RollbackRequiredException rollbackRequiredEx = null;
+	public synchronized void recoveryInit() throws SystemException {
 		SystemException systemEx = null;
 		try {
 			this.nativeTerminator.recover(this);
-		} catch (RollbackRequiredException ex) {
-			rollbackRequiredEx = ex;
 		} catch (SystemException ex) {
 			systemEx = ex;
 		}
 
 		this.remoteTerminator.recover(this);
-		if (rollbackRequiredEx != null) {
-			throw rollbackRequiredEx;
-		} else if (systemEx != null) {
+		if (systemEx != null) {
 			throw systemEx;
 		}
 	}

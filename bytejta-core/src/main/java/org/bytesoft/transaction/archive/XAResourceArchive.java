@@ -22,6 +22,7 @@ import javax.transaction.xa.Xid;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 
 public class XAResourceArchive implements XAResource {
+	public static final int DEFAULT_VOTE = -1;
 
 	private boolean delisted;
 	private boolean completed;
@@ -29,11 +30,12 @@ public class XAResourceArchive implements XAResource {
 	private boolean committed;
 	private boolean rolledback;
 	private boolean heuristic;
+	private boolean identified;
 
 	private transient boolean recovered;
 
 	private Xid xid;
-	private int vote = -1;
+	private int vote = DEFAULT_VOTE;
 	private XAResourceDescriptor descriptor;
 
 	public void commit(Xid ignore, boolean onePhase) throws XAException {
@@ -194,6 +196,14 @@ public class XAResourceArchive implements XAResource {
 
 	public void setRecovered(boolean recovered) {
 		this.recovered = recovered;
+	}
+
+	public boolean isIdentified() {
+		return identified;
+	}
+
+	public void setIdentified(boolean identified) {
+		this.identified = identified;
 	}
 
 }

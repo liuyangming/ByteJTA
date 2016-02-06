@@ -192,7 +192,9 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 						// Due to some failure, the work done on behalf of the specified
 						// transaction branch may have been heuristically completed.
 						commitExists = true;
+						// rollbackExists = true;
 						archive.setCommitted(true);
+						// archive.setRolledback(true); // TODO
 						archive.setHeuristic(true);
 						archive.setCompleted(true);
 						break;
@@ -343,8 +345,11 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 					// Due to some failure, the work done on behalf of the specified transaction branch
 					// may have been heuristically completed. A resource manager may return this
 					// value only if it has successfully prepared xid.
-					commitExists = true;
-					archive.setCommitted(true);
+
+					// commitExists = true;
+					rollbackExists = true;
+					// archive.setCommitted(true); // TODO
+					archive.setRolledback(true);
 					archive.setHeuristic(true);
 					archive.setCompleted(true);
 					break;
@@ -470,7 +475,7 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		throw new XAException(XAException.XAER_RMFAIL);
 	}
 
-	public void recover(Transaction transaction) throws RollbackRequiredException, SystemException {
+	public void recover(Transaction transaction) throws SystemException {
 		TransactionXid globalXid = this.transactionContext.getXid();
 		int transactionStatus = transaction.getTransactionStatus();
 
@@ -491,34 +496,41 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 				continue;
 			}
 
-			Xid thisXid = archive.getXid();
 			boolean xidRecovered = false;
-			byte[] thisGlobalTransactionId = thisXid.getGlobalTransactionId();
-			byte[] thisBranchQualifier = thisXid.getBranchQualifier();
-			try {
-				Xid[] array = archive.recover(XAResource.TMSTARTRSCAN | XAResource.TMENDRSCAN);
-				for (int j = 0; array != null && j < array.length; j++) {
-					Xid thatXid = array[j];
-					byte[] thatGlobalTransactionId = thatXid.getGlobalTransactionId();
-					byte[] thatBranchQualifier = thatXid.getBranchQualifier();
-					if (thisXid.getFormatId() == thatXid.getFormatId()
-							&& Arrays.equals(thisGlobalTransactionId, thatGlobalTransactionId)
-							&& Arrays.equals(thisBranchQualifier, thatBranchQualifier)) {
-						xidRecovered = true;
-						break;
+			if (archive.isIdentified()) {
+				Xid thisXid = archive.getXid();
+				byte[] thisGlobalTransactionId = thisXid.getGlobalTransactionId();
+				byte[] thisBranchQualifier = thisXid.getBranchQualifier();
+				try {
+					Xid[] array = archive.recover(XAResource.TMSTARTRSCAN | XAResource.TMENDRSCAN);
+					for (int j = 0; array != null && j < array.length; j++) {
+						Xid thatXid = array[j];
+						byte[] thatGlobalTransactionId = thatXid.getGlobalTransactionId();
+						byte[] thatBranchQualifier = thatXid.getBranchQualifier();
+						if (thisXid.getFormatId() == thatXid.getFormatId()
+								&& Arrays.equals(thisGlobalTransactionId, thatGlobalTransactionId)
+								&& Arrays.equals(thisBranchQualifier, thatBranchQualifier)) {
+							xidRecovered = true;
+							break;
+						}
 					}
+				} catch (Exception ex) {
+					logger.error(String.format("[%s] recover-transaction failed. branch= %s",
+							ByteUtils.byteArrayToString(globalXid.getGlobalTransactionId()),
+							ByteUtils.byteArrayToString(globalXid.getBranchQualifier())));
+					continue;
 				}
-			} catch (Exception ex) {
-				logger.error(String.format("[%s] recover-transaction failed. branch= %s",
-						ByteUtils.byteArrayToString(globalXid.getGlobalTransactionId()),
-						ByteUtils.byteArrayToString(globalXid.getBranchQualifier())));
-				continue;
 			}
 
 			if (transactionStatus == Status.STATUS_PREPARING) {
 				this.recoverForPreparingTransaction(archive, xidRecovered);
 			} else if (transactionStatus == Status.STATUS_PREPARED) {
-				this.recoverForPreparedTransaction(archive, xidRecovered);
+				try {
+					this.recoverForPreparedTransaction(archive, xidRecovered);
+				} catch (IllegalStateException ex) {
+					transactionStatus = Status.STATUS_PREPARING;
+					transaction.setTransactionStatus(Status.STATUS_PREPARING);
+				}
 			} else if (transactionStatus == Status.STATUS_COMMITTING) {
 				this.recoverForCommittingTransaction(archive, xidRecovered);
 			} else if (transactionStatus == Status.STATUS_ROLLING_BACK) {
@@ -538,10 +550,14 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		if (branchPrepared && xidRecovered) {
 			// ignore
 		} else if (branchPrepared && xidRecovered == false) {
-			logger.error(String.format(
-					"[%s] recover failed: branch= %s, status= preparing, branchPrepared= true, xidRecovered= false",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-					ByteUtils.byteArrayToString(xid.getBranchQualifier())));
+			if (archive.isIdentified()) {
+				logger.error(String
+						.format("[%s] recover failed: branch= %s, status= preparing, branchPrepared= true, xidRecovered= false",
+								ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+								ByteUtils.byteArrayToString(xid.getBranchQualifier())));
+			} else {
+				// TODO
+			}
 		} else if (branchPrepared == false && xidRecovered) {
 			archive.setVote(XAResource.XA_OK);
 		} else if (branchPrepared == false && xidRecovered == false) {
@@ -549,19 +565,30 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		}
 	}
 
-	protected void recoverForPreparedTransaction(XAResourceArchive archive, boolean xidRecovered) {
+	protected void recoverForPreparedTransaction(XAResourceArchive archive, boolean xidRecovered)
+			throws IllegalStateException {
 		TransactionXid xid = (TransactionXid) archive.getXid();
-		boolean branchPrepared = archive.getVote() != -1; // default value
+		boolean branchPrepared = archive.getVote() != XAResourceArchive.DEFAULT_VOTE; // default value
 		if (branchPrepared == false) {
 			logger.error(String.format("[%s] recover failed: branch= %s, status= prepared, branchPrepared= false",
 					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
 					ByteUtils.byteArrayToString(xid.getBranchQualifier())));
+			throw new IllegalStateException();
 		} else if (xidRecovered == false) {
-			// TODO archive.setHeuristic(true);
-			logger.error(String.format(
-					"[%s] recover failed: branch= %s, status= prepared, branchPrepared= true, xidRecovered= false",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-					ByteUtils.byteArrayToString(xid.getBranchQualifier())));
+			if (archive.isIdentified()) {
+				logger.error(String.format(
+						"[%s] recover failed: branch= %s, status= prepared, branchPrepared= true, xidRecovered= false",
+						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+						ByteUtils.byteArrayToString(xid.getBranchQualifier())));
+			} else {
+				archive.setVote(XAResourceArchive.DEFAULT_VOTE); // vote of unidentified resource will be reset
+				logger.error(String.format(
+						"[%s] recover failed: branch= %s, status= prepared, branchPrepared= true, identified= false",
+						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+						ByteUtils.byteArrayToString(xid.getBranchQualifier())));
+				// rollback required
+				throw new IllegalStateException();
+			}
 		}
 	}
 
@@ -580,12 +607,20 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		} else if (branchCommitted == false && xidRecovered) {
 			// ignore
 		} else if (branchCommitted == false && xidRecovered == false) {
-			logger.warn(String.format(
-					"[%s] recover failed: branch= %s, status= committing, branchCommitted= false, xidRecovered= false",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-					ByteUtils.byteArrayToString(xid.getBranchQualifier())));
-			archive.setCommitted(true);
-			archive.setCompleted(true);
+			if (archive.isIdentified()) {
+				logger.warn(String
+						.format("[%s] recover failed: branch= %s, status= committing, branchCommitted= false, xidRecovered= false",
+								ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+								ByteUtils.byteArrayToString(xid.getBranchQualifier())));
+				archive.setCommitted(true);
+				archive.setCompleted(true);
+			} else {
+				// TODO upgrade
+				archive.setHeuristic(true);
+				archive.setCommitted(true);
+				archive.setRolledback(true);
+				archive.setCompleted(true);
+			}
 		}
 	}
 
@@ -604,12 +639,20 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		} else if (branchRolledback == false && xidRecovered) {
 			// ignore
 		} else if (branchRolledback == false && xidRecovered == false) {
-			logger.warn(String
-					.format("[%s] recover failed: branch= %s, status= rollingback, branchRolledback= false, xidRecovered= false",
-							ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-							ByteUtils.byteArrayToString(xid.getBranchQualifier())));
-			archive.setRolledback(true);
-			archive.setCompleted(true);
+			if (archive.isIdentified()) {
+				logger.warn(String
+						.format("[%s] recover failed: branch= %s, status= rollingback, branchRolledback= false, xidRecovered= false",
+								ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+								ByteUtils.byteArrayToString(xid.getBranchQualifier())));
+				archive.setRolledback(true);
+				archive.setCompleted(true);
+			} else {
+				// TODO upgrade
+				archive.setHeuristic(true);
+				archive.setCommitted(true);
+				archive.setRolledback(true);
+				archive.setCompleted(true);
+			}
 		}
 	}
 
@@ -713,6 +756,7 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		if (archive == null) {
 			archive = new XAResourceArchive();
 			archive.setDescriptor(descriptor);
+			archive.setIdentified(UnidentifiedResourceDescriptor.class.isInstance(descriptor) == false);
 			TransactionXid globalXid = this.transactionContext.getXid();
 			archive.setXid(globalXid.createBranchXid());
 		} else {
