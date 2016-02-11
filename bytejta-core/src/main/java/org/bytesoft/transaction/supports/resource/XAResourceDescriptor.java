@@ -1,5 +1,5 @@
 /**
- * Copyright 2014-2015 yangming.liu<liuyangming@gmail.com>.
+ * Copyright 2014-2016 yangming.liu<bytefox@126.com>.
  *
  * This copyrighted material is made available to anyone wishing to use, modify,
  * copy, or redistribute it subject to the terms and conditions of the GNU
@@ -18,6 +18,8 @@ package org.bytesoft.transaction.supports.resource;
 import javax.transaction.xa.XAResource;
 
 public interface XAResourceDescriptor extends XAResource {
+
+	public void setIdentifier(String identifier);
 
 	public String getIdentifier();
 

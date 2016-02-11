@@ -1,5 +1,5 @@
 /**
- * Copyright 2014-2015 yangming.liu<liuyangming@gmail.com>.
+ * Copyright 2014-2016 yangming.liu<bytefox@126.com>.
  *
  * This copyrighted material is made available to anyone wishing to use, modify,
  * copy, or redistribute it subject to the terms and conditions of the GNU
@@ -28,10 +28,6 @@ public class UnidentifiedResourceDescriptor implements XAResourceDescriptor {
 
 	public String toString() {
 		return String.format("unknown-resource[%s]", this.delegate);
-	}
-
-	public UnidentifiedResourceDescriptor(XAResource xares) {
-		this.delegate = xares;
 	}
 
 	public void setTransactionTimeoutQuietly(int timeout) {
@@ -89,4 +85,13 @@ public class UnidentifiedResourceDescriptor implements XAResourceDescriptor {
 	public void setIdentifier(String identifier) {
 		this.identifier = identifier;
 	}
+
+	public XAResource getDelegate() {
+		return delegate;
+	}
+
+	public void setDelegate(XAResource delegate) {
+		this.delegate = delegate;
+	}
+
 }

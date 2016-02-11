@@ -1,5 +1,5 @@
 /**
- * Copyright 2014-2015 yangming.liu<liuyangming@gmail.com>.
+ * Copyright 2014-2016 yangming.liu<bytefox@126.com>.
  *
  * This copyrighted material is made available to anyone wishing to use, modify,
  * copy, or redistribute it subject to the terms and conditions of the GNU
@@ -17,8 +17,6 @@ package org.bytesoft.transaction.supports.logger;
 
 import java.util.List;
 
-import javax.transaction.xa.Xid;
-
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.archive.XAResourceArchive;
 
@@ -34,6 +32,6 @@ public interface TransactionLogger {
 	public List<TransactionArchive> getTransactionArchiveList();
 
 	/* resource */
-	public void updateResource(Xid transactionXid, XAResourceArchive archive);
+	public void updateResource(XAResourceArchive archive);
 
 }
