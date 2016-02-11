@@ -565,6 +565,10 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 				this.channel.position(paramStartPos);
 				this.channel.write(byteBuf);
 				result.writed = true;
+
+				if (operator == OPERTOR_DEL_TRANSACTION) {
+					this.archives.remove(globalXid);
+				}
 			} else if (paramCleanPos < paramStartPos) {
 				ByteBuffer textBuffer = ByteBuffer.allocate(sizeOfText);
 				this.channel.position(paramStartPos + SIZE_HEADER_SECTION);
