@@ -23,6 +23,7 @@ import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -66,12 +67,14 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 
 	private final AtomicInteger concurrent = new AtomicInteger();
 	private final Lock lock = new ReentrantLock();
-	private final Map<Xid, TransactionArchive> archives = new HashMap<Xid, TransactionArchive>();
+	private final Map<Xid, TransactionHolder> archives = new HashMap<Xid, TransactionHolder>();
 
 	private File storage;
 	private RandomAccessFile raf;
 	private FileChannel channel;
 	private boolean released = false;
+
+	private transient long records = 0;
 
 	private TransactionBeanFactory beanFactory;
 
@@ -98,11 +101,15 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 
 			XidFactory xidFactory = this.beanFactory.getXidFactory();
 			TransactionXid xid = xidFactory.createGlobalXid(key);
-			this.archives.put(xid, archive);
+			TransactionHolder holder = new TransactionHolder();
+			holder.archive = archive;
+			this.archives.put(xid, holder);
 
 			long newMaxIndex = this.maxIndex + sizeOfBlock;
 			this.updateMaxIndex(newMaxIndex);
 			this.maxIndex = newMaxIndex;
+
+			this.records++;
 		} catch (IOException ex) {
 			logger.error("Error occurred while creating add-transaction log.", ex);
 		} catch (RuntimeException ex) {
@@ -122,6 +129,14 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 			byte[] key = serializedObj.key;
 			byte[] value = serializedObj.value;
 
+			XidFactory xidFactory = this.beanFactory.getXidFactory();
+			TransactionXid xid = xidFactory.createGlobalXid(key);
+			TransactionHolder holder = this.archives.get(xid);
+			if (holder == null) {
+				logger.error("Error occurred while creating mod-transaction log: transaction not exists!");
+				return;
+			}
+
 			int sizeOfBlock = SIZE_HEADER_SECTION + value.length;
 			ByteBuffer byteBuf = ByteBuffer.allocate(sizeOfBlock);
 			byteBuf.put((byte) 0x1);
@@ -134,16 +149,16 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 			this.channel.position(this.maxIndex);
 			this.channel.write(byteBuf);
 
-			XidFactory xidFactory = this.beanFactory.getXidFactory();
-			TransactionXid xid = xidFactory.createGlobalXid(key);
-			// TransactionArchive that = this.archives.get(xid);
+			// TransactionArchive that = holder.archive;
 			// that.setVote(archive.getVote());
 			// that.setStatus(archive.getStatus());
-			this.archives.put(xid, archive);
+			holder.archive = archive;
 
 			long newMaxIndex = this.maxIndex + sizeOfBlock;
 			this.updateMaxIndex(newMaxIndex);
 			this.maxIndex = newMaxIndex;
+
+			this.records++;
 		} catch (IOException ex) {
 			logger.error("Error occurred while creating mod-transaction log.", ex);
 		} catch (RuntimeException ex) {
@@ -163,6 +178,13 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 			byte[] key = serializedObj.key;
 			byte[] value = serializedObj.value;
 
+			XidFactory xidFactory = this.beanFactory.getXidFactory();
+			TransactionXid xid = xidFactory.createGlobalXid(key);
+			TransactionHolder holder = this.archives.get(xid);
+			if (holder == null) {
+				return;
+			}
+
 			int sizeOfBlock = SIZE_HEADER_SECTION + value.length;
 			ByteBuffer byteBuf = ByteBuffer.allocate(sizeOfBlock);
 			byteBuf.put((byte) 0x1);
@@ -175,13 +197,14 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 			this.channel.position(this.maxIndex);
 			this.channel.write(byteBuf);
 
-			XidFactory xidFactory = this.beanFactory.getXidFactory();
-			TransactionXid xid = xidFactory.createGlobalXid(key);
-			this.archives.remove(xid);
+			// this.archives.remove(xid); // don't remove immediately.
+			holder.deleted = true;
 
 			long newMaxIndex = this.maxIndex + sizeOfBlock;
 			this.updateMaxIndex(newMaxIndex);
 			this.maxIndex = newMaxIndex;
+
+			this.records++;
 		} catch (IOException ex) {
 			logger.error("Error occurred while creating del-transaction log.", ex);
 		} catch (RuntimeException ex) {
@@ -193,7 +216,19 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 	}
 
 	public List<TransactionArchive> getTransactionArchiveList() {
-		return new ArrayList<TransactionArchive>(this.archives.values());
+		List<TransactionArchive> results = new ArrayList<TransactionArchive>();
+		try {
+			this.lock.lock();
+			Iterator<Map.Entry<Xid, TransactionHolder>> itr = this.archives.entrySet().iterator();
+			while (itr.hasNext()) {
+				Map.Entry<Xid, TransactionHolder> entry = itr.next();
+				TransactionHolder holder = entry.getValue();
+				results.add(holder.archive);
+			}
+		} finally {
+			this.lock.unlock();
+		}
+		return results;
 	}
 
 	public void updateResource(XAResourceArchive resourceArchive) {
@@ -219,12 +254,19 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 
 			XidFactory xidFactory = this.beanFactory.getXidFactory();
 			TransactionXid xid = xidFactory.createGlobalXid(key);
-			TransactionArchive archive = this.archives.get(xid);
+			TransactionHolder holder = this.archives.get(xid);
+			if (holder == null) {
+				logger.error("Error occurred while creating mod-resource log: transaction not exists!");
+				return;
+			}
+			TransactionArchive archive = holder.archive;
 			this.updateResourceArchive(archive, resourceArchive);
 
 			long newMaxIndex = this.maxIndex + sizeOfBlock;
 			this.updateMaxIndex(newMaxIndex);
 			this.maxIndex = newMaxIndex;
+
+			this.records++;
 		} catch (IOException ex) {
 			logger.error("Error occurred while creating del-transaction log.", ex);
 		} catch (RuntimeException ex) {
@@ -302,16 +344,31 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 
 			if (operator == OPERTOR_ADD_TRANSACTION) {
 				TransactionArchive archive = this.deserialize(serializedObj);
-				this.archives.put(xid, archive);
+				TransactionHolder holder = this.archives.get(xid);
+				if (holder == null) {
+					holder = new TransactionHolder();
+				}
+				holder.archive = archive;
+				this.archives.put(xid, holder);
 			} else if (operator == OPERTOR_MOD_TRANSACTION) {
 				TransactionArchive archive = this.deserialize(serializedObj);
-				this.archives.put(xid, archive);
+				TransactionHolder holder = this.archives.get(xid);
+				if (holder == null) {
+					holder = new TransactionHolder();
+				}
+				holder.archive = archive;
+				this.archives.put(xid, holder);
 			} else if (operator == OPERTOR_DEL_TRANSACTION) {
-				this.archives.remove(xid);
+				TransactionHolder holder = this.archives.get(xid);
+				if (holder != null) {
+					holder.deleted = true;
+				}
 			} else if (operator == OPERTOR_MOD_RESOURCE) {
 				XAResourceArchive resourceArchive = this.deserializeResource(serializedObj);
-				TransactionArchive archive = this.archives.get(xid);
-				this.updateResourceArchive(archive, resourceArchive);
+				TransactionHolder holder = this.archives.get(xid);
+				if (holder != null) {
+					this.updateResourceArchive(holder.archive, resourceArchive);
+				}
 			} else {
 				logger.error("invalid info.");
 				continue;
@@ -398,13 +455,25 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 	}
 
 	public void run() {
+		long unit = 20;
+		long lastRecords = this.records;
 		while (this.released == false) {
 			this.execute();
-			this.sleepMillis(1000L * 60);
+			long currRecords = this.records;
+			long value = currRecords - lastRecords;
+			lastRecords = currRecords;
+			if (value < unit * 5) {
+				this.sleepMillis(1000L * 30);
+			} else if (value < unit * 100) {
+				this.sleepMillis(1000L * 5);
+			} else if (value < unit * 1000) {
+				this.sleepMillis(1000L * 1);
+			}
 		}
 	}
 
 	private void execute() {
+
 		CleanupObject resultObj = new CleanupObject();
 		resultObj.cleanPos = this.minIndex;
 		resultObj.startPos = this.minIndex;
@@ -421,11 +490,15 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 
 	private CleanupObject cleanup(CleanupObject paramsObj) {
 		CleanupObject resultObj = new CleanupObject();
+		resultObj.cleanPos = paramsObj.cleanPos;
+		resultObj.startPos = paramsObj.startPos;
 		try {
 			this.lock.lock();
 			boolean writed = false;
 			while (this.concurrent.get() == 0) {
 				CleanupObject cleanupObj = this.unitCleanup(paramsObj);
+				paramsObj.cleanPos = cleanupObj.cleanPos;
+				paramsObj.startPos = cleanupObj.startPos;
 				if (cleanupObj.error) {
 					resultObj.error = true;
 					break;
@@ -439,9 +512,13 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 
 		} catch (IllegalStateException ex) {
 			resultObj.closed = true;
-			this.updateMaxIndexQuietly(resultObj.cleanPos);
-			this.maxIndex = resultObj.cleanPos;
-			this.forceChannel();
+			if (this.maxIndex != resultObj.cleanPos) {
+				this.updateMaxIndexQuietly(resultObj.cleanPos);
+				this.maxIndex = resultObj.cleanPos;
+				this.forceChannel();
+				this.setSizeOfRafQuietly();
+			}
+
 		} finally {
 			this.lock.unlock();
 		}
@@ -472,12 +549,22 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 
 			XidFactory xidFactory = this.beanFactory.getXidFactory();
 			TransactionXid globalXid = xidFactory.createGlobalXid(globalTransactionId);
+			TransactionHolder holder = this.archives.get(globalXid);
+			boolean removeRequired = holder != null && holder.deleted;
 			if (enabled == 0x0) {
 				result.cleanPos = paramCleanPos;
 				result.startPos = paramStartPos + sizeOfBlock;
-			} else if (this.archives.containsKey(globalXid) == false) {
+			} else if (removeRequired) {
 				result.cleanPos = paramCleanPos;
 				result.startPos = paramStartPos + sizeOfBlock;
+
+				ByteBuffer byteBuf = ByteBuffer.allocate(1);
+				byteBuf.put((byte) 0x0);
+				byteBuf.flip();
+
+				this.channel.position(paramStartPos);
+				this.channel.write(byteBuf);
+				result.writed = true;
 			} else if (paramCleanPos < paramStartPos) {
 				ByteBuffer textBuffer = ByteBuffer.allocate(sizeOfText);
 				this.channel.position(paramStartPos + SIZE_HEADER_SECTION);
@@ -599,6 +686,14 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 			byteBuf.putLong(maxIndex);
 			byteBuf.flip();
 			this.channel.write(byteBuf);
+		} catch (IOException ex) {
+			logger.warn("Error occurred while modify max-index.");
+		}
+	}
+
+	private void setSizeOfRafQuietly() {
+		try {
+			this.raf.setLength(this.maxIndex);
 		} catch (IOException ex) {
 			logger.warn("Error occurred while modify max-index.");
 		}
@@ -837,6 +932,11 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 
 		return archive;
 
+	}
+
+	static class TransactionHolder {
+		public TransactionArchive archive;
+		public boolean deleted;
 	}
 
 	static class SerializedObject {
