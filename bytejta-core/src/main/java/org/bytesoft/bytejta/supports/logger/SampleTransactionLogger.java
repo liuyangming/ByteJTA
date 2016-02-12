@@ -223,6 +223,9 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 			while (itr.hasNext()) {
 				Map.Entry<Xid, TransactionHolder> entry = itr.next();
 				TransactionHolder holder = entry.getValue();
+				if (holder.deleted) {
+					continue;
+				}
 				results.add(holder.archive);
 			}
 		} finally {
@@ -495,7 +498,7 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 		try {
 			this.lock.lock();
 			boolean writed = false;
-			while (this.concurrent.get() == 0) {
+			do {
 				CleanupObject cleanupObj = this.unitCleanup(paramsObj);
 				paramsObj.cleanPos = cleanupObj.cleanPos;
 				paramsObj.startPos = cleanupObj.startPos;
@@ -506,10 +509,9 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 				writed = cleanupObj.writed ? true : writed;
 				resultObj.cleanPos = cleanupObj.cleanPos;
 				resultObj.startPos = cleanupObj.startPos;
-			}
+			} while (this.concurrent.get() == 0);
 			resultObj.writed = writed;
 			resultObj.closed = false;
-
 		} catch (IllegalStateException ex) {
 			resultObj.closed = true;
 			if (this.maxIndex != resultObj.cleanPos) {
