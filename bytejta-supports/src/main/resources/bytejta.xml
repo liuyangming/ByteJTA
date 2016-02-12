@@ -24,34 +24,24 @@
 		<property name="transactionManager" ref="bytejtaTransactionManager" />
 	</bean>
 
-	<bean id="transactionManager" class="org.springframework.transaction.jta.JtaTransactionManager">
-		<property name="userTransaction" ref="bytejtaUserTransaction" />
-		<property name="transactionManager" ref="bytejtaTransactionManager" />
-	</bean>
-	<tx:annotation-driven transaction-manager="transactionManager" />
-
-	<bean id="bytejtaResourceSerializer" class="org.bytesoft.transaction.supports.serialize.XAResourceSerializerImpl" />
-	<bean id="bytejtaTransactionLogger" class="org.bytesoft.bytejta.supports.logger.SimpleTransactionLogger">
-		<property name="storageManager" ref="bytejtaTransactionStorage" />
-		<property name="resourceSerializer" ref="bytejtaResourceSerializer" />
-	</bean>
-
-	<bean id="bytejtaTransactionStorage" class="org.bytesoft.bytejta.supports.store.SimpleTransactionStorageManager"
+	<bean id="bytejtaResourceDeserializer" class="org.bytesoft.transaction.supports.serialize.XAResourceDeserializerImpl" />
+	<bean id="bytejtaTransactionLogger" class="org.bytesoft.bytejta.supports.logger.SampleTransactionLogger"
 		init-method="initialize">
-		<constructor-arg value="bytejta/bytejta.dat" />
+		<property name="storage" value="bytejta/bytejta.dat" />
+		<property name="deserializer" ref="bytejtaResourceDeserializer" />
 	</bean>
 
 	<bean id="bytejtaTransactionCoordinator" class="org.bytesoft.bytejta.TransactionCoordinator" />
 	<bean id="bytejtaTransactionRecovery" class="org.bytesoft.bytejta.TransactionRecoveryImpl" />
 	<bean id="bytejtaTransactionRepository" class="org.bytesoft.bytejta.TransactionRepositoryImpl" />
-	<!-- <bean id="bytejtaTransactionInterceptor" class="org.bytesoft.transaction.supports.rpc.TransactionInterceptorImpl" /> -->
+	<bean id="bytejtaTransactionInterceptor" class="org.bytesoft.transaction.supports.rpc.TransactionInterceptorImpl" />
 	<bean id="bytejtaBeanFactory" class="org.bytesoft.bytejta.TransactionBeanFactoryImpl">
 		<property name="transactionManager" ref="bytejtaTransactionManager" />
 		<property name="xidFactory" ref="bytejtaXidFactory" />
 		<property name="transactionTimer" ref="bytejtaTransactionManager" />
 		<property name="transactionLogger" ref="bytejtaTransactionLogger" />
 		<property name="transactionRepository" ref="bytejtaTransactionRepository" />
-		<!-- <property name="transactionInterceptor" ref="bytejtaTransactionInterceptor" /> -->
+		<property name="transactionInterceptor" ref="bytejtaTransactionInterceptor" />
 		<property name="transactionRecovery" ref="bytejtaTransactionRecovery" />
 		<property name="transactionCoordinator" ref="bytejtaTransactionCoordinator" />
 	</bean>

@@ -31,6 +31,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import javax.resource.spi.work.Work;
+import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
 import org.apache.log4j.Logger;
@@ -38,12 +39,14 @@ import org.bytesoft.bytejta.aware.TransactionBeanFactoryAware;
 import org.bytesoft.bytejta.supports.resource.CommonResourceDescriptor;
 import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
 import org.bytesoft.bytejta.supports.resource.UnidentifiedResourceDescriptor;
+import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.archive.XAResourceArchive;
 import org.bytesoft.transaction.supports.logger.TransactionLogger;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
+import org.bytesoft.transaction.supports.serialize.XAResourceDeserializer;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
 
@@ -77,6 +80,7 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 	private transient long records = 0;
 
 	private TransactionBeanFactory beanFactory;
+	private XAResourceDeserializer deserializer;
 
 	public void createTransaction(TransactionArchive archive) {
 		try {
@@ -912,14 +916,27 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 
 		XAResourceDescriptor descriptor = null;
 		byte resourceType = buffer.get();
+		byte length = buffer.get();
+		byte[] byteArray = new byte[length];
+		buffer.get(byteArray);
+		String identifier = new String(byteArray);
+
 		if (resourceType == 0x01) {
 			archive.setIdentified(true);
-			descriptor = new CommonResourceDescriptor();
+			CommonResourceDescriptor resourceDescriptor = new CommonResourceDescriptor();
+			XAResource resource = this.deserializer.deserialize(identifier);
+			resourceDescriptor.setDelegate(resource);
+			descriptor = resourceDescriptor;
 		} else if (resourceType == 0x02) {
 			archive.setIdentified(true);
-			descriptor = new RemoteResourceDescriptor();
+			RemoteResourceDescriptor resourceDescriptor = new RemoteResourceDescriptor();
+			XAResource resource = this.deserializer.deserialize(identifier);
+			resourceDescriptor.setDelegate((RemoteCoordinator) resource);
+			descriptor = resourceDescriptor;
+			descriptor = resourceDescriptor;
 		} else {
-			descriptor = new UnidentifiedResourceDescriptor();
+			UnidentifiedResourceDescriptor resourceDescriptor = new UnidentifiedResourceDescriptor();
+			descriptor = resourceDescriptor;
 		}
 		archive.setDescriptor(descriptor);
 
@@ -956,6 +973,10 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 		public boolean error;
 		public boolean closed;
 		public boolean writed;
+	}
+
+	public void setDeserializer(XAResourceDeserializer deserializer) {
+		this.deserializer = deserializer;
 	}
 
 	public void setBeanFactory(TransactionBeanFactory beanFactory) {

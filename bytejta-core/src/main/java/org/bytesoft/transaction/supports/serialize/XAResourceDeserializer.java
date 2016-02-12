@@ -17,12 +17,10 @@ package org.bytesoft.transaction.supports.serialize;
 
 import java.io.IOException;
 
-import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
+import javax.transaction.xa.XAResource;
 
-public class XAResourceSerializerImpl extends AbstractXAResourceSerializer {
+public interface XAResourceDeserializer {
 
-	public XAResourceDescriptor deserializeTransactionResource(String identifier) throws IOException {
-		throw new IOException("Not supported yet!");
-	}
+	public XAResource deserialize(String identifier) throws IOException;
 
 }

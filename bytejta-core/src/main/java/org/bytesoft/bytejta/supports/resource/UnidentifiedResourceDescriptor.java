@@ -34,47 +34,77 @@ public class UnidentifiedResourceDescriptor implements XAResourceDescriptor {
 		try {
 			this.delegate.setTransactionTimeout(timeout);
 		} catch (Exception ex) {
-			// ignore
+			return;
 		}
 	}
 
 	public void commit(Xid arg0, boolean arg1) throws XAException {
+		if (this.delegate == null) {
+			return;
+		}
 		delegate.commit(arg0, arg1);
 	}
 
 	public void end(Xid arg0, int arg1) throws XAException {
+		if (this.delegate == null) {
+			return;
+		}
 		delegate.end(arg0, arg1);
 	}
 
 	public void forget(Xid arg0) throws XAException {
+		if (this.delegate == null) {
+			return;
+		}
 		delegate.forget(arg0);
 	}
 
 	public int getTransactionTimeout() throws XAException {
+		if (this.delegate == null) {
+			return 0;
+		}
 		return delegate.getTransactionTimeout();
 	}
 
 	public boolean isSameRM(XAResource arg0) throws XAException {
+		if (this.delegate == null) {
+			return false;
+		}
 		return delegate.isSameRM(arg0);
 	}
 
 	public int prepare(Xid arg0) throws XAException {
+		if (this.delegate == null) {
+			return XAResource.XA_RDONLY;
+		}
 		return delegate.prepare(arg0);
 	}
 
 	public Xid[] recover(int arg0) throws XAException {
+		if (this.delegate == null) {
+			return new Xid[0];
+		}
 		return delegate.recover(arg0);
 	}
 
 	public void rollback(Xid arg0) throws XAException {
+		if (this.delegate == null) {
+			return;
+		}
 		delegate.rollback(arg0);
 	}
 
 	public boolean setTransactionTimeout(int arg0) throws XAException {
+		if (this.delegate == null) {
+			return false;
+		}
 		return delegate.setTransactionTimeout(arg0);
 	}
 
 	public void start(Xid arg0, int arg1) throws XAException {
+		if (this.delegate == null) {
+			return;
+		}
 		delegate.start(arg0, arg1);
 	}
 
