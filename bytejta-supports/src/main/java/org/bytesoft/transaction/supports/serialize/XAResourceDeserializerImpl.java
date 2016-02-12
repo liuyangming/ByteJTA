@@ -16,6 +16,8 @@
 package org.bytesoft.transaction.supports.serialize;
 
 import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,10 +38,19 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 	private static Pattern pattern = Pattern.compile("^[^:]+\\s*:\\s*\\d+$");
 	private ApplicationContext applicationContext;
 
+	private Map<String, XAResource> cachedResourceMap = new ConcurrentHashMap<String, XAResource>();
+
 	public XAResource deserialize(String identifier) throws IOException {
 		try {
 			Object bean = this.applicationContext.getBean(identifier);
-			return this.deserializeResource(bean);
+			XAResource cachedResource = this.cachedResourceMap.get(identifier);
+			if (cachedResource == null) {
+				cachedResource = this.deserializeResource(bean);
+				if (cachedResource != null) {
+					this.cachedResourceMap.put(identifier, cachedResource);
+				}
+			}
+			return cachedResource;
 		} catch (BeansException bex) {
 			Matcher matcher = pattern.matcher(identifier);
 			if (matcher.find()) {
@@ -58,29 +69,41 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 	private XAResource deserializeResource(Object bean) throws Exception {
 		if (XADataSource.class.isInstance(bean)) {
 			XADataSource xaDataSource = (XADataSource) bean;
-			XAConnection xaConnection = xaDataSource.getXAConnection();
-			XAResource resource = xaConnection.getXAResource();
-			this.closeIfNecessary(xaConnection);
-			return resource;
+			XAConnection xaConnection = null;
+			try {
+				xaConnection = xaDataSource.getXAConnection();
+				return xaConnection.getXAResource();
+			} finally {
+				// this.closeIfNecessary(xaConnection);
+			}
 		} else if (XAConnectionFactory.class.isInstance(bean)) {
 			XAConnectionFactory connectionFactory = (XAConnectionFactory) bean;
-			javax.jms.XAConnection xaConnection = connectionFactory.createXAConnection();
-			XASession xaSession = xaConnection.createXASession();
-			XAResource resource = xaSession.getXAResource();
-			this.closeIfNecessary(xaSession);
-			this.closeIfNecessary(xaConnection);
-			return resource;
+			javax.jms.XAConnection xaConnection = null;
+			XASession xaSession = null;
+			try {
+				xaConnection = connectionFactory.createXAConnection();
+				xaSession = xaConnection.createXASession();
+				return xaSession.getXAResource();
+			} finally {
+				// this.closeIfNecessary(xaSession);
+				// this.closeIfNecessary(xaConnection);
+			}
 		} else if (ManagedConnectionFactory.class.isInstance(bean)) {
 			ManagedConnectionFactory connectionFactory = (ManagedConnectionFactory) bean;
-			ManagedConnection managedConnection = connectionFactory.createManagedConnection(null, null);
-			return managedConnection.getXAResource();
+			ManagedConnection managedConnection = null;
+			try {
+				managedConnection = connectionFactory.createManagedConnection(null, null);
+				return managedConnection.getXAResource();
+			} finally {
+				// this.closeIfNecessary(managedConnection);
+			}
 		} else {
 			return null;
 		}
 
 	}
 
-	private void closeIfNecessary(XAConnection closeable) {
+	protected void closeIfNecessary(XAConnection closeable) {
 		if (closeable != null) {
 			try {
 				closeable.close();
@@ -90,10 +113,20 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 		}
 	}
 
-	private void closeIfNecessary(AutoCloseable closeable) {
+	protected void closeIfNecessary(AutoCloseable closeable) {
 		if (closeable != null) {
 			try {
 				closeable.close();
+			} catch (Exception ex) {
+				return;
+			}
+		}
+	}
+
+	protected void closeIfNecessary(ManagedConnection closeable) {
+		if (closeable != null) {
+			try {
+				closeable.destroy();
 			} catch (Exception ex) {
 				return;
 			}
