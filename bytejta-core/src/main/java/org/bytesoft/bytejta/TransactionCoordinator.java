@@ -25,6 +25,7 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
+import org.apache.log4j.Logger;
 import org.bytesoft.bytejta.aware.TransactionBeanFactoryAware;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.transaction.CommitRequiredException;
@@ -40,6 +41,8 @@ import org.bytesoft.transaction.supports.logger.TransactionLogger;
 import org.bytesoft.transaction.xa.TransactionXid;
 
 public class TransactionCoordinator implements RemoteCoordinator, TransactionBeanFactoryAware {
+	static final Logger logger = Logger.getLogger(TransactionCoordinator.class.getSimpleName());
+
 	private TransactionBeanFactory beanFactory;
 
 	public String getIdentifier() {
@@ -50,9 +53,9 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 
 		TransactionRepository transactionRepository = this.beanFactory.getTransactionRepository();
 		TransactionManager transactionManager = this.beanFactory.getTransactionManager();
-		// if (transactionManager.getTransaction() != null) {
-		// throw new NotSupportedException(); // TODO
-		// }
+		if (transactionManager.getTransactionQuietly() != null) {
+			throw new TransactionException(XAException.XAER_PROTO);
+		}
 
 		TransactionXid globalXid = (TransactionXid) transactionContext.getXid();
 		Transaction transaction = transactionRepository.getTransaction(globalXid);
@@ -100,26 +103,33 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 				transaction.participantCommit();
 			}
 		} catch (SecurityException ignore) {
+			logger.error("Error occurred while committing remote coordinator.", ignore);
 			transactionDone = false;
 			repository.putErrorTransaction(globalXid, transaction);
 			throw new XAException(XAException.XAER_RMERR);
 		} catch (IllegalStateException ignore) {
+			logger.error("Error occurred while committing remote coordinator.", ignore);
 			transactionDone = false;
 			repository.putErrorTransaction(globalXid, transaction);
 			throw new XAException(XAException.XAER_RMERR);
 		} catch (CommitRequiredException ignore) {
+			logger.error("Error occurred while committing remote coordinator.", ignore);
 			transactionDone = false;
 			repository.putErrorTransaction(globalXid, transaction);
 			throw new XAException(XAException.XAER_RMERR);
 		} catch (RollbackException ignore) {
+			logger.error("Error occurred while committing remote coordinator, tx has been rolled back.", ignore);
 			throw new XAException(XAException.XA_HEURRB);
 		} catch (HeuristicMixedException ignore) {
+			logger.error("Error occurred while committing remote coordinator, tx has been completed mixed.", ignore);
 			transactionDone = false;
 			repository.putErrorTransaction(globalXid, transaction);
 			throw new XAException(XAException.XA_HEURMIX);
 		} catch (HeuristicRollbackException ignore) {
+			logger.error("Error occurred while committing remote coordinator, tx has been rolled back heuristically.", ignore);
 			throw new XAException(XAException.XA_HEURRB);
 		} catch (SystemException ignore) {
+			logger.error("Error occurred while committing remote coordinator.", ignore);
 			transactionDone = false;
 			repository.putErrorTransaction(globalXid, transaction);
 			throw new XAException(XAException.XAER_RMERR);
@@ -134,20 +144,22 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 	public void forget(Xid xid) throws XAException {
 		TransactionXid branchXid = (TransactionXid) xid;
 		TransactionXid globalXid = branchXid.getGlobalXid();
-		TransactionRepository repository = beanFactory.getTransactionRepository();
-		Transaction transaction = repository.getErrorTransaction(globalXid);
-		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
-		if (transaction != null) {
-			try {
-				TransactionArchive archive = transaction.getTransactionArchive();
-				transactionLogger.deleteTransaction(archive);
+		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
+		Transaction transaction = transactionRepository.getErrorTransaction(globalXid);
+		if (transaction == null) {
+			return;
+		}
 
-				repository.removeErrorTransaction(globalXid);
-				repository.removeTransaction(globalXid);
-			} catch (RuntimeException rex) {
-				// TODO
-				throw new XAException(XAException.XAER_RMERR);
-			}
+		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
+		try {
+			TransactionArchive archive = transaction.getTransactionArchive();
+			transactionLogger.deleteTransaction(archive);
+
+			transactionRepository.removeErrorTransaction(globalXid);
+			transactionRepository.removeTransaction(globalXid);
+		} catch (RuntimeException rex) {
+			logger.error("Error occurred while forgeting remote coordinator.", rex);
+			throw new XAException(XAException.XAER_RMERR);
 		}
 	}
 
@@ -197,14 +209,17 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		try {
 			transaction.rollback();
 		} catch (RollbackRequiredException rrex) {
+			logger.error("Error occurred while rolling back remote coordinator.", rrex);
 			transactionDone = false;
 			repository.putErrorTransaction(globalXid, transaction);
 			throw new XAException(XAException.XAER_RMERR);
 		} catch (SystemException ex) {
+			logger.error("Error occurred while rolling back remote coordinator.", ex);
 			transactionDone = false;
 			repository.putErrorTransaction(globalXid, transaction);
 			throw new XAException(XAException.XAER_RMERR);
 		} catch (RuntimeException rrex) {
+			logger.error("Error occurred while rolling back remote coordinator.", rrex);
 			transactionDone = false;
 			repository.putErrorTransaction(globalXid, transaction);
 			SystemException ex = new SystemException();
