@@ -49,6 +49,11 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		throw new IllegalStateException();
 	}
 
+	public Transaction getTransactionQuietly() {
+		TransactionManager transactionManager = this.beanFactory.getTransactionManager();
+		return transactionManager.getTransactionQuietly();
+	}
+
 	public void start(TransactionContext transactionContext, int flags) throws TransactionException {
 
 		TransactionRepository transactionRepository = this.beanFactory.getTransactionRepository();

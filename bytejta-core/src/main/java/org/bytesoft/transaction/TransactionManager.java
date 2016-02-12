@@ -19,6 +19,10 @@ import javax.transaction.SystemException;
 
 public interface TransactionManager extends javax.transaction.TransactionManager {
 
+	public int getTimeoutSeconds();
+
+	public void setTimeoutSeconds(int timeoutSeconds);
+
 	public void associateThread(Transaction transaction);
 
 	public Transaction desociateThread();
