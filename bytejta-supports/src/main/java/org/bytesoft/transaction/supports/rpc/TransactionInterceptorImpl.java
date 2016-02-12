@@ -27,7 +27,7 @@ import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.TransactionManager;
-import org.bytesoft.transaction.xa.TransactionXid;
+import org.bytesoft.transaction.internal.TransactionException;
 
 public class TransactionInterceptorImpl implements TransactionInterceptor, TransactionBeanFactoryAware {
 	static final Logger logger = Logger.getLogger(TransactionInterceptorImpl.class.getSimpleName());
@@ -36,93 +36,95 @@ public class TransactionInterceptorImpl implements TransactionInterceptor, Trans
 	public void beforeSendRequest(TransactionRequest request) throws IllegalStateException {
 		TransactionManager transactionManager = this.transactionBeanFactory.getTransactionManager();
 		Transaction transaction = transactionManager.getTransactionQuietly();
-		if (transaction != null) {
-			TransactionContext srcTransactionContext = transaction.getTransactionContext();
-			TransactionContext transactionContext = srcTransactionContext.clone();
-			// TransactionXid currentXid = srcTransactionContext.getXid();
-			TransactionXid globalXid = srcTransactionContext.getXid();
-			transactionContext.setXid(globalXid);
-			request.setTransactionContext(transactionContext);
+		if (transaction == null) {
+			return;
+		}
 
-			try {
-				RemoteCoordinator resource = request.getTargetTransactionCoordinator();
+		TransactionContext srcTransactionContext = transaction.getTransactionContext();
+		TransactionContext transactionContext = srcTransactionContext.clone();
+		request.setTransactionContext(transactionContext);
+		try {
+			RemoteCoordinator resource = request.getTargetTransactionCoordinator();
 
-				RemoteResourceDescriptor descriptor = new RemoteResourceDescriptor();
-				descriptor.setDelegate(resource);
-				descriptor.setIdentifier(resource.getIdentifier());
+			RemoteResourceDescriptor descriptor = new RemoteResourceDescriptor();
+			descriptor.setDelegate(resource);
+			descriptor.setIdentifier(resource.getIdentifier());
 
-				transaction.enlistResource(descriptor);
-			} catch (IllegalStateException ex) {
-				logger.error("TransactionInterceptorImpl.beforeSendRequest(TransactionRequest)", ex);
-				throw ex;
-			} catch (RollbackException ex) {
-				transaction.setRollbackOnlyQuietly();
-				logger.error("TransactionInterceptorImpl.beforeSendRequest(TransactionRequest)", ex);
-				throw new IllegalStateException(ex);
-			} catch (SystemException ex) {
-				logger.error("TransactionInterceptorImpl.beforeSendRequest(TransactionRequest)", ex);
-				throw new IllegalStateException(ex);
-			}
+			transaction.enlistResource(descriptor);
+		} catch (IllegalStateException ex) {
+			logger.error("TransactionInterceptorImpl.beforeSendRequest(TransactionRequest)", ex);
+			throw ex;
+		} catch (RollbackException ex) {
+			transaction.setRollbackOnlyQuietly();
+			logger.error("TransactionInterceptorImpl.beforeSendRequest(TransactionRequest)", ex);
+			throw new IllegalStateException(ex);
+		} catch (SystemException ex) {
+			logger.error("TransactionInterceptorImpl.beforeSendRequest(TransactionRequest)", ex);
+			throw new IllegalStateException(ex);
 		}
 	}
 
 	public void beforeSendResponse(TransactionResponse response) throws IllegalStateException {
 		TransactionManager transactionManager = this.transactionBeanFactory.getTransactionManager();
 		Transaction transaction = transactionManager.getTransactionQuietly();
-		if (transaction != null) {
-			TransactionContext srcTransactionContext = transaction.getTransactionContext();
-			TransactionContext transactionContext = srcTransactionContext.clone();
-			response.setTransactionContext(transactionContext);
+		if (transaction == null) {
+			return;
 		}
+
+		TransactionContext srcTransactionContext = transaction.getTransactionContext();
+		TransactionContext transactionContext = srcTransactionContext.clone();
+		RemoteCoordinator coordinator = this.transactionBeanFactory.getTransactionCoordinator();
+
+		response.setTransactionContext(transactionContext);
+		// response.setSourceTransactionCoordinator(coordinator);
+		try {
+			coordinator.end(transactionContext, XAResource.TMSUCCESS);
+		} catch (TransactionException ex) {
+			throw new IllegalStateException(ex);
+		}
+
 	}
 
 	public void afterReceiveRequest(TransactionRequest request) throws IllegalStateException {
-
-		// TransactionManager transactionManager = this.transactionBeanFactory.getTransactionManager();
-
 		TransactionContext srcTransactionContext = request.getTransactionContext();
-		if (srcTransactionContext != null) {
-			// TransactionContext transactionContext = srcTransactionContext.clone();
-			// try {
-			// transactionManager.propagationBegin(transactionContext);
-			// } catch (SystemException ex) {
-			// IllegalStateException exception = new IllegalStateException();
-			// exception.initCause(ex);
-			// throw exception;
-			// } catch (NotSupportedException ex) {
-			// IllegalStateException exception = new IllegalStateException();
-			// exception.initCause(ex);
-			// throw exception;
-			// }
+		if (srcTransactionContext == null) {
+			return;
+		}
+
+		TransactionContext transactionContext = srcTransactionContext.clone();
+		RemoteCoordinator coordinator = this.transactionBeanFactory.getTransactionCoordinator();
+		try {
+			coordinator.start(transactionContext, XAResource.TMNOFLAGS);
+		} catch (TransactionException ex) {
+			throw new IllegalStateException(ex);
 		}
 	}
 
 	public void afterReceiveResponse(TransactionResponse response) throws IllegalStateException {
-
 		TransactionManager transactionManager = this.transactionBeanFactory.getTransactionManager();
 		Transaction transaction = transactionManager.getTransactionQuietly();
-		if (transaction != null) {
-			// TransactionContext nativeTransactionContext = transaction.getTransactionContext();
-			TransactionContext remoteTransactionContext = response.getTransactionContext();
-			if (remoteTransactionContext != null) {
+		TransactionContext transactionContext = response.getTransactionContext();
+		RemoteCoordinator resource = response.getSourceTransactionCoordinator();
+		if (transaction == null || transactionContext == null) {
+			return;
+		} else if (resource == null) {
+			logger.error("TransactionInterceptorImpl.afterReceiveResponse(TransactionRequest): remote coordinator is null.");
+			throw new IllegalStateException("remote coordinator is null.");
+		}
 
-				try {
-					RemoteCoordinator resource = response.getSourceTransactionCoordinator();
+		try {
+			RemoteResourceDescriptor descriptor = new RemoteResourceDescriptor();
+			descriptor.setDelegate(resource);
+			descriptor.setIdentifier(resource.getIdentifier());
 
-					RemoteResourceDescriptor descriptor = new RemoteResourceDescriptor();
-					descriptor.setDelegate(resource);
-					descriptor.setIdentifier(resource.getIdentifier());
-
-					transaction.delistResource(descriptor, XAResource.TMSUCCESS);
-				} catch (IllegalStateException ex) {
-					logger.error("TransactionInterceptorImpl.afterReceiveResponse(TransactionRequest)", ex);
-					throw ex;
-				} catch (SystemException ex) {
-					logger.error("TransactionInterceptorImpl.afterReceiveResponse(TransactionRequest)", ex);
-					throw new IllegalStateException(ex);
-				}
-			}
-		}// end-if(transaction!=null)
+			transaction.delistResource(descriptor, XAResource.TMSUCCESS);
+		} catch (IllegalStateException ex) {
+			logger.error("TransactionInterceptorImpl.afterReceiveResponse(TransactionRequest)", ex);
+			throw ex;
+		} catch (SystemException ex) {
+			logger.error("TransactionInterceptorImpl.afterReceiveResponse(TransactionRequest)", ex);
+			throw new IllegalStateException(ex);
+		}
 
 	}
 

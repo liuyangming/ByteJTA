@@ -22,6 +22,8 @@ public interface TransactionResponse {
 
 	public RemoteCoordinator getSourceTransactionCoordinator();
 
+	// public void setSourceTransactionCoordinator(RemoteCoordinator coordinator);
+
 	public TransactionContext getTransactionContext();
 
 	public void setTransactionContext(TransactionContext transactionContext);
