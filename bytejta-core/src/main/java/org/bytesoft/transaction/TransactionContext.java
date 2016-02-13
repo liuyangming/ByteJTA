@@ -28,12 +28,14 @@ public class TransactionContext implements Serializable, Cloneable {
 	private TransactionXid xid;
 	private long createdTime;
 	private long expiredTime;
+	private boolean compensable;
 
 	public TransactionContext clone() {
 		TransactionContext that = new TransactionContext();
 		that.xid = this.xid;
 		that.createdTime = System.currentTimeMillis();
 		that.expiredTime = this.expiredTime;
+		that.compensable = this.compensable;
 		return that;
 	}
 
@@ -75,6 +77,14 @@ public class TransactionContext implements Serializable, Cloneable {
 
 	public void setExpiredTime(long expiredTime) {
 		this.expiredTime = expiredTime;
+	}
+
+	public boolean isCompensable() {
+		return compensable;
+	}
+
+	public void setCompensable(boolean compensable) {
+		this.compensable = compensable;
 	}
 
 }
