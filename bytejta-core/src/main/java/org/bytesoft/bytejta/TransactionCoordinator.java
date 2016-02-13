@@ -28,6 +28,7 @@ import javax.transaction.xa.Xid;
 import org.apache.log4j.Logger;
 import org.bytesoft.bytejta.aware.TransactionBeanFactoryAware;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
+import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
 import org.bytesoft.transaction.Transaction;
@@ -86,12 +87,49 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		transactionManager.desociateThread();
 	}
 
+	/** supports resume only, for tcc transaction manager. */
 	public void start(Xid xid, int flags) throws XAException {
-		// TODO resume
+		if (XAResource.TMRESUME != flags) {
+			throw new XAException(XAException.XAER_INVAL);
+		}
+		TransactionManager transactionManager = this.beanFactory.getTransactionManager();
+		Transaction current = transactionManager.getTransactionQuietly();
+		if (current != null) {
+			throw new XAException(XAException.XAER_PROTO);
+		}
+
+		TransactionRepository transactionRepository = this.beanFactory.getTransactionRepository();
+
+		TransactionXid branchXid = (TransactionXid) xid;
+		TransactionXid globalXid = branchXid.getGlobalXid();
+
+		Transaction transaction = transactionRepository.getTransaction(globalXid);
+		if (transaction == null) {
+			throw new XAException(XAException.XAER_INVAL);
+		}
+		transactionManager.associateThread(transaction);
 	}
 
+	/** supports suspend only, for tcc transaction manager. */
 	public void end(Xid xid, int flags) throws XAException {
-		// TODO suspend
+		if (XAResource.TMSUSPEND != flags) {
+			throw new XAException(XAException.XAER_INVAL);
+		}
+		TransactionManager transactionManager = this.beanFactory.getTransactionManager();
+		Transaction transaction = transactionManager.getTransactionQuietly();
+		if (transaction == null) {
+			throw new XAException(XAException.XAER_PROTO);
+		}
+		TransactionContext transactionContext = transaction.getTransactionContext();
+		TransactionXid transactionXid = transactionContext.getXid();
+
+		TransactionXid branchXid = (TransactionXid) xid;
+		TransactionXid globalXid = branchXid.getGlobalXid();
+
+		if (CommonUtils.equals(globalXid, transactionXid) == false) {
+			throw new XAException(XAException.XAER_INVAL);
+		}
+		transactionManager.desociateThread();
 	}
 
 	public void commit(Xid xid, boolean onePhase) throws XAException {
