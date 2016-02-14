@@ -20,6 +20,7 @@ import java.util.List;
 
 import org.apache.log4j.Logger;
 import org.bytesoft.transaction.supports.TransactionListener;
+import org.bytesoft.transaction.xa.TransactionXid;
 
 public class TransactionListenerList implements TransactionListener {
 	static final Logger logger = Logger.getLogger(TransactionListenerList.class.getSimpleName());
@@ -30,121 +31,121 @@ public class TransactionListenerList implements TransactionListener {
 		this.listeners.add(listener);
 	}
 
-	public void prepareStart() {
+	public void prepareStart(TransactionXid xid) {
 		for (int i = 0; i < this.listeners.size(); i++) {
 			try {
 				TransactionListener listener = this.listeners.get(i);
-				listener.prepareStart();
+				listener.prepareStart(xid);
 			} catch (RuntimeException rex) {
 				logger.debug(rex.getMessage(), rex);
 			}
 		}
 	}
 
-	public void prepareSuccess() {
+	public void prepareSuccess(TransactionXid xid) {
 		for (int i = 0; i < this.listeners.size(); i++) {
 			try {
 				TransactionListener listener = this.listeners.get(i);
-				listener.prepareSuccess();
+				listener.prepareSuccess(xid);
 			} catch (RuntimeException rex) {
 				logger.debug(rex.getMessage(), rex);
 			}
 		}
 	}
 
-	public void prepareFailure() {
+	public void prepareFailure(TransactionXid xid) {
 		for (int i = 0; i < this.listeners.size(); i++) {
 			try {
 				TransactionListener listener = this.listeners.get(i);
-				listener.prepareFailure();
+				listener.prepareFailure(xid);
 			} catch (RuntimeException rex) {
 				logger.debug(rex.getMessage(), rex);
 			}
 		}
 	}
 
-	public void commitStart() {
+	public void commitStart(TransactionXid xid) {
 		for (int i = 0; i < this.listeners.size(); i++) {
 			try {
 				TransactionListener listener = this.listeners.get(i);
-				listener.commitStart();
+				listener.commitStart(xid);
 			} catch (RuntimeException rex) {
 				logger.debug(rex.getMessage(), rex);
 			}
 		}
 	}
 
-	public void commitSuccess() {
+	public void commitSuccess(TransactionXid xid) {
 		for (int i = 0; i < this.listeners.size(); i++) {
 			try {
 				TransactionListener listener = this.listeners.get(i);
-				listener.commitSuccess();
+				listener.commitSuccess(xid);
 			} catch (RuntimeException rex) {
 				logger.debug(rex.getMessage(), rex);
 			}
 		}
 	}
 
-	public void commitFailure() {
+	public void commitFailure(TransactionXid xid) {
 		for (int i = 0; i < this.listeners.size(); i++) {
 			try {
 				TransactionListener listener = this.listeners.get(i);
-				listener.commitFailure();
+				listener.commitFailure(xid);
 			} catch (RuntimeException rex) {
 				logger.debug(rex.getMessage(), rex);
 			}
 		}
 	}
 
-	public void commitHeuristicMixed() {
+	public void commitHeuristicMixed(TransactionXid xid) {
 		for (int i = 0; i < this.listeners.size(); i++) {
 			try {
 				TransactionListener listener = this.listeners.get(i);
-				listener.commitHeuristicMixed();
+				listener.commitHeuristicMixed(xid);
 			} catch (RuntimeException rex) {
 				logger.debug(rex.getMessage(), rex);
 			}
 		}
 	}
 
-	public void commitHeuristicRolledback() {
+	public void commitHeuristicRolledback(TransactionXid xid) {
 		for (int i = 0; i < this.listeners.size(); i++) {
 			try {
 				TransactionListener listener = this.listeners.get(i);
-				listener.commitHeuristicRolledback();
+				listener.commitHeuristicRolledback(xid);
 			} catch (RuntimeException rex) {
 				logger.debug(rex.getMessage(), rex);
 			}
 		}
 	}
 
-	public void rollbackStart() {
+	public void rollbackStart(TransactionXid xid) {
 		for (int i = 0; i < this.listeners.size(); i++) {
 			try {
 				TransactionListener listener = this.listeners.get(i);
-				listener.rollbackStart();
+				listener.rollbackStart(xid);
 			} catch (RuntimeException rex) {
 				logger.debug(rex.getMessage(), rex);
 			}
 		}
 	}
 
-	public void rollbackSuccess() {
+	public void rollbackSuccess(TransactionXid xid) {
 		for (int i = 0; i < this.listeners.size(); i++) {
 			try {
 				TransactionListener listener = this.listeners.get(i);
-				listener.rollbackSuccess();
+				listener.rollbackSuccess(xid);
 			} catch (RuntimeException rex) {
 				logger.debug(rex.getMessage(), rex);
 			}
 		}
 	}
 
-	public void rollbackFailure() {
+	public void rollbackFailure(TransactionXid xid) {
 		for (int i = 0; i < this.listeners.size(); i++) {
 			try {
 				TransactionListener listener = this.listeners.get(i);
-				listener.rollbackFailure();
+				listener.rollbackFailure(xid);
 			} catch (RuntimeException rex) {
 				logger.debug(rex.getMessage(), rex);
 			}

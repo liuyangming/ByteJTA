@@ -15,28 +15,30 @@
  */
 package org.bytesoft.transaction.supports;
 
+import org.bytesoft.transaction.xa.TransactionXid;
+
 public interface TransactionListener {
 
-	public void prepareStart();
+	public void prepareStart(TransactionXid xid);
 
-	public void prepareSuccess();
+	public void prepareSuccess(TransactionXid xid);
 
-	public void prepareFailure();
+	public void prepareFailure(TransactionXid xid);
 
-	public void commitStart();
+	public void commitStart(TransactionXid xid);
 
-	public void commitSuccess();
+	public void commitSuccess(TransactionXid xid);
 
-	public void commitFailure();
+	public void commitFailure(TransactionXid xid);
 
-	public void commitHeuristicMixed();
+	public void commitHeuristicMixed(TransactionXid xid);
 
-	public void commitHeuristicRolledback();
+	public void commitHeuristicRolledback(TransactionXid xid);
 
-	public void rollbackStart();
+	public void rollbackStart(TransactionXid xid);
 
-	public void rollbackSuccess();
+	public void rollbackSuccess(TransactionXid xid);
 
-	public void rollbackFailure();
+	public void rollbackFailure(TransactionXid xid);
 
 }
