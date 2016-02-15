@@ -32,6 +32,8 @@ public interface Transaction extends javax.transaction.Transaction, TransactionB
 
 	public void setTransactionStatus(int status);
 
+	public void resume() throws SystemException;
+
 	public void suspend() throws SystemException;
 
 	public boolean isTiming();

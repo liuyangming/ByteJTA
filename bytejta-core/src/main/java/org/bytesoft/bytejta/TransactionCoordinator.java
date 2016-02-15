@@ -55,7 +55,7 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		return transactionManager.getTransactionQuietly();
 	}
 
-	public void start(TransactionContext transactionContext, int flags) throws TransactionException {
+	public Transaction start(TransactionContext transactionContext, int flags) throws TransactionException {
 
 		TransactionRepository transactionRepository = this.beanFactory.getTransactionRepository();
 		TransactionManager transactionManager = this.beanFactory.getTransactionManager();
@@ -80,11 +80,12 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		transactionManager.associateThread(transaction);
 		// this.transactionStatistic.fireBeginTransaction(transaction);
 
+		return transaction;
 	}
 
-	public void end(TransactionContext transactionContext, int flags) throws TransactionException {
+	public Transaction end(TransactionContext transactionContext, int flags) throws TransactionException {
 		TransactionManager transactionManager = this.beanFactory.getTransactionManager();
-		transactionManager.desociateThread();
+		return transactionManager.desociateThread();
 	}
 
 	/** supports resume only, for tcc transaction manager. */
