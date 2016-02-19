@@ -31,7 +31,6 @@ import javax.transaction.SystemException;
 import javax.transaction.xa.XAException;
 
 import org.apache.log4j.Logger;
-import org.bytesoft.bytejta.aware.TransactionBeanFactoryAware;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.transaction.CommitRequiredException;
@@ -41,6 +40,7 @@ import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.TransactionRepository;
+import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.supports.TransactionTimer;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;

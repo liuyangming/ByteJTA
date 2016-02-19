@@ -18,8 +18,8 @@ package org.bytesoft.transaction.supports.spring;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.bytesoft.bytejta.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.TransactionBeanFactory;
+import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.FatalBeanException;
 import org.springframework.beans.MutablePropertyValues;

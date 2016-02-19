@@ -20,8 +20,8 @@ import javax.transaction.HeuristicRollbackException;
 import javax.transaction.RollbackException;
 import javax.transaction.SystemException;
 
-import org.bytesoft.bytejta.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.archive.TransactionArchive;
+import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.supports.TransactionListener;
 
 public interface Transaction extends javax.transaction.Transaction, TransactionBeanFactoryAware {

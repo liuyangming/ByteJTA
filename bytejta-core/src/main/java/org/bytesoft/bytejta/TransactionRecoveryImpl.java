@@ -22,7 +22,6 @@ import javax.transaction.SystemException;
 import javax.transaction.xa.XAResource;
 
 import org.apache.log4j.Logger;
-import org.bytesoft.bytejta.aware.TransactionBeanFactoryAware;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
@@ -33,6 +32,7 @@ import org.bytesoft.transaction.TransactionRecovery;
 import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.archive.XAResourceArchive;
+import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.resource.XATerminator;
 import org.bytesoft.transaction.supports.logger.TransactionLogger;
 import org.bytesoft.transaction.xa.TransactionXid;
