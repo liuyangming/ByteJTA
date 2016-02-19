@@ -57,6 +57,7 @@ public class TransactionImpl implements Transaction {
 	private int transactionStatus;
 	private int transactionTimeout;
 	private int transactionVote;
+	private Object transactionalExtra;
 	private final TransactionContext transactionContext;
 	private final XATerminator nativeTerminator;
 	private final XATerminator remoteTerminator;
@@ -1169,6 +1170,14 @@ public class TransactionImpl implements Transaction {
 
 	public void registerTransactionListener(TransactionListener listener) {
 		this.transactionListenerList.registerTransactionListener(listener);
+	}
+
+	public Object getTransactionalExtra() {
+		return transactionalExtra;
+	}
+
+	public void setTransactionalExtra(Object transactionalExtra) {
+		this.transactionalExtra = transactionalExtra;
 	}
 
 	public TransactionContext getTransactionContext() {

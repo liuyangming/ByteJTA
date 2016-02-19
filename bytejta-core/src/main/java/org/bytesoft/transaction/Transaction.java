@@ -42,6 +42,10 @@ public interface Transaction extends javax.transaction.Transaction, TransactionB
 
 	public void registerTransactionListener(TransactionListener listener);
 
+	public Object getTransactionalExtra();
+
+	public void setTransactionalExtra(Object transactionalExtra);
+
 	public TransactionContext getTransactionContext();
 
 	public TransactionArchive getTransactionArchive();
