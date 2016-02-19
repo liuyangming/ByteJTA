@@ -15,14 +15,14 @@
  */
 package org.bytesoft.bytejta;
 
+import org.bytesoft.bytejta.logger.EmptyTransactionLogger;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.TransactionRecovery;
 import org.bytesoft.transaction.TransactionRepository;
+import org.bytesoft.transaction.logger.TransactionLogger;
 import org.bytesoft.transaction.supports.TransactionTimer;
-import org.bytesoft.transaction.supports.logger.EmptyTransactionLogger;
-import org.bytesoft.transaction.supports.logger.TransactionLogger;
 import org.bytesoft.transaction.supports.rpc.TransactionInterceptor;
 import org.bytesoft.transaction.xa.XidFactory;
 

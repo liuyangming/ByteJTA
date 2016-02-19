@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.bytejta.supports.logger;
+package org.bytesoft.bytejta.logger;
 
 import java.io.File;
 import java.io.IOException;
@@ -44,7 +44,7 @@ import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.archive.XAResourceArchive;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
-import org.bytesoft.transaction.supports.logger.TransactionLogger;
+import org.bytesoft.transaction.logger.TransactionLogger;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 import org.bytesoft.transaction.supports.serialize.XAResourceDeserializer;
 import org.bytesoft.transaction.xa.TransactionXid;

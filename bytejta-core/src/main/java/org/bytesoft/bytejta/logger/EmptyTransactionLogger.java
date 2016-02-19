@@ -13,25 +13,31 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.transaction.supports.logger;
+package org.bytesoft.bytejta.logger;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.archive.XAResourceArchive;
+import org.bytesoft.transaction.logger.TransactionLogger;
 
-public interface TransactionLogger {
+public class EmptyTransactionLogger implements TransactionLogger {
 
-	/* transaction */
-	public void createTransaction(TransactionArchive archive);
+	public void createTransaction(TransactionArchive archive) {
+	}
 
-	public void updateTransaction(TransactionArchive archive);
+	public void updateTransaction(TransactionArchive archive) {
+	}
 
-	public void deleteTransaction(TransactionArchive archive);
+	public void deleteTransaction(TransactionArchive archive) {
+	}
 
-	public List<TransactionArchive> getTransactionArchiveList();
+	public List<TransactionArchive> getTransactionArchiveList() {
+		return new ArrayList<TransactionArchive>();
+	}
 
-	/* resource */
-	public void updateResource(XAResourceArchive archive);
+	public void updateResource(XAResourceArchive archive) {
+	}
 
 }

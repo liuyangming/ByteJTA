@@ -16,8 +16,8 @@
 package org.bytesoft.transaction;
 
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
+import org.bytesoft.transaction.logger.TransactionLogger;
 import org.bytesoft.transaction.supports.TransactionTimer;
-import org.bytesoft.transaction.supports.logger.TransactionLogger;
 import org.bytesoft.transaction.supports.rpc.TransactionInterceptor;
 import org.bytesoft.transaction.xa.XidFactory;
 

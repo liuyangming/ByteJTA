@@ -38,7 +38,7 @@ import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.internal.TransactionException;
-import org.bytesoft.transaction.supports.logger.TransactionLogger;
+import org.bytesoft.transaction.logger.TransactionLogger;
 import org.bytesoft.transaction.xa.TransactionXid;
 
 public class TransactionCoordinator implements RemoteCoordinator, TransactionBeanFactoryAware {
