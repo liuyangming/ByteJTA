@@ -58,7 +58,7 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 	static final byte OPERTOR_DEL_TRANSACTION = 0x3;
 	static final byte OPERTOR_MOD_RESOURCE = 0x4;
 
-	static final byte[] IDENTIFIER = "org.bytesoft.bytejta.storage.sample".getBytes();
+	static final byte[] IDENTIFIER = "org.bytesoft.bytejta.logger.sample".getBytes();
 	static final int VERSION_MAJOR = 0;
 	static final int VERSION_MINOR = 1;
 
@@ -675,8 +675,9 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 	}
 
 	private void mkdirDirectoryIfNecessary() {
-		File directory = this.storage.getParentFile();
-		if (directory.exists() == false) {
+		File absoluteFile = this.storage.getAbsoluteFile();
+		File directory = absoluteFile.getParentFile();
+		if (directory != null && directory.exists() == false) {
 			directory.mkdirs();
 		}
 	}
