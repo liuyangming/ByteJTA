@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.transaction.supports.serialize;
+package org.bytesoft.bytejta.supports.serialize;
 
 import java.io.IOException;
 import java.util.Map;
@@ -30,6 +30,7 @@ import javax.sql.XADataSource;
 import javax.transaction.xa.XAResource;
 
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinatorRegistry;
+import org.bytesoft.transaction.supports.serialize.XAResourceDeserializer;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;

@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.transaction.supports.rpc;
+package org.bytesoft.bytejta.supports.rpc;
 
 import javax.transaction.RollbackException;
 import javax.transaction.SystemException;
@@ -28,6 +28,9 @@ import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.internal.TransactionException;
+import org.bytesoft.transaction.supports.rpc.TransactionInterceptor;
+import org.bytesoft.transaction.supports.rpc.TransactionRequest;
+import org.bytesoft.transaction.supports.rpc.TransactionResponse;
 
 public class TransactionInterceptorImpl implements TransactionInterceptor, TransactionBeanFactoryAware {
 	static final Logger logger = Logger.getLogger(TransactionInterceptorImpl.class.getSimpleName());

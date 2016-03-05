@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.transaction.supports.spring;
+package org.bytesoft.bytejta.supports.spring;
 
 import java.lang.reflect.Proxy;
 
@@ -21,7 +21,7 @@ import javax.jms.XAConnectionFactory;
 import javax.resource.spi.ManagedConnectionFactory;
 import javax.sql.XADataSource;
 
-import org.bytesoft.transaction.supports.resource.ManagedConnectionFactoryHandler;
+import org.bytesoft.bytejta.supports.resource.ManagedConnectionFactoryHandler;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 

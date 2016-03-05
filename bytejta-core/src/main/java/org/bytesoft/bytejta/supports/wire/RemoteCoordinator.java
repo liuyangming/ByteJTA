@@ -23,8 +23,6 @@ import org.bytesoft.transaction.internal.TransactionException;
 
 public interface RemoteCoordinator extends XAResource {
 
-	// public Transaction getTransactionQuietly();
-
 	public String getIdentifier();
 
 	public Transaction start(TransactionContext transactionContext, int flags) throws TransactionException;
