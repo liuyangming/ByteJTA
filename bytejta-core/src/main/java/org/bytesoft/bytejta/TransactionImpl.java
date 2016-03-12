@@ -340,10 +340,10 @@ public class TransactionImpl implements Transaction {
 
 			int nativeResNum = this.nativeTerminator.getResourceArchives().size();
 			int remoteResNum = this.remoteTerminator.getResourceArchives().size();
-			boolean onePhaseCommitAllowed = (nativeResNum + remoteResNum) <= 1;
-			if (onePhaseCommitAllowed) {
+			int sizeOfResNum = nativeResNum + remoteResNum;
+			if (sizeOfResNum == 1) {
 				this.fireOnePhaseCommit();
-			} else {
+			} else if (sizeOfResNum > 1) {
 				this.fireTwoPhaseCommit();
 			}
 
