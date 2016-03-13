@@ -19,26 +19,26 @@ import org.bytesoft.transaction.xa.TransactionXid;
 
 public interface TransactionListener {
 
-	public void prepareStart(TransactionXid xid);
+	public void onPrepareStart(TransactionXid xid);
 
-	public void prepareSuccess(TransactionXid xid);
+	public void onPrepareSuccess(TransactionXid xid);
 
-	public void prepareFailure(TransactionXid xid);
+	public void onPrepareFailure(TransactionXid xid);
 
-	public void commitStart(TransactionXid xid);
+	public void onCommitStart(TransactionXid xid);
 
-	public void commitSuccess(TransactionXid xid);
+	public void onCommitSuccess(TransactionXid xid);
 
-	public void commitFailure(TransactionXid xid);
+	public void onCommitFailure(TransactionXid xid);
 
-	public void commitHeuristicMixed(TransactionXid xid);
+	public void onCommitHeuristicMixed(TransactionXid xid);
 
-	public void commitHeuristicRolledback(TransactionXid xid);
+	public void onCommitHeuristicRolledback(TransactionXid xid);
 
-	public void rollbackStart(TransactionXid xid);
+	public void onRollbackStart(TransactionXid xid);
 
-	public void rollbackSuccess(TransactionXid xid);
+	public void onRollbackSuccess(TransactionXid xid);
 
-	public void rollbackFailure(TransactionXid xid);
+	public void onRollbackFailure(TransactionXid xid);
 
 }
