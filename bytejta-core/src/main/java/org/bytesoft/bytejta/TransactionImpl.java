@@ -345,6 +345,9 @@ public class TransactionImpl implements Transaction {
 				this.fireOnePhaseCommit();
 			} else if (sizeOfResNum > 1) {
 				this.fireTwoPhaseCommit();
+			} else {
+				this.transactionListenerList.onCommitStart(xid);
+				this.transactionListenerList.onCommitSuccess(xid);
 			}
 
 			logger.info(String.format("[%s] commit-transaction complete successfully",

@@ -67,7 +67,7 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		Transaction transaction = transactionRepository.getTransaction(globalXid);
 		if (transaction == null) {
 			transaction = new TransactionImpl(transactionContext);
-			transaction.setBeanFactory(this.beanFactory);
+			((TransactionImpl) transaction).setBeanFactory(this.beanFactory);
 
 			long expired = transactionContext.getExpiredTime();
 			long current = System.currentTimeMillis();
