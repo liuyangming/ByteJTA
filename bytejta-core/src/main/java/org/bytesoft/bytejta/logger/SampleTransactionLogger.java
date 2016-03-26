@@ -77,8 +77,6 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 	private FileChannel channel;
 	private boolean released = false;
 
-	private transient long records = 0;
-
 	private TransactionBeanFactory beanFactory;
 	private XAResourceDeserializer deserializer;
 
@@ -98,6 +96,7 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 			byteBuf.put(OPERTOR_ADD_TRANSACTION);
 			byteBuf.putShort((short) sizeOfBlock);
 			byteBuf.putShort((short) value.length);
+			byteBuf.put(value);
 			byteBuf.flip();
 
 			this.channel.position(this.maxIndex);
@@ -113,7 +112,6 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 			this.updateMaxIndex(newMaxIndex);
 			this.maxIndex = newMaxIndex;
 
-			this.records++;
 		} catch (IOException ex) {
 			logger.error("Error occurred while creating add-transaction log.", ex);
 		} catch (RuntimeException ex) {
@@ -148,6 +146,7 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 			byteBuf.put(OPERTOR_MOD_TRANSACTION);
 			byteBuf.putShort((short) sizeOfBlock);
 			byteBuf.putShort((short) value.length);
+			byteBuf.put(value);
 			byteBuf.flip();
 
 			this.channel.position(this.maxIndex);
@@ -162,7 +161,6 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 			this.updateMaxIndex(newMaxIndex);
 			this.maxIndex = newMaxIndex;
 
-			this.records++;
 		} catch (IOException ex) {
 			logger.error("Error occurred while creating mod-transaction log.", ex);
 		} catch (RuntimeException ex) {
@@ -196,6 +194,7 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 			byteBuf.put(OPERTOR_DEL_TRANSACTION);
 			byteBuf.putShort((short) sizeOfBlock);
 			byteBuf.putShort((short) value.length);
+			byteBuf.put(value);
 			byteBuf.flip();
 
 			this.channel.position(this.maxIndex);
@@ -208,7 +207,6 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 			this.updateMaxIndex(newMaxIndex);
 			this.maxIndex = newMaxIndex;
 
-			this.records++;
 		} catch (IOException ex) {
 			logger.error("Error occurred while creating del-transaction log.", ex);
 		} catch (RuntimeException ex) {
@@ -254,6 +252,7 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 			byteBuf.put(OPERTOR_MOD_RESOURCE);
 			byteBuf.putShort((short) sizeOfBlock);
 			byteBuf.putShort((short) value.length);
+			byteBuf.put(value);
 			byteBuf.flip();
 
 			this.channel.position(this.maxIndex);
@@ -273,7 +272,6 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 			this.updateMaxIndex(newMaxIndex);
 			this.maxIndex = newMaxIndex;
 
-			this.records++;
 		} catch (IOException ex) {
 			logger.error("Error occurred while creating del-transaction log.", ex);
 		} catch (RuntimeException ex) {
@@ -462,20 +460,9 @@ public class SampleTransactionLogger implements TransactionLogger, Work, Transac
 	}
 
 	public void run() {
-		long unit = 20;
-		long lastRecords = this.records;
 		while (this.released == false) {
 			this.execute();
-			long currRecords = this.records;
-			long value = currRecords - lastRecords;
-			lastRecords = currRecords;
-			if (value < unit * 5) {
-				this.sleepMillis(1000L * 30);
-			} else if (value < unit * 100) {
-				this.sleepMillis(1000L * 5);
-			} else if (value < unit * 1000) {
-				this.sleepMillis(1000L * 1);
-			}
+			this.sleepMillis(1000L * 1);
 		}
 	}
 
