@@ -25,16 +25,18 @@ import org.bytesoft.common.utils.ByteUtils;
 public class TransactionXid implements Xid, Serializable {
 	private static final long serialVersionUID = 1L;
 
-	protected byte[] globalTransactionId;
-	protected byte[] branchQualifier;
+	private int formatId;
+	private byte[] globalTransactionId;
+	private byte[] branchQualifier;
 
-	private transient XidFactory xidFactory;
-
-	public TransactionXid(byte[] global) {
-		this(global, new byte[0]);
+	public TransactionXid() {
 	}
 
-	public TransactionXid(byte[] global, byte[] branch) {
+	public TransactionXid(int formatId, byte[] global) {
+		this(formatId, global, new byte[0]);
+	}
+
+	public TransactionXid(int formatId, byte[] global, byte[] branch) {
 		if (global == null) {
 			throw new IllegalArgumentException("globalTransactionId cannot be null.");
 		} else if (global.length > MAXGTRIDSIZE) {
@@ -51,27 +53,7 @@ public class TransactionXid implements Xid, Serializable {
 	}
 
 	public int getFormatId() {
-		return this.xidFactory.getFormatId();
-	}
-
-	public TransactionXid getGlobalXid() {
-		if (this.globalTransactionId == null || this.globalTransactionId.length == 0) {
-			throw new IllegalStateException();
-		} else if (this.branchQualifier != null && this.branchQualifier.length > 0) {
-			return (TransactionXid) xidFactory.createGlobalXid(this.globalTransactionId);
-		} else {
-			return this;
-		}
-	}
-
-	public TransactionXid createBranchXid() {
-		if (this.globalTransactionId == null || this.globalTransactionId.length == 0) {
-			throw new IllegalStateException();
-		} else if (this.branchQualifier != null && this.branchQualifier.length > 0) {
-			throw new IllegalStateException();
-		} else {
-			return (TransactionXid) xidFactory.createBranchXid(this);
-		}
+		return this.formatId;
 	}
 
 	public int hashCode() {
@@ -92,7 +74,7 @@ public class TransactionXid implements Xid, Serializable {
 			return false;
 		}
 		TransactionXid other = (TransactionXid) obj;
-		if (this.getFormatId() != other.getFormatId()) {
+		if (this.formatId != other.formatId) {
 			return false;
 		} else if (Arrays.equals(branchQualifier, other.branchQualifier) == false) {
 			return false;
@@ -108,19 +90,24 @@ public class TransactionXid implements Xid, Serializable {
 		return String.format("%s-%s-%s", this.getFormatId(), global, branch);
 	}
 
-	public XidFactory getXidFactory() {
-		return xidFactory;
+	public byte[] getGlobalTransactionId() {
+		return globalTransactionId;
 	}
 
-	public void setXidFactory(XidFactory xidFactory) {
-		this.xidFactory = xidFactory;
+	public void setGlobalTransactionId(byte[] globalTransactionId) {
+		this.globalTransactionId = globalTransactionId;
 	}
 
 	public byte[] getBranchQualifier() {
-		return this.branchQualifier;
+		return branchQualifier;
 	}
 
-	public byte[] getGlobalTransactionId() {
-		return this.globalTransactionId;
+	public void setBranchQualifier(byte[] branchQualifier) {
+		this.branchQualifier = branchQualifier;
 	}
+
+	public void setFormatId(int formatId) {
+		this.formatId = formatId;
+	}
+
 }

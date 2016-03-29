@@ -51,10 +51,6 @@ public class XidFactoryImpl implements XidFactory {
 		}
 	}
 
-	public int getFormatId() {
-		return XidFactory.JTA_FORMAT_ID;
-	}
-
 	public TransactionXid createGlobalXid() {
 		byte[] global = new byte[GLOBAL_TRANSACTION_LENGTH];
 
@@ -72,9 +68,7 @@ public class XidFactoryImpl implements XidFactory {
 		System.arraycopy(valueByteArray, 0, global, SIZE_OF_MAC + 8, 2);
 		System.arraycopy(randomByteArray, 0, global, SIZE_OF_MAC + 10, randomByteArray.length);
 
-		TransactionXid xid = new TransactionXid(global);
-		xid.setXidFactory(this);
-		return xid;
+		return new TransactionXid(XidFactory.JTA_FORMAT_ID, global);
 	}
 
 	public TransactionXid createGlobalXid(byte[] globalTransactionId) {
@@ -85,9 +79,7 @@ public class XidFactoryImpl implements XidFactory {
 		}
 		byte[] global = new byte[globalTransactionId.length];
 		System.arraycopy(globalTransactionId, 0, global, 0, global.length);
-		TransactionXid xid = new TransactionXid(global);
-		xid.setXidFactory(this);
-		return xid;
+		return new TransactionXid(XidFactory.JTA_FORMAT_ID, global);
 	}
 
 	public TransactionXid createBranchXid(TransactionXid globalXid) {
@@ -117,9 +109,7 @@ public class XidFactoryImpl implements XidFactory {
 		System.arraycopy(valueByteArray, 0, branch, SIZE_OF_MAC + 8, 2);
 		System.arraycopy(randomByteArray, 0, branch, SIZE_OF_MAC + 10, randomByteArray.length);
 
-		TransactionXid xid = new TransactionXid(global, branch);
-		xid.setXidFactory(this);
-		return xid;
+		return new TransactionXid(XidFactory.JTA_FORMAT_ID, global, branch);
 	}
 
 	public TransactionXid createBranchXid(TransactionXid globalXid, byte[] branchQualifier) {
@@ -140,9 +130,7 @@ public class XidFactoryImpl implements XidFactory {
 		byte[] global = new byte[globalXid.getGlobalTransactionId().length];
 		System.arraycopy(globalXid.getGlobalTransactionId(), 0, global, 0, global.length);
 
-		TransactionXid xid = new TransactionXid(global, branchQualifier);
-		xid.setXidFactory(this);
-		return xid;
+		return new TransactionXid(XidFactory.JTA_FORMAT_ID, global, branchQualifier);
 	}
 
 	public byte[] generateUniqueKey() {

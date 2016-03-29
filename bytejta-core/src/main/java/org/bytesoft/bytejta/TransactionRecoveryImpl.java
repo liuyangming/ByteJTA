@@ -36,6 +36,7 @@ import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.logger.TransactionLogger;
 import org.bytesoft.transaction.resource.XATerminator;
 import org.bytesoft.transaction.xa.TransactionXid;
+import org.bytesoft.transaction.xa.XidFactory;
 
 public class TransactionRecoveryImpl implements TransactionRecovery, TransactionBeanFactoryAware {
 	static final Logger logger = Logger.getLogger(TransactionRecoveryImpl.class.getSimpleName());
@@ -128,9 +129,10 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 	}
 
 	private TransactionImpl reconstructTransaction(TransactionArchive archive) throws IllegalStateException {
+		XidFactory xidFactory = this.beanFactory.getXidFactory();
 		TransactionContext transactionContext = new TransactionContext();
 		TransactionXid xid = (TransactionXid) archive.getXid();
-		transactionContext.setXid(xid.getGlobalXid());
+		transactionContext.setXid(xidFactory.createGlobalXid(xid.getGlobalTransactionId()));
 		transactionContext.setRecoveried(true);
 		transactionContext.setCoordinator(archive.isCoordinator());
 

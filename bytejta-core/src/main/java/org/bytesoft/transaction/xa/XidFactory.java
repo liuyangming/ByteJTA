@@ -22,8 +22,6 @@ public interface XidFactory {
 	public static final int GLOBAL_TRANSACTION_LENGTH = 20;
 	public static final int BRANCH_QUALIFIER_LENGTH = 20;
 
-	public int getFormatId();
-
 	public TransactionXid createGlobalXid();
 
 	public TransactionXid createGlobalXid(byte[] globalTransactionId);

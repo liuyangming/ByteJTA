@@ -34,18 +34,20 @@ import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.RollbackRequiredException;
 import org.bytesoft.transaction.Transaction;
+import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.archive.XAResourceArchive;
 import org.bytesoft.transaction.internal.TransactionException;
 import org.bytesoft.transaction.resource.XATerminator;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 import org.bytesoft.transaction.xa.TransactionXid;
+import org.bytesoft.transaction.xa.XidFactory;
 
 public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArchive> {
 	static final Logger logger = Logger.getLogger(XATerminatorImpl.class.getSimpleName());
 	private TransactionContext transactionContext;
 	private int transactionTimeout;
-	// private TransactionBeanFactory beanFactory;
+	private TransactionBeanFactory beanFactory;
 	private final List<XAResourceArchive> resources = new ArrayList<XAResourceArchive>();
 
 	public XATerminatorImpl(TransactionContext txContext) {
@@ -758,7 +760,8 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 			archive.setDescriptor(descriptor);
 			archive.setIdentified(UnidentifiedResourceDescriptor.class.isInstance(descriptor) == false);
 			TransactionXid globalXid = this.transactionContext.getXid();
-			archive.setXid(globalXid.createBranchXid());
+			XidFactory xidFactory = this.beanFactory.getXidFactory();
+			archive.setXid(xidFactory.createBranchXid(globalXid));
 		} else {
 			flags = XAResource.TMJOIN;
 		}
@@ -932,6 +935,14 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 
 	public List<XAResourceArchive> getResourceArchives() {
 		return this.resources;
+	}
+
+	public TransactionBeanFactory getBeanFactory() {
+		return beanFactory;
+	}
+
+	public void setBeanFactory(TransactionBeanFactory beanFactory) {
+		this.beanFactory = beanFactory;
 	}
 
 }
