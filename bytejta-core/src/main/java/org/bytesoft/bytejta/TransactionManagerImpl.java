@@ -91,7 +91,7 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		} else if (transaction.getTransactionStatus() == Status.STATUS_COMMITTED) {
 			return;
 		} else if (transaction.getTransactionStatus() == Status.STATUS_MARKED_ROLLBACK) {
-			this.rollback();
+			this.rollback(transaction);
 			throw new HeuristicRollbackException();
 		} else if (transaction.getTransactionStatus() != Status.STATUS_ACTIVE) {
 			throw new IllegalStateException();
@@ -137,6 +137,10 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 
 	public void rollback() throws IllegalStateException, SecurityException, SystemException {
 		Transaction transaction = this.desociateThread();
+		this.rollback(transaction);
+	}
+
+	protected void rollback(Transaction transaction) throws IllegalStateException, SecurityException, SystemException {
 		if (transaction == null) {
 			throw new IllegalStateException();
 		} else if (transaction.getTransactionStatus() == Status.STATUS_ROLLEDBACK) {
