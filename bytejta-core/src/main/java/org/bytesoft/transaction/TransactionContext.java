@@ -24,6 +24,7 @@ public class TransactionContext implements Serializable, Cloneable {
 
 	private transient boolean coordinator;
 	private transient boolean recoveried;
+	private transient boolean compensating;
 
 	private TransactionXid xid;
 	private long createdTime;
@@ -85,6 +86,14 @@ public class TransactionContext implements Serializable, Cloneable {
 
 	public void setCompensable(boolean compensable) {
 		this.compensable = compensable;
+	}
+
+	public boolean isCompensating() {
+		return compensating;
+	}
+
+	public void setCompensating(boolean compensating) {
+		this.compensating = compensating;
 	}
 
 }
