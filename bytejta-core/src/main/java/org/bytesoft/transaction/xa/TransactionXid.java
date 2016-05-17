@@ -48,6 +48,7 @@ public class TransactionXid implements Xid, Serializable {
 		} else if (branch.length > MAXBQUALSIZE) {
 			throw new IllegalArgumentException("length of branchQualifier cannot exceed 64 bytes.");
 		}
+		this.formatId = formatId;
 		this.globalTransactionId = global;
 		this.branchQualifier = branch;
 	}
