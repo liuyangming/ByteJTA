@@ -20,6 +20,7 @@ import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
+import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 
 public class RemoteResourceDescriptor implements XAResourceDescriptor {
@@ -29,15 +30,9 @@ public class RemoteResourceDescriptor implements XAResourceDescriptor {
 
 	public String toString() {
 		return String.format("remote-resource[id= %s]", this.identifier);
-		// return String.format("remote-resource[id= %s, delegate= %s]", this.identifier, this.delegate);
 	}
 
 	public void setTransactionTimeoutQuietly(int timeout) {
-		try {
-			this.delegate.setTransactionTimeout(timeout);
-		} catch (Exception ex) {
-			// ignore
-		}
 	}
 
 	public void commit(Xid arg0, boolean arg1) throws XAException {
@@ -45,7 +40,7 @@ public class RemoteResourceDescriptor implements XAResourceDescriptor {
 	}
 
 	public void end(Xid arg0, int arg1) throws XAException {
-		delegate.end(arg0, arg1);
+		// delegate.end(arg0, arg1);
 	}
 
 	public void forget(Xid arg0) throws XAException {
@@ -53,11 +48,16 @@ public class RemoteResourceDescriptor implements XAResourceDescriptor {
 	}
 
 	public int getTransactionTimeout() throws XAException {
-		return delegate.getTransactionTimeout();
+		throw new XAException(XAException.XAER_RMERR);
 	}
 
-	public boolean isSameRM(XAResource arg0) throws XAException {
-		return delegate.isSameRM(arg0);
+	public boolean isSameRM(XAResource xares) throws XAException {
+		try {
+			RemoteResourceDescriptor that = (RemoteResourceDescriptor) xares;
+			return CommonUtils.equals(this.getIdentifier(), that.getIdentifier());
+		} catch (RuntimeException rex) {
+			return false;
+		}
 	}
 
 	public int prepare(Xid arg0) throws XAException {
@@ -73,11 +73,11 @@ public class RemoteResourceDescriptor implements XAResourceDescriptor {
 	}
 
 	public boolean setTransactionTimeout(int arg0) throws XAException {
-		return delegate.setTransactionTimeout(arg0);
+		return true;
 	}
 
 	public void start(Xid arg0, int arg1) throws XAException {
-		delegate.start(arg0, arg1);
+		// delegate.start(arg0, arg1);
 	}
 
 	public RemoteCoordinator getDelegate() {
