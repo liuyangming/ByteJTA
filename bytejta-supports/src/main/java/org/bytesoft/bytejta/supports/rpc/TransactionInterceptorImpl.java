@@ -19,7 +19,6 @@ import javax.transaction.RollbackException;
 import javax.transaction.SystemException;
 import javax.transaction.xa.XAResource;
 
-import org.apache.log4j.Logger;
 import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.transaction.Transaction;
@@ -31,9 +30,11 @@ import org.bytesoft.transaction.internal.TransactionException;
 import org.bytesoft.transaction.supports.rpc.TransactionInterceptor;
 import org.bytesoft.transaction.supports.rpc.TransactionRequest;
 import org.bytesoft.transaction.supports.rpc.TransactionResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TransactionInterceptorImpl implements TransactionInterceptor, TransactionBeanFactoryAware {
-	static final Logger logger = Logger.getLogger(TransactionInterceptorImpl.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(TransactionInterceptorImpl.class.getSimpleName());
 	private TransactionBeanFactory transactionBeanFactory;
 
 	public void beforeSendRequest(TransactionRequest request) throws IllegalStateException {

@@ -25,7 +25,6 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
-import org.apache.log4j.Logger;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.CommitRequiredException;
@@ -41,9 +40,11 @@ import org.bytesoft.transaction.internal.TransactionException;
 import org.bytesoft.transaction.logger.TransactionLogger;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TransactionCoordinator implements RemoteCoordinator, TransactionBeanFactoryAware {
-	static final Logger logger = Logger.getLogger(TransactionCoordinator.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(TransactionCoordinator.class.getSimpleName());
 
 	private TransactionBeanFactory beanFactory;
 

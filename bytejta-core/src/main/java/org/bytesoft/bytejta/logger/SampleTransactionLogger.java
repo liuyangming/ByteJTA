@@ -34,7 +34,6 @@ import javax.resource.spi.work.Work;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
-import org.apache.log4j.Logger;
 import org.bytesoft.bytejta.supports.resource.CommonResourceDescriptor;
 import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
 import org.bytesoft.bytejta.supports.resource.UnidentifiedResourceDescriptor;
@@ -49,9 +48,11 @@ import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 import org.bytesoft.transaction.supports.serialize.XAResourceDeserializer;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SampleTransactionLogger implements TransactionLogger, Work, TransactionBeanFactoryAware {
-	static final Logger logger = Logger.getLogger(SampleTransactionLogger.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(SampleTransactionLogger.class.getSimpleName());
 
 	static final byte OPERTOR_ADD_TRANSACTION = 0x1;
 	static final byte OPERTOR_MOD_TRANSACTION = 0x2;

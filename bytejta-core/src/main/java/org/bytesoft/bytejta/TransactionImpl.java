@@ -24,7 +24,6 @@ import javax.transaction.SystemException;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 
-import org.apache.log4j.Logger;
 import org.bytesoft.bytejta.resource.XATerminatorImpl;
 import org.bytesoft.bytejta.supports.resource.CommonResourceDescriptor;
 import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
@@ -47,9 +46,11 @@ import org.bytesoft.transaction.supports.TransactionListener;
 import org.bytesoft.transaction.supports.TransactionTimer;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 import org.bytesoft.transaction.xa.TransactionXid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TransactionImpl implements Transaction {
-	static final Logger logger = Logger.getLogger(TransactionImpl.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(TransactionImpl.class.getSimpleName());
 
 	private transient boolean timing = true;
 	private TransactionBeanFactory beanFactory;
@@ -80,8 +81,8 @@ public class TransactionImpl implements Transaction {
 		((XATerminatorImpl) this.remoteTerminator).setBeanFactory(tbf);
 	}
 
-	private synchronized void checkBeforeCommit() throws RollbackException, IllegalStateException,
-			RollbackRequiredException, CommitRequiredException {
+	private synchronized void checkBeforeCommit() throws RollbackException, IllegalStateException, RollbackRequiredException,
+			CommitRequiredException {
 
 		if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
 			throw new RollbackException();
@@ -192,9 +193,8 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	public synchronized void participantCommit() throws RollbackException, HeuristicMixedException,
-			HeuristicRollbackException, SecurityException, IllegalStateException, CommitRequiredException,
-			SystemException {
+	public synchronized void participantCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
+			SecurityException, IllegalStateException, CommitRequiredException, SystemException {
 
 		if (this.transactionStatus == Status.STATUS_ACTIVE) {
 			throw new IllegalStateException();
@@ -217,8 +217,7 @@ public class TransactionImpl implements Transaction {
 		TransactionArchive archive = this.getTransactionArchive();
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 
-		logger.info(String.format("[%s] commit-transaction start",
-				ByteUtils.byteArrayToString(xid.getGlobalTransactionId())));
+		logger.info("[{}] commit-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
 		this.transactionStatus = Status.STATUS_COMMITTING;
 		this.transactionListenerList.onCommitStart(xid);
@@ -297,8 +296,8 @@ public class TransactionImpl implements Transaction {
 				archive.setStatus(this.transactionStatus);
 				transactionLogger.deleteTransaction(archive);
 
-				logger.info(String.format("[%s] commit-transaction complete successfully",
-						ByteUtils.byteArrayToString(xid.getGlobalTransactionId())));
+				logger.info("[{}] commit-transaction complete successfully",
+						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 			}
 		}
 
@@ -318,9 +317,8 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	private synchronized void delegateCommit() throws RollbackException, HeuristicMixedException,
-			HeuristicRollbackException, SecurityException, IllegalStateException, CommitRequiredException,
-			SystemException {
+	private synchronized void delegateCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
+			SecurityException, IllegalStateException, CommitRequiredException, SystemException {
 		// stop-timing
 		TransactionTimer transactionTimer = beanFactory.getTransactionTimer();
 		transactionTimer.stopTiming(this);
@@ -344,8 +342,7 @@ public class TransactionImpl implements Transaction {
 
 		try {
 			TransactionXid xid = this.transactionContext.getXid();
-			logger.info(String.format("[%s] commit-transaction start",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId())));
+			logger.info("[{}] commit-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
 			int nativeResNum = this.nativeTerminator.getResourceArchives().size();
 			int remoteResNum = this.remoteTerminator.getResourceArchives().size();
@@ -359,8 +356,8 @@ public class TransactionImpl implements Transaction {
 				this.transactionListenerList.onCommitSuccess(xid);
 			}
 
-			logger.info(String.format("[%s] commit-transaction complete successfully",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId())));
+			logger.info("[{}] commit-transaction complete successfully",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		} finally {
 			this.synchronizationList.afterCompletion(this.transactionStatus);
 		}
@@ -545,8 +542,7 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	public synchronized boolean delistResource(XAResource xaRes, int flag) throws IllegalStateException,
-			SystemException {
+	public synchronized boolean delistResource(XAResource xaRes, int flag) throws IllegalStateException, SystemException {
 		if (this.transactionStatus != Status.STATUS_ACTIVE && this.transactionStatus != Status.STATUS_MARKED_ROLLBACK) {
 			throw new IllegalStateException();
 		}
@@ -604,15 +600,15 @@ public class TransactionImpl implements Transaction {
 		return this.transactionStatus;
 	}
 
-	public synchronized void registerSynchronization(Synchronization sync) throws RollbackException,
-			IllegalStateException, SystemException {
+	public synchronized void registerSynchronization(Synchronization sync) throws RollbackException, IllegalStateException,
+			SystemException {
 
 		if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
 			throw new RollbackException();
 		} else if (this.transactionStatus == Status.STATUS_ACTIVE) {
 			this.synchronizationList.registerSynchronizationQuietly(sync);
-			logger.debug(String.format("[%s] register-sync: sync= %s"//
-					, ByteUtils.byteArrayToString(this.transactionContext.getXid().getGlobalTransactionId()), sync));
+			logger.debug("[{}] register-sync: sync= {}"//
+					, ByteUtils.byteArrayToString(this.transactionContext.getXid().getGlobalTransactionId()), sync);
 		} else {
 			throw new IllegalStateException();
 		}
@@ -645,8 +641,7 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	private synchronized void delegateRollback() throws IllegalStateException, RollbackRequiredException,
-			SystemException {
+	private synchronized void delegateRollback() throws IllegalStateException, RollbackRequiredException, SystemException {
 		// stop-timing
 		TransactionTimer transactionTimer = beanFactory.getTransactionTimer();
 		transactionTimer.stopTiming(this);
@@ -659,13 +654,12 @@ public class TransactionImpl implements Transaction {
 
 		try {
 			TransactionXid xid = this.transactionContext.getXid();
-			logger.info(String.format("[%s] rollback-transaction start",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId())));
+			logger.info("[{}] rollback-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
 			this.invokeRollback();
 
-			logger.info(String.format("[%s] rollback-transaction complete successfully",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId())));
+			logger.info("[{}] rollback-transaction complete successfully",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		} finally {
 			this.synchronizationList.afterCompletion(this.transactionStatus);
 		}
@@ -1014,16 +1008,16 @@ public class TransactionImpl implements Transaction {
 
 				if (committedExists && rolledbackExists) {
 					this.transactionListenerList.onCommitHeuristicMixed(xid);
-					logger.error(String.format("[%s] recovery-commit: committedExists= true, rolledbackExists= true",
-							ByteUtils.byteArrayToString(xid.getGlobalTransactionId())));
+					logger.error("[{}] recovery-commit: committedExists= true, rolledbackExists= true",
+							ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 				} else if (rolledbackExists) {
 					this.transactionListenerList.onCommitHeuristicRolledback(xid);
-					logger.info(String.format("[%s] recovery-commit: rolled back successfully",
-							ByteUtils.byteArrayToString(xid.getGlobalTransactionId())));
+					logger.info("[{}] recovery-commit: rolled back successfully",
+							ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 				} else {
 					this.transactionListenerList.onCommitSuccess(xid);
-					logger.info(String.format("[%s] recovery-commit: committed successfully",
-							ByteUtils.byteArrayToString(xid.getGlobalTransactionId())));
+					logger.info("[{}] recovery-commit: committed successfully",
+							ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 				}
 			}
 		}
@@ -1103,16 +1097,16 @@ public class TransactionImpl implements Transaction {
 
 				if (committedExists && rolledbackExists) {
 					this.transactionListenerList.onRollbackFailure(xid);
-					logger.error(String.format("[%s] recovery-rollback: committedExists= true, rolledbackExists= true",
-							ByteUtils.byteArrayToString(xid.getGlobalTransactionId())));
+					logger.error("[{}] recovery-rollback: committedExists= true, rolledbackExists= true",
+							ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 				} else if (rolledbackExists) {
 					this.transactionListenerList.onRollbackSuccess(xid);
-					logger.info(String.format("[%s] recovery-rollback: rolled back successfully",
-							ByteUtils.byteArrayToString(xid.getGlobalTransactionId())));
+					logger.info("[{}] recovery-rollback: rolled back successfully",
+							ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 				} else {
 					this.transactionListenerList.onRollbackFailure(xid);
-					logger.info(String.format("[%s] recovery-rollback: committed successfully",
-							ByteUtils.byteArrayToString(xid.getGlobalTransactionId())));
+					logger.info("[{}] recovery-rollback: committed successfully",
+							ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 				}
 			}
 
@@ -1126,20 +1120,16 @@ public class TransactionImpl implements Transaction {
 
 		try {
 			this.nativeTerminator.forget(xid);
-			logger.info(String.format("[%s] forget native terminator successfully",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId())));
+			logger.info("[{}] forget native terminator successfully", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		} catch (XAException xaex) {
-			logger.info(String.format("[%s] forget native terminator failued",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId())));
+			logger.info("[{}] forget native terminator failued", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		}
 
 		try {
 			this.remoteTerminator.forget(xid);
-			logger.info(String.format("[%s] forget remote terminator successfully",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId())));
+			logger.info("[{}] forget remote terminator successfully", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		} catch (XAException xaex) {
-			logger.info(String.format("[%s] forget remote terminator failed",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId())));
+			logger.info("[{}] forget remote terminator failed", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		}
 
 		TransactionRepository repository = beanFactory.getTransactionRepository();

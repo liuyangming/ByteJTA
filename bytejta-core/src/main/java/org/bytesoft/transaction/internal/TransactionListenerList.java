@@ -18,12 +18,13 @@ package org.bytesoft.transaction.internal;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.log4j.Logger;
 import org.bytesoft.transaction.supports.TransactionListener;
 import org.bytesoft.transaction.xa.TransactionXid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TransactionListenerList implements TransactionListener {
-	static final Logger logger = Logger.getLogger(TransactionListenerList.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(TransactionListenerList.class.getSimpleName());
 
 	private final List<TransactionListener> listeners = new ArrayList<TransactionListener>();
 

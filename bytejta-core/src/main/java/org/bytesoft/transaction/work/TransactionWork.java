@@ -17,14 +17,15 @@ package org.bytesoft.transaction.work;
 
 import javax.resource.spi.work.Work;
 
-import org.apache.log4j.Logger;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionRecovery;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.supports.TransactionTimer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TransactionWork implements Work, TransactionBeanFactoryAware {
-	static final Logger logger = Logger.getLogger(TransactionWork.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(TransactionWork.class.getSimpleName());
 
 	private TransactionBeanFactory beanFactory;
 

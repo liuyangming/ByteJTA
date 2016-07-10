@@ -21,7 +21,6 @@ import javax.transaction.Status;
 import javax.transaction.SystemException;
 import javax.transaction.xa.XAResource;
 
-import org.apache.log4j.Logger;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
@@ -37,9 +36,11 @@ import org.bytesoft.transaction.logger.TransactionLogger;
 import org.bytesoft.transaction.resource.XATerminator;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TransactionRecoveryImpl implements TransactionRecovery, TransactionBeanFactoryAware {
-	static final Logger logger = Logger.getLogger(TransactionRecoveryImpl.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(TransactionRecoveryImpl.class.getSimpleName());
 
 	private TransactionBeanFactory beanFactory;
 
@@ -56,28 +57,26 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 				this.recoverTransaction(transaction);
 				transaction.recoveryForgetQuietly();
 			} catch (CommitRequiredException ex) {
-				logger.debug(String.format("[%s] recover: branch=%s, message= commit-required",
+				logger.debug("[{}] recover: branch={}, message= commit-required",
 						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-						ByteUtils.byteArrayToString(xid.getBranchQualifier())));
+						ByteUtils.byteArrayToString(xid.getBranchQualifier()));
 				continue;
 			} catch (RollbackRequiredException ex) {
-				logger.debug(String.format("[%s] recover: branch=%s, message= rollback-required",
+				logger.debug("[{}] recover: branch={}, message= rollback-required",
 						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-						ByteUtils.byteArrayToString(xid.getBranchQualifier())));
+						ByteUtils.byteArrayToString(xid.getBranchQualifier()));
 				continue;
 			} catch (SystemException ex) {
-				logger.debug(String.format("[%s] recover: branch=%s, message= %s",
-						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-						ByteUtils.byteArrayToString(xid.getBranchQualifier()), ex.getMessage()));
+				logger.debug("[{}] recover: branch={}, message= {}", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+						ByteUtils.byteArrayToString(xid.getBranchQualifier()), ex.getMessage());
 				continue;
 			} catch (RuntimeException ex) {
-				logger.debug(String.format("[%s] recover: branch=%s, message= %s",
-						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-						ByteUtils.byteArrayToString(xid.getBranchQualifier()), ex.getMessage()));
+				logger.debug("[{}] recover: branch={}, message= {}", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+						ByteUtils.byteArrayToString(xid.getBranchQualifier()), ex.getMessage());
 				continue;
 			}
 		}
-		logger.info(String.format("[transaction-recovery] total= %s, success= %s", total, value));
+		logger.info("[transaction-recovery] total= {}, success= {}", total, value);
 	}
 
 	public synchronized void recoverTransaction(Transaction transaction) throws CommitRequiredException,

@@ -30,7 +30,6 @@ import javax.transaction.Status;
 import javax.transaction.SystemException;
 import javax.transaction.xa.XAException;
 
-import org.apache.log4j.Logger;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.transaction.CommitRequiredException;
@@ -44,9 +43,11 @@ import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.supports.TransactionTimer;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TransactionManagerImpl implements TransactionManager, TransactionTimer, TransactionBeanFactoryAware {
-	static final Logger logger = Logger.getLogger(TransactionManagerImpl.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(TransactionManagerImpl.class.getSimpleName());
 
 	private TransactionBeanFactory beanFactory;
 	private int timeoutSeconds = 5 * 60;
@@ -78,7 +79,7 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		transactionRepository.putTransaction(globalXid, transaction);
 		// this.transactionStatistic.fireBeginTransaction(transaction);
 
-		logger.info(String.format("[%s] begin-transaction", ByteUtils.byteArrayToString(globalXid.getGlobalTransactionId())));
+		logger.info("[{}] begin-transaction", ByteUtils.byteArrayToString(globalXid.getGlobalTransactionId()));
 	}
 
 	public void commit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException, SecurityException,

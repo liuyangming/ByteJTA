@@ -17,10 +17,12 @@ package org.bytesoft.transaction.internal;
 
 import javax.transaction.Synchronization;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 public class SynchronizationImpl implements Synchronization {
-	static final Logger logger = Logger.getLogger(SynchronizationImpl.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(SynchronizationImpl.class.getSimpleName());
 
 	private Synchronization delegate;
 	private boolean beforeRequired;
