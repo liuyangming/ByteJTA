@@ -296,7 +296,7 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 					}
 				}
 			}
-		}// end-for
+		} // end-for
 
 		try {
 			this.throwCommitExceptionIfNecessary(commitExists, rollbackExists);
@@ -684,8 +684,8 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 								ByteUtils.byteArrayToString(currentXid.getBranchQualifier()), xae.errorCode);
 					}
 				}
-			}// end-if
-		}// end-for
+			} // end-if
+		} // end-for
 	}
 
 	public boolean delistResource(XAResourceDescriptor descriptor, int flag) throws IllegalStateException, SystemException {
@@ -703,7 +703,18 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		try {
 			Xid branchXid = archive.getXid();
 			archive.end(branchXid, flag);
-			archive.setDelisted(true);
+
+			switch (flag) {
+			case XAResource.TMSUCCESS:
+			case XAResource.TMFAIL:
+				archive.setDelisted(true);
+				break;
+			case XAResource.TMSUSPEND:
+				break;
+			default:
+				throw new SystemException();
+			}
+
 			logger.info("[{}] delist: xares= {}, branch= {}, flags= {}",
 					ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
 					ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), flag);
@@ -742,8 +753,8 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		return true;
 	}
 
-	public boolean enlistResource(XAResourceDescriptor descriptor) throws RollbackException, IllegalStateException,
-			SystemException {
+	public boolean enlistResource(XAResourceDescriptor descriptor)
+			throws RollbackException, IllegalStateException, SystemException {
 
 		XAResourceArchive archive = this.locateExisted(descriptor);
 		int flags = XAResource.TMNOFLAGS;
@@ -761,28 +772,31 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		return this.enlistResource(archive, flags);
 	}
 
-	private boolean enlistResource(XAResourceArchive archive, int flags) throws SystemException, RollbackException {
+	private boolean enlistResource(XAResourceArchive archive, int flag) throws SystemException, RollbackException {
 		try {
 			Xid branchXid = archive.getXid();
 			logger.info("[{}] enlist: xares= {}, branch= {}, flags: {}",
 					ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
-					ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), flags);
+					ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), flag);
 
-			if (flags == XAResource.TMNOFLAGS) {
+			switch (flag) {
+			case XAResource.TMNOFLAGS:
 				long expired = this.transactionContext.getExpiredTime();
 				long current = System.currentTimeMillis();
 				long remains = expired - current;
 				int timeout = (int) (remains / 1000L);
 				archive.setTransactionTimeout(timeout);
-				archive.start(branchXid, flags);
+				archive.start(branchXid, flag);
 				this.resources.add(archive);
-			} else if (flags == XAResource.TMJOIN) {
-				archive.start(branchXid, flags);
+				break;
+			case XAResource.TMJOIN:
+				archive.start(branchXid, flag);
 				archive.setDelisted(false);
-			} else if (flags == XAResource.TMRESUME) {
-				archive.start(branchXid, flags);
-				archive.setDelisted(false);
-			} else {
+				break;
+			case XAResource.TMRESUME:
+				archive.start(branchXid, flag);
+				break;
+			default:
 				throw new SystemException();
 			}
 		} catch (XAException xae) {
@@ -842,8 +856,8 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 				} catch (RuntimeException ex) {
 					continue;
 				}
-			}// end-if
-		}// end-while
+			} // end-if
+		} // end-while
 		return null;
 
 	}
@@ -915,7 +929,7 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 					errorExists = true;
 				}
 			}
-		}// end-for
+		} // end-for
 
 		if (rollbackRequired) {
 			throw new RollbackException();
