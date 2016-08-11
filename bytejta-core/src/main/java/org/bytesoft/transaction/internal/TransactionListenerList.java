@@ -19,11 +19,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.bytesoft.transaction.supports.TransactionListener;
+import org.bytesoft.transaction.supports.TransactionListenerAdapter;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TransactionListenerList implements TransactionListener {
+public class TransactionListenerList extends TransactionListenerAdapter {
 	static final Logger logger = LoggerFactory.getLogger(TransactionListenerList.class.getSimpleName());
 
 	private final List<TransactionListener> listeners = new ArrayList<TransactionListener>();
