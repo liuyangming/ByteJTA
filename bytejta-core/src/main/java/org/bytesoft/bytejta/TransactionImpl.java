@@ -40,7 +40,7 @@ import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.internal.SynchronizationList;
 import org.bytesoft.transaction.internal.TransactionException;
 import org.bytesoft.transaction.internal.TransactionListenerList;
-import org.bytesoft.transaction.logger.TransactionLogger;
+import org.bytesoft.transaction.logging.TransactionLogger;
 import org.bytesoft.transaction.resource.XATerminator;
 import org.bytesoft.transaction.supports.TransactionListener;
 import org.bytesoft.transaction.supports.TransactionTimer;

@@ -32,7 +32,8 @@ import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.archive.XAResourceArchive;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
-import org.bytesoft.transaction.logger.TransactionLogger;
+import org.bytesoft.transaction.logging.TransactionLogger;
+import org.bytesoft.transaction.recovery.TransactionRecoveryCallback;
 import org.bytesoft.transaction.resource.XATerminator;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
@@ -79,8 +80,8 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		logger.info("[transaction-recovery] total= {}, success= {}", total, value);
 	}
 
-	public synchronized void recoverTransaction(Transaction transaction) throws CommitRequiredException,
-			RollbackRequiredException, SystemException {
+	public synchronized void recoverTransaction(Transaction transaction)
+			throws CommitRequiredException, RollbackRequiredException, SystemException {
 
 		TransactionContext transactionContext = transaction.getTransactionContext();
 		boolean coordinator = transactionContext.isCoordinator();
@@ -103,28 +104,29 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 			default:
 				// ignore
 			}
-		}// end-if (coordinator)
+		} // end-if (coordinator)
 
 	}
 
 	public synchronized void startRecovery() {
-		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
-		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
-		List<TransactionArchive> archives = transactionLogger.getTransactionArchiveList();
-		for (int i = 0; i < archives.size(); i++) {
-			TransactionArchive archive = archives.get(i);
-			TransactionImpl transaction = null;
-			try {
-				transaction = this.reconstructTransaction(archive);
-			} catch (IllegalStateException ex) {
-				transactionLogger.deleteTransaction(archive);
-				continue;
+		final TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
+		final TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
+		transactionLogger.recover(new TransactionRecoveryCallback() {
+
+			public void recover(TransactionArchive archive) {
+				TransactionImpl transaction = null;
+				try {
+					transaction = reconstructTransaction(archive);
+				} catch (IllegalStateException ex) {
+					transactionLogger.deleteTransaction(archive);
+				}
+				TransactionContext transactionContext = transaction.getTransactionContext();
+				TransactionXid globalXid = transactionContext.getXid();
+				transactionRepository.putTransaction(globalXid, transaction);
+				transactionRepository.putErrorTransaction(globalXid, transaction);
 			}
-			TransactionContext transactionContext = transaction.getTransactionContext();
-			TransactionXid globalXid = transactionContext.getXid();
-			transactionRepository.putTransaction(globalXid, transaction);
-			transactionRepository.putErrorTransaction(globalXid, transaction);
-		}
+		});
+
 	}
 
 	private TransactionImpl reconstructTransaction(TransactionArchive archive) throws IllegalStateException {

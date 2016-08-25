@@ -37,7 +37,7 @@ import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.internal.TransactionException;
-import org.bytesoft.transaction.logger.TransactionLogger;
+import org.bytesoft.transaction.logging.TransactionLogger;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
 import org.slf4j.Logger;
