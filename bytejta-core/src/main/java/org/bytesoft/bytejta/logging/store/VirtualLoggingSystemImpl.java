@@ -58,8 +58,8 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 				throw new RuntimeException();
 			}
 		}
-		File fmaster = new File(this.directory, "master.dat");
-		File fslaver = new File(this.directory, "slaver.dat");
+		File fmaster = new File(this.directory, String.format("%s1.log", this.getLoggingFilePrefix()));
+		File fslaver = new File(this.directory, String.format("%s1.log", this.getLoggingFilePrefix()));
 
 		VirtualLoggingFile masterMgr = this.createTransactionLogging(fmaster);
 		VirtualLoggingFile slaverMgr = this.createTransactionLogging(fslaver);
@@ -119,7 +119,7 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 				this.timingLock.lock();
 				this.timingCondition.await(30, TimeUnit.SECONDS);
 			} catch (Exception ex) {
-				// ignore
+				logger.debug(ex.getMessage(), ex);
 			} finally {
 				this.timingLock.unlock();
 			}
@@ -346,6 +346,8 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 	}
 
 	public abstract String getLoggingIdentifier();
+
+	public abstract String getLoggingFilePrefix();
 
 	public VirtualLoggingFile createTransactionLogging(File file) throws IOException {
 		VirtualLoggingFile logging = new VirtualLoggingFile(file);

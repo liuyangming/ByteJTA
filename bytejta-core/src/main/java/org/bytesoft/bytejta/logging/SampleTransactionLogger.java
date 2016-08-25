@@ -40,7 +40,8 @@ import org.bytesoft.transaction.xa.XidFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SampleTransactionLogger extends VirtualLoggingSystemImpl implements TransactionLogger, TransactionBeanFactoryAware {
+public class SampleTransactionLogger extends VirtualLoggingSystemImpl
+		implements TransactionLogger, TransactionBeanFactoryAware {
 	static final Logger logger = LoggerFactory.getLogger(SampleTransactionLogger.class.getSimpleName());
 
 	static final int TYPE_TRANSACTION = 0x0;
@@ -266,6 +267,10 @@ public class SampleTransactionLogger extends VirtualLoggingSystemImpl implements
 
 		return archive;
 
+	}
+
+	public String getLoggingFilePrefix() {
+		return "bytejta-";
 	}
 
 	public String getLoggingIdentifier() {
