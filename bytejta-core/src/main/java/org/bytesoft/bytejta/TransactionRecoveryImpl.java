@@ -114,16 +114,16 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		transactionLogger.recover(new TransactionRecoveryCallback() {
 
 			public void recover(TransactionArchive archive) {
-				TransactionImpl transaction = null;
 				try {
-					transaction = reconstructTransaction(archive);
+					TransactionImpl transaction = reconstructTransaction(archive);
+					TransactionContext transactionContext = transaction.getTransactionContext();
+					TransactionXid globalXid = transactionContext.getXid();
+					transactionRepository.putTransaction(globalXid, transaction);
+					transactionRepository.putErrorTransaction(globalXid, transaction);
 				} catch (IllegalStateException ex) {
 					transactionLogger.deleteTransaction(archive);
 				}
-				TransactionContext transactionContext = transaction.getTransactionContext();
-				TransactionXid globalXid = transactionContext.getXid();
-				transactionRepository.putTransaction(globalXid, transaction);
-				transactionRepository.putErrorTransaction(globalXid, transaction);
+
 			}
 		});
 
