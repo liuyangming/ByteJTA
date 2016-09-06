@@ -15,12 +15,10 @@
  */
 package org.bytesoft.transaction.supports.serialize;
 
-import java.io.IOException;
-
 import javax.transaction.xa.XAResource;
 
 public interface XAResourceDeserializer {
 
-	public XAResource deserialize(String identifier) throws IOException;
+	public XAResource deserialize(String identifier);
 
 }

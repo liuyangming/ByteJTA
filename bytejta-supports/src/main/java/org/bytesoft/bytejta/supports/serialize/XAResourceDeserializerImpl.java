@@ -15,7 +15,6 @@
  */
 package org.bytesoft.bytejta.supports.serialize;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
@@ -31,17 +30,21 @@ import javax.transaction.xa.XAResource;
 
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinatorRegistry;
 import org.bytesoft.transaction.supports.serialize.XAResourceDeserializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 
 public class XAResourceDeserializerImpl implements XAResourceDeserializer, ApplicationContextAware {
+	static final Logger logger = LoggerFactory.getLogger(XAResourceDeserializerImpl.class.getSimpleName());
+
 	private static Pattern pattern = Pattern.compile("^[^:]+\\s*:\\s*\\d+$");
 	private ApplicationContext applicationContext;
 
 	private Map<String, XAResource> cachedResourceMap = new ConcurrentHashMap<String, XAResource>();
 
-	public XAResource deserialize(String identifier) throws IOException {
+	public XAResource deserialize(String identifier) {
 		try {
 			Object bean = this.applicationContext.getBean(identifier);
 			XAResource cachedResource = this.cachedResourceMap.get(identifier);
@@ -55,14 +58,15 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 		} catch (BeansException bex) {
 			Matcher matcher = pattern.matcher(identifier);
 			if (matcher.find()) {
-				return RemoteCoordinatorRegistry.getInstance().getTransactionManagerStub(identifier);
+				RemoteCoordinatorRegistry registry = RemoteCoordinatorRegistry.getInstance();
+				return registry.getTransactionManagerStub(identifier);
 			} else {
-				throw new IOException(bex);
+				logger.error("can not find a matching xa-resource(identifier= {})!", identifier);
+				return null;
 			}
-		} catch (IOException ex) {
-			throw ex;
 		} catch (Exception ex) {
-			throw new IOException(ex);
+			logger.error("can not find a matching xa-resource(identifier= {})!", identifier);
+			return null;
 		}
 
 	}

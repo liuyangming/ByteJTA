@@ -13,28 +13,14 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.bytejta.logging;
+package org.bytesoft.transaction.logging;
 
-import org.bytesoft.transaction.archive.TransactionArchive;
-import org.bytesoft.transaction.archive.XAResourceArchive;
-import org.bytesoft.transaction.logging.TransactionLogger;
-import org.bytesoft.transaction.recovery.TransactionRecoveryCallback;
+import org.bytesoft.transaction.xa.TransactionXid;
 
-public class EmptyTransactionLogger implements TransactionLogger {
+public interface ArchiveDeserializer {
 
-	public void createTransaction(TransactionArchive archive) {
-	}
+	public byte[] serialize(TransactionXid xid, Object archive);
 
-	public void updateTransaction(TransactionArchive archive) {
-	}
-
-	public void deleteTransaction(TransactionArchive archive) {
-	}
-
-	public void updateResource(XAResourceArchive archive) {
-	}
-
-	public void recover(TransactionRecoveryCallback callback) {
-	}
+	public Object deserialize(TransactionXid xid, byte[] array);
 
 }

@@ -15,12 +15,12 @@
  */
 package org.bytesoft.bytejta;
 
-import org.bytesoft.bytejta.logging.EmptyTransactionLogger;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.TransactionRecovery;
 import org.bytesoft.transaction.TransactionRepository;
+import org.bytesoft.transaction.logging.ArchiveDeserializer;
 import org.bytesoft.transaction.logging.TransactionLogger;
 import org.bytesoft.transaction.supports.TransactionTimer;
 import org.bytesoft.transaction.supports.rpc.TransactionInterceptor;
@@ -30,11 +30,13 @@ public class TransactionBeanFactoryImpl implements TransactionBeanFactory {
 	private TransactionManager transactionManager;
 	private XidFactory xidFactory;
 	private TransactionTimer transactionTimer;
-	private TransactionLogger transactionLogger = new EmptyTransactionLogger();
+	private TransactionLogger transactionLogger;
 	private TransactionRepository transactionRepository;
 	private TransactionInterceptor transactionInterceptor;
 	private TransactionRecovery transactionRecovery;
 	private RemoteCoordinator transactionCoordinator;
+
+	private ArchiveDeserializer archiveDeserializer;
 
 	public TransactionManager getTransactionManager() {
 		return transactionManager;
@@ -98,6 +100,14 @@ public class TransactionBeanFactoryImpl implements TransactionBeanFactory {
 
 	public void setTransactionLogger(TransactionLogger transactionLogger) {
 		this.transactionLogger = transactionLogger;
+	}
+
+	public ArchiveDeserializer getArchiveDeserializer() {
+		return archiveDeserializer;
+	}
+
+	public void setArchiveDeserializer(ArchiveDeserializer archiveDeserializer) {
+		this.archiveDeserializer = archiveDeserializer;
 	}
 
 }

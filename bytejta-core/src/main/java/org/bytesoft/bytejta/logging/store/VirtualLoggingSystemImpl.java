@@ -59,7 +59,7 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 			}
 		}
 		File fmaster = new File(this.directory, String.format("%s1.log", this.getLoggingFilePrefix()));
-		File fslaver = new File(this.directory, String.format("%s1.log", this.getLoggingFilePrefix()));
+		File fslaver = new File(this.directory, String.format("%s2.log", this.getLoggingFilePrefix()));
 
 		VirtualLoggingFile masterMgr = this.createTransactionLogging(fmaster);
 		VirtualLoggingFile slaverMgr = this.createTransactionLogging(fslaver);
