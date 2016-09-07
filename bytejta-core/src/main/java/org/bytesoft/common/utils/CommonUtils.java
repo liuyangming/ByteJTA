@@ -15,7 +15,20 @@
  */
 package org.bytesoft.common.utils;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.Serializable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.caucho.hessian.io.HessianInput;
+import com.caucho.hessian.io.HessianOutput;
+
 public class CommonUtils {
+	static final Logger logger = LoggerFactory.getLogger(CommonUtils.class);
 
 	public static boolean equals(Object o1, Object o2) {
 		if (o1 != null) {
@@ -24,6 +37,40 @@ public class CommonUtils {
 			return o2.equals(o1);
 		} else {
 			return true;
+		}
+	}
+
+	public static byte[] serializeObject(Serializable obj) throws IOException {
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		HessianOutput ho = new HessianOutput(baos);
+		try {
+			ho.writeObject(obj);
+			return baos.toByteArray();
+		} finally {
+			CommonUtils.closeQuietly(baos);
+		}
+
+	}
+
+	public static Serializable deserializeObject(byte[] bytes) throws IOException {
+		ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+		HessianInput hi = new HessianInput(bais);
+		Object result;
+		try {
+			result = hi.readObject();
+			return (Serializable) result;
+		} finally {
+			CommonUtils.closeQuietly(bais);
+		}
+	}
+
+	public static void closeQuietly(Closeable closeable) {
+		if (closeable != null) {
+			try {
+				closeable.close();
+			} catch (IOException ex) {
+				logger.debug("Error occurred while closing resource {}.", closeable);
+			}
 		}
 	}
 
