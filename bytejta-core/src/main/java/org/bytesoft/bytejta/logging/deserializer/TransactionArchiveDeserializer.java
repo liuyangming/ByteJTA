@@ -18,6 +18,7 @@ package org.bytesoft.bytejta.logging.deserializer;
 import java.nio.ByteBuffer;
 import java.util.List;
 
+import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.archive.XAResourceArchive;
 import org.bytesoft.transaction.logging.ArchiveDeserializer;
@@ -30,43 +31,64 @@ public class TransactionArchiveDeserializer implements ArchiveDeserializer {
 	public byte[] serialize(TransactionXid xid, Object obj) {
 		TransactionArchive archive = (TransactionArchive) obj;
 
-		ByteBuffer buffer = ByteBuffer.allocate(8192);
-		int status = archive.getStatus();
-		buffer.put((byte) status);
-		int vote = archive.getVote();
-		buffer.put((byte) vote);
-		byte coordinator = archive.isCoordinator() ? (byte) 0x1 : (byte) 0x0;
-		buffer.put((byte) coordinator);
+		List<XAResourceArchive> nativeArchiveList = archive.getNativeResources();
+		List<XAResourceArchive> remoteArchiveList = archive.getRemoteResources();
 
-		List<XAResourceArchive> nativeResources = archive.getNativeResources();
-		List<XAResourceArchive> remoteResources = archive.getRemoteResources();
-		int nativeNumber = nativeResources.size();
-		int remoteNumber = remoteResources.size();
-		buffer.put((byte) nativeNumber);
-		buffer.put((byte) remoteNumber);
+		int nativeArchiveNumber = nativeArchiveList.size();
+		int remoteArchiveNumber = remoteArchiveList.size();
 
-		for (int i = 0; i < nativeNumber; i++) {
-			XAResourceArchive resourceArchive = nativeResources.get(i);
+		int length = 3 + 2;
+		byte[][] nativeByteArray = new byte[nativeArchiveNumber][];
+		for (int i = 0; i < nativeArchiveNumber; i++) {
+			XAResourceArchive compensableArchive = nativeArchiveList.get(i);
 
-			byte[] resourceByteArray = this.resourceArchiveDeserializer.serialize(xid, resourceArchive);
+			byte[] resourceByteArray = this.resourceArchiveDeserializer.serialize(xid, compensableArchive);
+			byte[] lengthByteArray = ByteUtils.shortToByteArray((short) resourceByteArray.length);
 
-			buffer.put((byte) resourceByteArray.length);
-			buffer.put(resourceByteArray);
+			byte[] elementByteArray = new byte[resourceByteArray.length + 2];
+			System.arraycopy(lengthByteArray, 0, elementByteArray, 0, lengthByteArray.length);
+			System.arraycopy(resourceByteArray, 0, elementByteArray, 2, resourceByteArray.length);
+
+			nativeByteArray[i] = elementByteArray;
+			length = length + elementByteArray.length;
 		}
 
-		for (int i = 0; i < remoteNumber; i++) {
-			XAResourceArchive resourceArchive = remoteResources.get(i);
+		byte[][] remoteByteArray = new byte[nativeArchiveNumber][];
+		for (int i = 0; i < remoteArchiveNumber; i++) {
+			XAResourceArchive resourceArchive = remoteArchiveList.get(i);
 
 			byte[] resourceByteArray = this.resourceArchiveDeserializer.serialize(xid, resourceArchive);
+			byte[] lengthByteArray = ByteUtils.shortToByteArray((short) resourceByteArray.length);
 
-			buffer.put((byte) resourceByteArray.length);
-			buffer.put(resourceByteArray);
+			byte[] elementByteArray = new byte[resourceByteArray.length + 2];
+			System.arraycopy(lengthByteArray, 0, elementByteArray, 0, lengthByteArray.length);
+			System.arraycopy(resourceByteArray, 0, elementByteArray, 2, resourceByteArray.length);
+
+			remoteByteArray[i] = elementByteArray;
+			length = length + elementByteArray.length;
 		}
 
-		int pos = buffer.position();
-		byte[] byteArray = new byte[pos];
-		buffer.flip();
-		buffer.get(byteArray);
+		int position = 0;
+
+		byte[] byteArray = new byte[length];
+		byteArray[position++] = (byte) archive.getStatus();
+		byteArray[position++] = (byte) archive.getVote();
+		byteArray[position++] = archive.isCoordinator() ? (byte) 0x1 : (byte) 0x0;
+
+		byteArray[position++] = (byte) nativeArchiveNumber;
+		byteArray[position++] = (byte) remoteArchiveNumber;
+
+		for (int i = 0; i < nativeArchiveNumber; i++) {
+			byte[] elementByteArray = nativeByteArray[i];
+			System.arraycopy(elementByteArray, 0, byteArray, position, elementByteArray.length);
+			position = position + elementByteArray.length;
+		}
+
+		for (int i = 0; i < remoteArchiveNumber; i++) {
+			byte[] elementByteArray = remoteByteArray[i];
+			System.arraycopy(elementByteArray, 0, byteArray, position, elementByteArray.length);
+			position = position + elementByteArray.length;
+		}
 
 		return byteArray;
 	}
@@ -86,10 +108,10 @@ public class TransactionArchiveDeserializer implements ArchiveDeserializer {
 		archive.setVote(vote);
 		archive.setCoordinator(coordinatorValue != 0);
 
-		int nativeNumber = buffer.get();
-		int remoteNumber = buffer.get();
-		for (int i = 0; i < nativeNumber; i++) {
-			int length = buffer.get();
+		int nativeArchiveNumber = buffer.get();
+		int remoteArchiveNumber = buffer.get();
+		for (int i = 0; i < nativeArchiveNumber; i++) {
+			int length = buffer.getShort();
 			byte[] resourceByteArray = new byte[length];
 			buffer.get(resourceByteArray);
 
@@ -98,8 +120,9 @@ public class TransactionArchiveDeserializer implements ArchiveDeserializer {
 
 			archive.getNativeResources().add(resourceArchive);
 		}
-		for (int i = 0; i < remoteNumber; i++) {
-			int length = buffer.get();
+
+		for (int i = 0; i < remoteArchiveNumber; i++) {
+			int length = buffer.getShort();
 			byte[] resourceByteArray = new byte[length];
 			buffer.get(resourceByteArray);
 
