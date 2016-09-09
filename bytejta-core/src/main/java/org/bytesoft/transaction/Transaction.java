@@ -25,6 +25,8 @@ import org.bytesoft.transaction.supports.TransactionListener;
 
 public interface Transaction extends javax.transaction.Transaction {
 
+	public boolean isLocalTransaction();
+
 	public void setRollbackOnlyQuietly();
 
 	public int getTransactionStatus();

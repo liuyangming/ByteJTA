@@ -34,6 +34,7 @@ import org.bytesoft.transaction.archive.XAResourceArchive;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.logging.TransactionLogger;
 import org.bytesoft.transaction.recovery.TransactionRecoveryCallback;
+import org.bytesoft.transaction.recovery.TransactionRecoveryListener;
 import org.bytesoft.transaction.resource.XATerminator;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
@@ -44,6 +45,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 	static final Logger logger = LoggerFactory.getLogger(TransactionRecoveryImpl.class.getSimpleName());
 
 	private TransactionBeanFactory beanFactory;
+	private TransactionRecoveryListener listener;
 
 	public synchronized void timingRecover() {
 		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
@@ -116,6 +118,9 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 			public void recover(TransactionArchive archive) {
 				try {
 					TransactionImpl transaction = reconstructTransaction(archive);
+					if (listener != null) {
+						listener.onRecovery(transaction);
+					}
 					TransactionContext transactionContext = transaction.getTransactionContext();
 					TransactionXid globalXid = transactionContext.getXid();
 					transactionRepository.putTransaction(globalXid, transaction);
@@ -158,5 +163,13 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 
 	public void setBeanFactory(TransactionBeanFactory tbf) {
 		this.beanFactory = tbf;
+	}
+
+	public TransactionRecoveryListener getListener() {
+		return listener;
+	}
+
+	public void setListener(TransactionRecoveryListener listener) {
+		this.listener = listener;
 	}
 }

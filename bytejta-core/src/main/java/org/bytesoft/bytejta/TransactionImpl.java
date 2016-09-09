@@ -81,6 +81,13 @@ public class TransactionImpl implements Transaction {
 		((XATerminatorImpl) this.remoteTerminator).setBeanFactory(tbf);
 	}
 
+	public boolean isLocalTransaction() {
+		int nativeResNum = this.nativeTerminator.getResourceArchives().size();
+		int remoteResNum = this.remoteTerminator.getResourceArchives().size();
+		int sizeOfResNum = nativeResNum + remoteResNum;
+		return sizeOfResNum <= 1;
+	}
+
 	private synchronized void checkBeforeCommit()
 			throws RollbackException, IllegalStateException, RollbackRequiredException, CommitRequiredException {
 
