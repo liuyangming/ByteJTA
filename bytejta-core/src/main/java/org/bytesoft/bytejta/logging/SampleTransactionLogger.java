@@ -28,6 +28,7 @@ import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.archive.XAResourceArchive;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.logging.ArchiveDeserializer;
+import org.bytesoft.transaction.logging.LoggingFlushable;
 import org.bytesoft.transaction.logging.TransactionLogger;
 import org.bytesoft.transaction.logging.store.VirtualLoggingListener;
 import org.bytesoft.transaction.logging.store.VirtualLoggingRecord;
@@ -39,7 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SampleTransactionLogger extends VirtualLoggingSystemImpl
-		implements TransactionLogger, TransactionBeanFactoryAware {
+		implements TransactionLogger, LoggingFlushable, TransactionBeanFactoryAware {
 	static final Logger logger = LoggerFactory.getLogger(SampleTransactionLogger.class.getSimpleName());
 
 	private TransactionBeanFactory beanFactory;

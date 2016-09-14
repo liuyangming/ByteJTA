@@ -182,7 +182,8 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 		System.arraycopy(keyByteArray, 0, byteArray, 0, keyByteArray.length);
 		byteArray[keyByteArray.length] = (byte) (OPERATOR_CREATE & 0xFF);
 		System.arraycopy(sizeByteArray, 0, byteArray, keyByteArray.length + 1, sizeByteArray.length);
-		System.arraycopy(textByteArray, 0, byteArray, keyByteArray.length + 1 + sizeByteArray.length, textByteArray.length);
+		System.arraycopy(textByteArray, 0, byteArray, keyByteArray.length + 1 + sizeByteArray.length,
+				textByteArray.length);
 
 		try {
 			this.lock.lock();
@@ -219,7 +220,8 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 		System.arraycopy(keyByteArray, 0, byteArray, 0, keyByteArray.length);
 		byteArray[keyByteArray.length] = (byte) (OPERATOR_MOFIFY & 0xFF);
 		System.arraycopy(sizeByteArray, 0, byteArray, keyByteArray.length + 1, sizeByteArray.length);
-		System.arraycopy(textByteArray, 0, byteArray, keyByteArray.length + 1 + sizeByteArray.length, textByteArray.length);
+		System.arraycopy(textByteArray, 0, byteArray, keyByteArray.length + 1 + sizeByteArray.length,
+				textByteArray.length);
 
 		try {
 			this.lock.lock();
@@ -331,6 +333,10 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 		} finally {
 			this.lock.unlock();
 		}
+	}
+
+	public void flushImmediately() {
+		this.master.flushImmediately();
 	}
 
 	public void shutdown() {
