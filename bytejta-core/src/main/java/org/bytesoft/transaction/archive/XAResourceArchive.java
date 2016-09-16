@@ -50,6 +50,18 @@ public class XAResourceArchive implements XAResource {
 		}
 	}
 
+	public void recoveryCommit(Xid xid, boolean onePhase) throws XAException {
+		if (this.readonly) {
+			// ignore
+		} else if (this.committed) {
+			// ignore
+		} else if (this.rolledback) {
+			throw new XAException(XAException.XA_HEURRB);
+		} else {
+			descriptor.recoveryCommit(xid, onePhase);
+		}
+	}
+
 	public void end(Xid ignore, int flags) throws XAException {
 		descriptor.end(xid, flags);
 	}
@@ -104,6 +116,18 @@ public class XAResourceArchive implements XAResource {
 			descriptor.rollback(xid);
 		}
 
+	}
+
+	public void recoveryRollback(Xid xid) throws XAException {
+		if (this.readonly) {
+			// ignore
+		} else if (this.committed) {
+			throw new XAException(XAException.XA_HEURCOM);
+		} else if (this.rolledback) {
+			// ignore
+		} else {
+			descriptor.recoveryRollback(xid);
+		}
 	}
 
 	public boolean setTransactionTimeout(int seconds) throws XAException {

@@ -310,6 +310,10 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 
 	}
 
+	public synchronized void recoveryCommit(Xid xid, boolean onePhase) throws TransactionException, XAException {
+		this.commit(xid, onePhase); // TODO
+	}
+
 	public synchronized void rollback(Xid xid) throws TransactionException, XAException {
 		boolean commitExists = false;
 		boolean rollbackExists = false;
@@ -451,6 +455,10 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		} else if (commitExists) {
 			throw new XAException(XAException.XA_HEURCOM);
 		}
+	}
+
+	public synchronized void recoveryRollback(Xid xid) throws TransactionException, XAException {
+		this.rollback(xid); // TODO
 	}
 
 	public int getTransactionTimeout() throws XAException {
@@ -753,8 +761,8 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		return true;
 	}
 
-	public boolean enlistResource(XAResourceDescriptor descriptor)
-			throws RollbackException, IllegalStateException, SystemException {
+	public boolean enlistResource(XAResourceDescriptor descriptor) throws RollbackException, IllegalStateException,
+			SystemException {
 
 		XAResourceArchive archive = this.locateExisted(descriptor);
 		int flags = XAResource.TMNOFLAGS;

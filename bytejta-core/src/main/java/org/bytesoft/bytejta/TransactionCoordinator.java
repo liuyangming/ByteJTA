@@ -192,8 +192,7 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 			xaex.initCause(ex);
 			throw xaex;
 		} catch (HeuristicRollbackException ex) {
-			logger.error("Error occurred while committing remote coordinator, tx has been rolled back heuristically.",
-					ex);
+			logger.error("Error occurred while committing remote coordinator, tx has been rolled back heuristically.", ex);
 
 			XAException xaex = new XAException(XAException.XA_HEURRB);
 			xaex.initCause(ex);
@@ -314,6 +313,14 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 				repository.removeTransaction(globalXid);
 			}
 		}
+	}
+
+	public void recoveryCommit(Xid xid, boolean onePhase) throws XAException {
+		this.commit(xid, onePhase); // TODO
+	}
+
+	public void recoveryRollback(Xid xid) throws XAException {
+		this.rollback(xid); // TODO
 	}
 
 	public boolean setTransactionTimeout(int seconds) throws XAException {

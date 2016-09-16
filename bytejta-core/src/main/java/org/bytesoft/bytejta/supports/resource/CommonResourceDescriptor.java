@@ -43,6 +43,10 @@ public class CommonResourceDescriptor implements XAResourceDescriptor {
 		delegate.commit(arg0, arg1);
 	}
 
+	public void recoveryCommit(Xid arg0, boolean arg1) throws XAException {
+		delegate.commit(arg0, arg1);
+	}
+
 	public void end(Xid arg0, int arg1) throws XAException {
 		delegate.end(arg0, arg1);
 	}
@@ -68,6 +72,10 @@ public class CommonResourceDescriptor implements XAResourceDescriptor {
 	}
 
 	public void rollback(Xid arg0) throws XAException {
+		delegate.rollback(arg0);
+	}
+
+	public void recoveryRollback(Xid arg0) throws XAException {
 		delegate.rollback(arg0);
 	}
 

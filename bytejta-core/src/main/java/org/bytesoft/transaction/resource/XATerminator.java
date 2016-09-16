@@ -20,6 +20,8 @@ import java.util.List;
 import javax.transaction.RollbackException;
 import javax.transaction.Synchronization;
 import javax.transaction.SystemException;
+import javax.transaction.xa.XAException;
+import javax.transaction.xa.Xid;
 
 import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.archive.XAResourceArchive;
@@ -29,8 +31,7 @@ public interface XATerminator extends javax.transaction.xa.XAResource, Synchroni
 
 	public boolean delistResource(XAResourceDescriptor xaRes, int flag) throws IllegalStateException, SystemException;
 
-	public boolean enlistResource(XAResourceDescriptor xaRes) throws RollbackException, IllegalStateException,
-			SystemException;
+	public boolean enlistResource(XAResourceDescriptor xaRes) throws RollbackException, IllegalStateException, SystemException;
 
 	public void resumeAllResource() throws RollbackException, SystemException;
 
@@ -41,5 +42,9 @@ public interface XATerminator extends javax.transaction.xa.XAResource, Synchroni
 	public List<XAResourceArchive> getResourceArchives();
 
 	public void recover(Transaction transaction) throws SystemException;
+
+	public void recoveryCommit(Xid xid, boolean onePhase) throws XAException;
+
+	public void recoveryRollback(Xid xid) throws XAException;
 
 }

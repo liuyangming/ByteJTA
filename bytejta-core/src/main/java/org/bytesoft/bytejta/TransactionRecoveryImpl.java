@@ -82,31 +82,36 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		logger.info("[transaction-recovery] total= {}, success= {}", total, value);
 	}
 
-	public synchronized void recoverTransaction(Transaction transaction)
-			throws CommitRequiredException, RollbackRequiredException, SystemException {
+	public synchronized void recoverTransaction(Transaction transaction) throws CommitRequiredException,
+			RollbackRequiredException, SystemException {
 
 		TransactionContext transactionContext = transaction.getTransactionContext();
-		boolean coordinator = transactionContext.isCoordinator();
-		if (coordinator) {
-			int status = transaction.getTransactionStatus();
-			switch (status) {
-			case Status.STATUS_ACTIVE:
-			case Status.STATUS_MARKED_ROLLBACK:
-			case Status.STATUS_PREPARING:
-			case Status.STATUS_ROLLING_BACK:
-			case Status.STATUS_UNKNOWN:
-				transaction.recoveryRollback();
-				break;
-			case Status.STATUS_PREPARED:
-			case Status.STATUS_COMMITTING:
-				transaction.recoveryCommit();
-				break;
-			case Status.STATUS_COMMITTED:
-			case Status.STATUS_ROLLEDBACK:
-			default:
-				// ignore
-			}
+		if (transactionContext.isCoordinator()) {
+			this.recoverCoordinator(transaction);
 		} // end-if (coordinator)
+
+	}
+
+	private synchronized void recoverCoordinator(Transaction transaction) throws CommitRequiredException,
+			RollbackRequiredException, SystemException {
+
+		switch (transaction.getTransactionStatus()) {
+		case Status.STATUS_ACTIVE:
+		case Status.STATUS_MARKED_ROLLBACK:
+		case Status.STATUS_PREPARING:
+		case Status.STATUS_ROLLING_BACK:
+		case Status.STATUS_UNKNOWN:
+			transaction.recoveryRollback();
+			break;
+		case Status.STATUS_PREPARED:
+		case Status.STATUS_COMMITTING:
+			transaction.recoveryCommit();
+			break;
+		case Status.STATUS_COMMITTED:
+		case Status.STATUS_ROLLEDBACK:
+		default:
+			// ignore
+		}
 
 	}
 

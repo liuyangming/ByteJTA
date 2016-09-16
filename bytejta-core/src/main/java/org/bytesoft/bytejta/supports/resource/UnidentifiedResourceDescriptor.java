@@ -45,6 +45,13 @@ public class UnidentifiedResourceDescriptor implements XAResourceDescriptor {
 		delegate.commit(arg0, arg1);
 	}
 
+	public void recoveryCommit(Xid arg0, boolean arg1) throws XAException {
+		if (this.delegate == null) {
+			return;
+		}
+		delegate.commit(arg0, arg1);
+	}
+
 	public void end(Xid arg0, int arg1) throws XAException {
 		if (this.delegate == null) {
 			return;
@@ -88,6 +95,13 @@ public class UnidentifiedResourceDescriptor implements XAResourceDescriptor {
 	}
 
 	public void rollback(Xid arg0) throws XAException {
+		if (this.delegate == null) {
+			return;
+		}
+		delegate.rollback(arg0);
+	}
+
+	public void recoveryRollback(Xid arg0) throws XAException {
 		if (this.delegate == null) {
 			return;
 		}

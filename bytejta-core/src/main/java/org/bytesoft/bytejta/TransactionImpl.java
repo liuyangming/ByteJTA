@@ -88,8 +88,8 @@ public class TransactionImpl implements Transaction {
 		return sizeOfResNum <= 1;
 	}
 
-	private synchronized void checkBeforeCommit()
-			throws RollbackException, IllegalStateException, RollbackRequiredException, CommitRequiredException {
+	private synchronized void checkBeforeCommit() throws RollbackException, IllegalStateException, RollbackRequiredException,
+			CommitRequiredException {
 
 		if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
 			throw new RollbackException();
@@ -370,8 +370,8 @@ public class TransactionImpl implements Transaction {
 		}
 	}
 
-	public synchronized void fireOnePhaseCommit()
-			throws HeuristicRollbackException, HeuristicMixedException, CommitRequiredException, SystemException {
+	public synchronized void fireOnePhaseCommit() throws HeuristicRollbackException, HeuristicMixedException,
+			CommitRequiredException, SystemException {
 		TransactionXid xid = this.transactionContext.getXid();
 		try {
 			this.transactionListenerList.onCommitStart(xid);
@@ -407,8 +407,8 @@ public class TransactionImpl implements Transaction {
 		}
 	}
 
-	public synchronized void fireTwoPhaseCommit()
-			throws HeuristicRollbackException, HeuristicMixedException, CommitRequiredException, SystemException {
+	public synchronized void fireTwoPhaseCommit() throws HeuristicRollbackException, HeuristicMixedException,
+			CommitRequiredException, SystemException {
 		TransactionXid xid = this.transactionContext.getXid();
 
 		TransactionArchive archive = this.getTransactionArchive();// new TransactionArchive();
@@ -581,8 +581,8 @@ public class TransactionImpl implements Transaction {
 		}
 	}
 
-	public synchronized boolean enlistResource(XAResource xaRes)
-			throws RollbackException, IllegalStateException, SystemException {
+	public synchronized boolean enlistResource(XAResource xaRes) throws RollbackException, IllegalStateException,
+			SystemException {
 
 		if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
 			throw new RollbackException();
@@ -613,12 +613,12 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	public int getStatus() /* throws SystemException */ {
+	public int getStatus() /* throws SystemException */{
 		return this.transactionStatus;
 	}
 
-	public synchronized void registerSynchronization(Synchronization sync)
-			throws RollbackException, IllegalStateException, SystemException {
+	public synchronized void registerSynchronization(Synchronization sync) throws RollbackException, IllegalStateException,
+			SystemException {
 
 		if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
 			throw new RollbackException();
@@ -966,7 +966,7 @@ public class TransactionImpl implements Transaction {
 
 		boolean unFinishExists = false;
 		try {
-			this.nativeTerminator.commit(xid, false);
+			this.nativeTerminator.recoveryCommit(xid, false);
 			committedExists = true;
 		} catch (TransactionException xaex) {
 			unFinishExists = true;
@@ -990,7 +990,7 @@ public class TransactionImpl implements Transaction {
 		}
 
 		try {
-			this.remoteTerminator.commit(xid, false);
+			this.remoteTerminator.recoveryCommit(xid, false);
 			committedExists = true;
 		} catch (TransactionException xaex) {
 			unFinishExists = true;
@@ -1055,7 +1055,7 @@ public class TransactionImpl implements Transaction {
 		boolean rolledbackExists = false;
 		boolean unFinishExists = false;
 		try {
-			this.nativeTerminator.rollback(xid);
+			this.nativeTerminator.recoveryRollback(xid);
 			rolledbackExists = true;
 		} catch (TransactionException xaex) {
 			unFinishExists = true;
@@ -1079,7 +1079,7 @@ public class TransactionImpl implements Transaction {
 		}
 
 		try {
-			this.remoteTerminator.rollback(xid);
+			this.remoteTerminator.recoveryRollback(xid);
 			rolledbackExists = true;
 		} catch (TransactionException xaex) {
 			unFinishExists = true;
@@ -1137,16 +1137,14 @@ public class TransactionImpl implements Transaction {
 
 		try {
 			this.nativeTerminator.forget(xid);
-			logger.info("[{}] forget native terminator successfully",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+			logger.info("[{}] forget native terminator successfully", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		} catch (XAException xaex) {
 			logger.info("[{}] forget native terminator failued", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		}
 
 		try {
 			this.remoteTerminator.forget(xid);
-			logger.info("[{}] forget remote terminator successfully",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+			logger.info("[{}] forget remote terminator successfully", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		} catch (XAException xaex) {
 			logger.info("[{}] forget remote terminator failed", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		}
