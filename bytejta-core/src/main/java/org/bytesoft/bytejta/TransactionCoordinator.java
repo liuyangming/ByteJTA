@@ -330,11 +330,8 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 	}
 
 	public void recoveryCommitRecoveredTransaction(TransactionXid xid, boolean onePhase) throws XAException {
-		TransactionRepository repository = beanFactory.getTransactionRepository();
-		XidFactory xidFactory = this.beanFactory.getXidFactory();
-		TransactionXid branchXid = (TransactionXid) xid;
-		TransactionXid globalXid = xidFactory.createGlobalXid(branchXid.getGlobalTransactionId());
-		Transaction transaction = repository.getTransaction(globalXid);
+		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
+		Transaction transaction = transactionRepository.getTransaction(xid);
 		try {
 			transaction.recoveryCommit();
 		} catch (CommitRequiredException ex) {
@@ -359,31 +356,27 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 	}
 
 	public void recoveryCommitActiveTransaction(TransactionXid xid, boolean onePhase) throws XAException {
-		TransactionRepository repository = beanFactory.getTransactionRepository();
-		XidFactory xidFactory = this.beanFactory.getXidFactory();
-		TransactionXid branchXid = (TransactionXid) xid;
-		TransactionXid globalXid = xidFactory.createGlobalXid(branchXid.getGlobalTransactionId());
-
-		Transaction transaction = repository.getTransaction(globalXid);
+		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
+		Transaction transaction = transactionRepository.getTransaction(xid);
 		try {
 			transaction.recoveryCommit();
 		} catch (CommitRequiredException ex) {
 			logger.error("Error occurred while committing(recovery) active transaction.", ex);
-			repository.putErrorTransaction(globalXid, transaction);
+			transactionRepository.putErrorTransaction(xid, transaction);
 
 			XAException xaex = new XAException(XAException.XAER_RMERR);
 			xaex.initCause(ex);
 			throw xaex;
 		} catch (SystemException ex) {
 			logger.error("Error occurred while committing(recovery) active transaction.", ex);
-			repository.putErrorTransaction(globalXid, transaction);
+			transactionRepository.putErrorTransaction(xid, transaction);
 
 			XAException xaex = new XAException(XAException.XAER_RMERR);
 			xaex.initCause(ex);
 			throw xaex;
 		} catch (RuntimeException ex) {
 			logger.error("Error occurred while committing(recovery) active transaction.", ex);
-			repository.putErrorTransaction(globalXid, transaction);
+			transactionRepository.putErrorTransaction(xid, transaction);
 
 			XAException xaex = new XAException(XAException.XAER_RMERR);
 			xaex.initCause(ex);
@@ -408,28 +401,24 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 	}
 
 	public void recoveryRollbackRecoveredTransaction(TransactionXid xid) throws XAException {
-		TransactionRepository repository = beanFactory.getTransactionRepository();
-		XidFactory xidFactory = this.beanFactory.getXidFactory();
-		TransactionXid branchXid = (TransactionXid) xid;
-		TransactionXid globalXid = xidFactory.createGlobalXid(branchXid.getGlobalTransactionId());
-
-		Transaction transaction = repository.getTransaction(globalXid);
+		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
+		Transaction transaction = transactionRepository.getTransaction(xid);
 		try {
 			transaction.recoveryRollback();
 		} catch (RollbackRequiredException rrex) {
-			logger.error("Error occurred while rolling back recovred transaction.", rrex);
+			logger.error("Error occurred while rolling back recovered transaction.", rrex);
 
 			XAException xaex = new XAException(XAException.XAER_RMERR);
 			xaex.initCause(rrex);
 			throw xaex;
 		} catch (SystemException ex) {
-			logger.error("Error occurred while rolling back recovred transaction.", ex);
+			logger.error("Error occurred while rolling back recovered transaction.", ex);
 
 			XAException xaex = new XAException(XAException.XAER_RMERR);
 			xaex.initCause(ex);
 			throw xaex;
 		} catch (RuntimeException rrex) {
-			logger.error("Error occurred while rolling back recovred transaction.", rrex);
+			logger.error("Error occurred while rolling back recovered transaction.", rrex);
 
 			XAException xaex = new XAException(XAException.XAER_RMERR);
 			xaex.initCause(rrex);
@@ -438,31 +427,27 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 	}
 
 	public void recoveryRollbackActiveTransaction(TransactionXid xid) throws XAException {
-		TransactionRepository repository = beanFactory.getTransactionRepository();
-		XidFactory xidFactory = this.beanFactory.getXidFactory();
-		TransactionXid branchXid = (TransactionXid) xid;
-		TransactionXid globalXid = xidFactory.createGlobalXid(branchXid.getGlobalTransactionId());
-
-		Transaction transaction = repository.getTransaction(globalXid);
+		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
+		Transaction transaction = transactionRepository.getTransaction(xid);
 		try {
 			transaction.recoveryRollback();
 		} catch (RollbackRequiredException rrex) {
 			logger.error("Error occurred while rolling back(recovery) active transaction.", rrex);
-			repository.putErrorTransaction(globalXid, transaction);
+			transactionRepository.putErrorTransaction(xid, transaction);
 
 			XAException xaex = new XAException(XAException.XAER_RMERR);
 			xaex.initCause(rrex);
 			throw xaex;
 		} catch (SystemException ex) {
 			logger.error("Error occurred while rolling back(recovery) active transaction.", ex);
-			repository.putErrorTransaction(globalXid, transaction);
+			transactionRepository.putErrorTransaction(xid, transaction);
 
 			XAException xaex = new XAException(XAException.XAER_RMERR);
 			xaex.initCause(ex);
 			throw xaex;
 		} catch (RuntimeException rrex) {
 			logger.error("Error occurred while rolling back(recovery) active transaction.", rrex);
-			repository.putErrorTransaction(globalXid, transaction);
+			transactionRepository.putErrorTransaction(xid, transaction);
 
 			XAException xaex = new XAException(XAException.XAER_RMERR);
 			xaex.initCause(rrex);
