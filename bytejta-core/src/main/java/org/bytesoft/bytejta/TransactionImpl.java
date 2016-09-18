@@ -88,8 +88,8 @@ public class TransactionImpl implements Transaction {
 		return sizeOfResNum <= 1;
 	}
 
-	private synchronized void checkBeforeCommit() throws RollbackException, IllegalStateException, RollbackRequiredException,
-			CommitRequiredException {
+	private synchronized void checkBeforeCommit()
+			throws RollbackException, IllegalStateException, RollbackRequiredException, CommitRequiredException {
 
 		if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
 			throw new RollbackException();
@@ -370,8 +370,8 @@ public class TransactionImpl implements Transaction {
 		}
 	}
 
-	public synchronized void fireOnePhaseCommit() throws HeuristicRollbackException, HeuristicMixedException,
-			CommitRequiredException, SystemException {
+	public synchronized void fireOnePhaseCommit()
+			throws HeuristicRollbackException, HeuristicMixedException, CommitRequiredException, SystemException {
 		TransactionXid xid = this.transactionContext.getXid();
 		try {
 			this.transactionListenerList.onCommitStart(xid);
@@ -407,8 +407,8 @@ public class TransactionImpl implements Transaction {
 		}
 	}
 
-	public synchronized void fireTwoPhaseCommit() throws HeuristicRollbackException, HeuristicMixedException,
-			CommitRequiredException, SystemException {
+	public synchronized void fireTwoPhaseCommit()
+			throws HeuristicRollbackException, HeuristicMixedException, CommitRequiredException, SystemException {
 		TransactionXid xid = this.transactionContext.getXid();
 
 		TransactionArchive archive = this.getTransactionArchive();// new TransactionArchive();
@@ -581,8 +581,8 @@ public class TransactionImpl implements Transaction {
 		}
 	}
 
-	public synchronized boolean enlistResource(XAResource xaRes) throws RollbackException, IllegalStateException,
-			SystemException {
+	public synchronized boolean enlistResource(XAResource xaRes)
+			throws RollbackException, IllegalStateException, SystemException {
 
 		if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
 			throw new RollbackException();
@@ -613,12 +613,12 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	public int getStatus() /* throws SystemException */{
+	public int getStatus() /* throws SystemException */ {
 		return this.transactionStatus;
 	}
 
-	public synchronized void registerSynchronization(Synchronization sync) throws RollbackException, IllegalStateException,
-			SystemException {
+	public synchronized void registerSynchronization(Synchronization sync)
+			throws RollbackException, IllegalStateException, SystemException {
 
 		if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
 			throw new RollbackException();
@@ -954,7 +954,9 @@ public class TransactionImpl implements Transaction {
 
 	public synchronized void recoveryCommit() throws CommitRequiredException, SystemException {
 
-		this.recoveryInit();
+		if (this.transactionContext.isRecoveried()) {
+			this.recoveryInit();
+		}
 
 		TransactionXid xid = this.transactionContext.getXid();
 
@@ -1016,12 +1018,12 @@ public class TransactionImpl implements Transaction {
 				this.transactionListenerList.onCommitFailure(xid);
 				throw new CommitRequiredException();
 			} else {
-				TransactionArchive archive = this.getTransactionArchive();// new TransactionArchive();
+				TransactionArchive archive = this.getTransactionArchive();
 				TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 
 				this.transactionStatus = Status.STATUS_COMMITTED;
 				archive.setStatus(this.transactionStatus);
-				transactionLogger.deleteTransaction(archive);
+				transactionLogger.deleteTransaction(archive); // TODO
 
 				if (committedExists && rolledbackExists) {
 					this.transactionListenerList.onCommitHeuristicMixed(xid);
@@ -1043,7 +1045,9 @@ public class TransactionImpl implements Transaction {
 
 	public synchronized void recoveryRollback() throws RollbackRequiredException, SystemException {
 
-		this.recoveryInit();
+		if (this.transactionContext.isRecoveried()) {
+			this.recoveryInit();
+		}
 
 		TransactionXid xid = this.transactionContext.getXid();
 
@@ -1105,12 +1109,12 @@ public class TransactionImpl implements Transaction {
 				this.transactionListenerList.onRollbackFailure(xid);
 				throw new RollbackRequiredException();
 			} else {
-				TransactionArchive archive = this.getTransactionArchive();// new TransactionArchive();
+				TransactionArchive archive = this.getTransactionArchive();
 				TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 
 				this.transactionStatus = Status.STATUS_ROLLEDBACK;
 				archive.setStatus(this.transactionStatus);
-				transactionLogger.deleteTransaction(archive);
+				transactionLogger.deleteTransaction(archive); // TODO
 
 				if (committedExists && rolledbackExists) {
 					this.transactionListenerList.onRollbackFailure(xid);
@@ -1137,14 +1141,16 @@ public class TransactionImpl implements Transaction {
 
 		try {
 			this.nativeTerminator.forget(xid);
-			logger.info("[{}] forget native terminator successfully", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+			logger.info("[{}] forget native terminator successfully",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		} catch (XAException xaex) {
 			logger.info("[{}] forget native terminator failued", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		}
 
 		try {
 			this.remoteTerminator.forget(xid);
-			logger.info("[{}] forget remote terminator successfully", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+			logger.info("[{}] forget remote terminator successfully",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		} catch (XAException xaex) {
 			logger.info("[{}] forget remote terminator failed", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		}
