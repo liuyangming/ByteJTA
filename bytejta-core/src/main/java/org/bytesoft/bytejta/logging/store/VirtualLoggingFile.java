@@ -23,6 +23,7 @@ import java.nio.channels.FileChannel.MapMode;
 import java.util.Arrays;
 
 import org.bytesoft.transaction.logging.store.VirtualLoggingTrigger;
+import org.bytesoft.transaction.xa.XidFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -216,9 +217,9 @@ public class VirtualLoggingFile {
 	public byte[] read() {
 		if (this.readable.position() < this.endIndex) {
 			int pos = this.readable.position();
-			this.readable.position(pos + 32 + 1);
+			this.readable.position(pos + XidFactory.GLOBAL_TRANSACTION_LENGTH + 1);
 			int size = this.readable.getInt();
-			byte[] byteArray = new byte[32 + 1 + 4 + size];
+			byte[] byteArray = new byte[XidFactory.GLOBAL_TRANSACTION_LENGTH + 1 + 4 + size];
 			this.readable.position(pos);
 			this.readable.get(byteArray);
 			return byteArray;
