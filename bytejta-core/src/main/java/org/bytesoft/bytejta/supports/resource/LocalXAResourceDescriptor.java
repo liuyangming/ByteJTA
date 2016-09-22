@@ -15,19 +15,77 @@
  */
 package org.bytesoft.bytejta.supports.resource;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.Statement;
+
+import javax.sql.DataSource;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
+import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class UnidentifiedResourceDescriptor implements XAResourceDescriptor {
+public class LocalXAResourceDescriptor implements XAResourceDescriptor {
+	static final Logger logger = LoggerFactory.getLogger(LocalXAResourceDescriptor.class);
 
 	private String identifier;
 	private XAResource delegate;
 
+	private DataSource dataSource;
+
 	public boolean isTransactionCommitted(Xid xid) throws IllegalStateException {
-		throw new IllegalStateException();
+		Connection conn = null;
+		PreparedStatement stmt = null;
+		ResultSet rs = null;
+		try {
+			conn = this.dataSource.getConnection();
+			stmt = conn.prepareStatement("select xid from bytejta where xid = ?");
+			stmt.setString(1, ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+			rs = stmt.executeQuery();
+			return rs.next();
+		} catch (Exception ex) {
+			logger.warn("Error occurred while recovering local-xa-resource.", ex);
+			throw new IllegalStateException();
+		} finally {
+			this.closeQuietly(rs);
+			this.closeQuietly(stmt);
+			this.closeQuietly(conn);
+		}
+	}
+
+	private void closeQuietly(ResultSet closeable) {
+		if (closeable != null) {
+			try {
+				closeable.close();
+			} catch (Exception ex) {
+				logger.debug("Error occurred while closing resource {}.", closeable);
+			}
+		}
+	}
+
+	private void closeQuietly(Statement closeable) {
+		if (closeable != null) {
+			try {
+				closeable.close();
+			} catch (Exception ex) {
+				logger.debug("Error occurred while closing resource {}.", closeable);
+			}
+		}
+	}
+
+	private void closeQuietly(Connection closeable) {
+		if (closeable != null) {
+			try {
+				closeable.close();
+			} catch (Exception ex) {
+				logger.debug("Error occurred while closing resource {}.", closeable);
+			}
+		}
 	}
 
 	public String toString() {
@@ -140,6 +198,14 @@ public class UnidentifiedResourceDescriptor implements XAResourceDescriptor {
 
 	public void setDelegate(XAResource delegate) {
 		this.delegate = delegate;
+	}
+
+	public DataSource getDataSource() {
+		return dataSource;
+	}
+
+	public void setDataSource(DataSource dataSource) {
+		this.dataSource = dataSource;
 	}
 
 }

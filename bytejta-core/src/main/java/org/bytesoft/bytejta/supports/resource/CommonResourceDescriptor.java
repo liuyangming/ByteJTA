@@ -26,6 +26,10 @@ public class CommonResourceDescriptor implements XAResourceDescriptor {
 	private XAResource delegate;
 	private String identifier;
 
+	public boolean isTransactionCommitted(Xid xid) throws IllegalStateException {
+		throw new IllegalStateException();
+	}
+
 	public String toString() {
 		return String.format("common-resource[id= %s]", this.identifier);
 		// return String.format("common-resource[id= %s, delegate= %s]", this.identifier, this.delegate);

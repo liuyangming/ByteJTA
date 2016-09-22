@@ -27,6 +27,8 @@ public interface XAResourceDescriptor extends XAResource {
 
 	public void setTransactionTimeoutQuietly(int timeout);
 
+	public boolean isTransactionCommitted(Xid xid) throws IllegalStateException;
+
 	public void recoveryCommit(Xid xid, boolean onePhase) throws XAException;
 
 	public void recoveryRollback(Xid xid) throws XAException;

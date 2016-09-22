@@ -24,10 +24,12 @@ import javax.jms.XAConnectionFactory;
 import javax.jms.XASession;
 import javax.resource.spi.ManagedConnection;
 import javax.resource.spi.ManagedConnectionFactory;
+import javax.sql.DataSource;
 import javax.sql.XAConnection;
 import javax.sql.XADataSource;
 import javax.transaction.xa.XAResource;
 
+import org.bytesoft.bytejta.supports.resource.LocalXAResourceDescriptor;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinatorRegistry;
 import org.bytesoft.transaction.supports.serialize.XAResourceDeserializer;
 import org.slf4j.Logger;
@@ -49,7 +51,7 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 			Object bean = this.applicationContext.getBean(identifier);
 			XAResource cachedResource = this.cachedResourceMap.get(identifier);
 			if (cachedResource == null) {
-				cachedResource = this.deserializeResource(bean);
+				cachedResource = this.deserializeResource(identifier, bean);
 				if (cachedResource != null) {
 					this.cachedResourceMap.put(identifier, cachedResource);
 				}
@@ -71,37 +73,42 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 
 	}
 
-	private XAResource deserializeResource(Object bean) throws Exception {
+	private XAResource deserializeResource(String identifier, Object bean) throws Exception {
 		if (XADataSource.class.isInstance(bean)) {
 			XADataSource xaDataSource = (XADataSource) bean;
 			XAConnection xaConnection = null;
-			try {
-				xaConnection = xaDataSource.getXAConnection();
-				return xaConnection.getXAResource();
-			} finally {
-				// this.closeIfNecessary(xaConnection);
-			}
+			// try {
+			xaConnection = xaDataSource.getXAConnection();
+			return xaConnection.getXAResource();
+			// } finally {
+			// this.closeIfNecessary(xaConnection);
+			// }
 		} else if (XAConnectionFactory.class.isInstance(bean)) {
 			XAConnectionFactory connectionFactory = (XAConnectionFactory) bean;
 			javax.jms.XAConnection xaConnection = null;
 			XASession xaSession = null;
-			try {
-				xaConnection = connectionFactory.createXAConnection();
-				xaSession = xaConnection.createXASession();
-				return xaSession.getXAResource();
-			} finally {
-				// this.closeIfNecessary(xaSession);
-				// this.closeIfNecessary(xaConnection);
-			}
+			// try {
+			xaConnection = connectionFactory.createXAConnection();
+			xaSession = xaConnection.createXASession();
+			return xaSession.getXAResource();
+			// } finally {
+			// this.closeIfNecessary(xaSession);
+			// this.closeIfNecessary(xaConnection);
+			// }
 		} else if (ManagedConnectionFactory.class.isInstance(bean)) {
 			ManagedConnectionFactory connectionFactory = (ManagedConnectionFactory) bean;
 			ManagedConnection managedConnection = null;
-			try {
-				managedConnection = connectionFactory.createManagedConnection(null, null);
-				return managedConnection.getXAResource();
-			} finally {
-				// this.closeIfNecessary(managedConnection);
-			}
+			// try {
+			managedConnection = connectionFactory.createManagedConnection(null, null);
+			return managedConnection.getXAResource();
+			// } finally {
+			// this.closeIfNecessary(managedConnection);
+			// }
+		} else if (DataSource.class.isInstance(bean)) {
+			LocalXAResourceDescriptor resource = new LocalXAResourceDescriptor();
+			resource.setDataSource((DataSource) bean);
+			resource.setIdentifier(identifier);
+			return resource;
 		} else {
 			return null;
 		}

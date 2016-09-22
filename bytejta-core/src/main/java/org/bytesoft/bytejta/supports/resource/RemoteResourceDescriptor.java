@@ -28,6 +28,10 @@ public class RemoteResourceDescriptor implements XAResourceDescriptor {
 	private RemoteCoordinator delegate;
 	private String identifier;
 
+	public boolean isTransactionCommitted(Xid xid) throws IllegalStateException {
+		throw new IllegalStateException();
+	}
+
 	public String toString() {
 		return String.format("remote-resource[id= %s]", this.identifier);
 	}
