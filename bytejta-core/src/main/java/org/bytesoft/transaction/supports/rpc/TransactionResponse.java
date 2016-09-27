@@ -20,9 +20,11 @@ import org.bytesoft.transaction.TransactionContext;
 
 public interface TransactionResponse {
 
-	public RemoteCoordinator getSourceTransactionCoordinator();
+	public boolean isParticipantRollbackRequired();
 
-	// public void setSourceTransactionCoordinator(RemoteCoordinator coordinator);
+	public boolean isParticipantStickyRequired();
+
+	public RemoteCoordinator getSourceTransactionCoordinator();
 
 	public TransactionContext getTransactionContext();
 

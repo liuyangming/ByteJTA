@@ -22,7 +22,7 @@ import javax.transaction.xa.Xid;
 
 import org.bytesoft.common.utils.ByteUtils;
 
-public class TransactionXid implements Xid, Serializable {
+public class TransactionXid implements Xid, Cloneable, Serializable {
 	private static final long serialVersionUID = 1L;
 
 	private int formatId;
@@ -48,9 +48,31 @@ public class TransactionXid implements Xid, Serializable {
 		} else if (branch.length > MAXBQUALSIZE) {
 			throw new IllegalArgumentException("length of branchQualifier cannot exceed 64 bytes.");
 		}
+
+		this.globalTransactionId = new byte[global.length];
+		this.branchQualifier = new byte[branch.length];
+
+		System.arraycopy(global, 0, this.globalTransactionId, 0, global.length);
+		System.arraycopy(branch, 0, this.branchQualifier, 0, branch.length);
+
 		this.formatId = formatId;
 		this.globalTransactionId = global;
 		this.branchQualifier = branch;
+	}
+
+	public TransactionXid clone() {
+		TransactionXid that = new TransactionXid();
+		that.setFormatId(this.formatId);
+		byte[] global = new byte[this.globalTransactionId.length];
+		byte[] branch = new byte[this.branchQualifier.length];
+
+		System.arraycopy(this.globalTransactionId, 0, global, 0, this.globalTransactionId.length);
+		System.arraycopy(this.branchQualifier, 0, branch, 0, this.branchQualifier.length);
+
+		that.setGlobalTransactionId(global);
+		that.setBranchQualifier(branch);
+
+		return that;
 	}
 
 	public int getFormatId() {

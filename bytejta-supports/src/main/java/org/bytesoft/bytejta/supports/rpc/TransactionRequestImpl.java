@@ -20,15 +20,15 @@ import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.supports.rpc.TransactionRequest;
 
 public class TransactionRequestImpl implements TransactionRequest {
-	private RemoteCoordinator remoteCoordinator;
+	private RemoteCoordinator participantCoordinator;
 	private TransactionContext transactionContext;
 
 	public RemoteCoordinator getTargetTransactionCoordinator() {
-		return this.remoteCoordinator;
+		return this.participantCoordinator;
 	}
 
 	public void setTargetTransactionCoordinator(RemoteCoordinator remoteCoordinator) {
-		this.remoteCoordinator = remoteCoordinator;
+		this.participantCoordinator = remoteCoordinator;
 	}
 
 	public TransactionContext getTransactionContext() {

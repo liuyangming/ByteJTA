@@ -21,15 +21,17 @@ import org.bytesoft.transaction.supports.rpc.TransactionResponse;
 
 public class TransactionResponseImpl implements TransactionResponse {
 
-	private RemoteCoordinator remoteCoordinator;
+	private boolean participantRollbackRequired;
+	private boolean participantStickyRequired = true;
+	private RemoteCoordinator participantCoordinator;
 	private TransactionContext transactionContext;
 
 	public RemoteCoordinator getSourceTransactionCoordinator() {
-		return this.remoteCoordinator;
+		return this.participantCoordinator;
 	}
 
 	public void setSourceTransactionCoordinator(RemoteCoordinator remoteCoordinator) {
-		this.remoteCoordinator = remoteCoordinator;
+		this.participantCoordinator = remoteCoordinator;
 	}
 
 	public TransactionContext getTransactionContext() {
@@ -38,6 +40,22 @@ public class TransactionResponseImpl implements TransactionResponse {
 
 	public void setTransactionContext(TransactionContext transactionContext) {
 		this.transactionContext = transactionContext;
+	}
+
+	public boolean isParticipantRollbackRequired() {
+		return participantRollbackRequired;
+	}
+
+	public void setParticipantRollbackRequired(boolean participantRollbackRequired) {
+		this.participantRollbackRequired = participantRollbackRequired;
+	}
+
+	public boolean isParticipantStickyRequired() {
+		return participantStickyRequired;
+	}
+
+	public void setParticipantStickyRequired(boolean participantStickyRequired) {
+		this.participantStickyRequired = participantStickyRequired;
 	}
 
 }

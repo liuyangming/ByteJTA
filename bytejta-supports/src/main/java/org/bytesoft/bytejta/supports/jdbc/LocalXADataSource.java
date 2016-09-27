@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.bytejta.supports.druid;
+package org.bytesoft.bytejta.supports.jdbc;
 
 import java.io.PrintWriter;
 import java.sql.Connection;
@@ -27,29 +27,22 @@ import javax.transaction.RollbackException;
 import javax.transaction.SystemException;
 import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
-import javax.transaction.xa.XAResource;
 
-import com.alibaba.druid.pool.DruidDataSource;
-import com.alibaba.druid.pool.DruidPooledConnection;
-
-public class DruidLocalXADataSource implements XADataSource, DataSource {
+public class LocalXADataSource implements XADataSource, DataSource {
 	private PrintWriter logWriter;
 	private int loginTimeout;
-	private DruidDataSource druidDataSource;
+	private DataSource dataSource;
 	private TransactionManager transactionManager;
 
 	public Connection getConnection() throws SQLException {
 		try {
 			Transaction transaction = this.transactionManager.getTransaction();
-			if (transaction == null) {
-				return this.druidDataSource.getConnection();
-			} else {
-				DruidLocalXAConnection xacon = this.getXAConnection();
-				Connection connection = xacon.getConnection();
-				XAResource xares = xacon.getXAResource();
-				transaction.enlistResource(xares);
-				return connection;
+			LocalXAConnection xacon = this.getXAConnection();
+			Connection connection = xacon.getConnection();
+			if (transaction != null) {
+				transaction.enlistResource(xacon.getXAResource());
 			}
+			return connection;
 		} catch (SystemException ex) {
 			throw new SQLException(ex);
 		} catch (RollbackException ex) {
@@ -62,15 +55,12 @@ public class DruidLocalXADataSource implements XADataSource, DataSource {
 	public Connection getConnection(String username, String password) throws SQLException {
 		try {
 			Transaction transaction = this.transactionManager.getTransaction();
-			if (transaction == null) {
-				return this.druidDataSource.getConnection(username, password);
-			} else {
-				DruidLocalXAConnection xacon = this.getXAConnection(username, password);
-				Connection connection = xacon.getConnection();
-				XAResource xares = xacon.getXAResource();
-				transaction.enlistResource(xares);
-				return connection;
+			LocalXAConnection xacon = this.getXAConnection(username, password);
+			Connection connection = xacon.getConnection();
+			if (transaction != null) {
+				transaction.enlistResource(xacon.getXAResource());
 			}
+			return connection;
 		} catch (SystemException ex) {
 			throw new SQLException(ex);
 		} catch (RollbackException ex) {
@@ -99,14 +89,14 @@ public class DruidLocalXADataSource implements XADataSource, DataSource {
 		return null;
 	}
 
-	public DruidLocalXAConnection getXAConnection() throws SQLException {
-		DruidPooledConnection pooledConnection = (DruidPooledConnection) this.druidDataSource.getPooledConnection();
-		return new DruidLocalXAConnection(pooledConnection);
+	public LocalXAConnection getXAConnection() throws SQLException {
+		Connection connection = this.dataSource.getConnection();
+		return new LocalXAConnection(connection);
 	}
 
-	public DruidLocalXAConnection getXAConnection(String user, String passwd) throws SQLException {
-		DruidPooledConnection pooledConnection = (DruidPooledConnection) this.druidDataSource.getPooledConnection(user, passwd);
-		return new DruidLocalXAConnection(pooledConnection);
+	public LocalXAConnection getXAConnection(String user, String passwd) throws SQLException {
+		Connection connection = this.dataSource.getConnection(user, passwd);
+		return new LocalXAConnection(connection);
 	}
 
 	public Logger getParentLogger() throws SQLFeatureNotSupportedException {
@@ -129,8 +119,8 @@ public class DruidLocalXADataSource implements XADataSource, DataSource {
 		this.loginTimeout = loginTimeout;
 	}
 
-	public void setDruidDataSource(DruidDataSource druidDataSource) {
-		this.druidDataSource = druidDataSource;
+	public void setDataSource(DataSource dataSource) {
+		this.dataSource = dataSource;
 	}
 
 	public void setTransactionManager(TransactionManager transactionManager) {

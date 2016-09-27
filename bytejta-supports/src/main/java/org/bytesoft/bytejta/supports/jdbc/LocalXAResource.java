@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.bytejta.supports.druid;
+package org.bytesoft.bytejta.supports.jdbc;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -22,17 +22,17 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
-public class DruidLocalXAResource implements XAResource {
+public class LocalXAResource implements XAResource {
 	private Connection localTransaction;
 	private Xid currentXid;
 	private Xid suspendXid;
 	private boolean suspendAutoCommit;
 	private boolean originalAutoCommit;
 
-	public DruidLocalXAResource() {
+	public LocalXAResource() {
 	}
 
-	public DruidLocalXAResource(Connection localTransaction) {
+	public LocalXAResource(Connection localTransaction) {
 		this.localTransaction = localTransaction;
 	}
 
