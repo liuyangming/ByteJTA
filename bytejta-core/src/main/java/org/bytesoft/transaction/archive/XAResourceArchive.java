@@ -20,8 +20,11 @@ import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class XAResourceArchive implements XAResource {
+	static final Logger logger = LoggerFactory.getLogger(XAResourceArchive.class);
 	public static final int DEFAULT_VOTE = -1;
 
 	private boolean delisted;
@@ -74,7 +77,7 @@ public class XAResourceArchive implements XAResource {
 		try {
 			descriptor.forget(xid);
 		} catch (XAException ex) {
-			// ignore
+			logger.warn("Error occurred while forgeting xa-resource.", xid);
 		}
 	}
 

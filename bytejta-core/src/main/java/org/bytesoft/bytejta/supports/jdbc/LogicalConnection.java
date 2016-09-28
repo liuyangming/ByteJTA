@@ -34,7 +34,12 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class LogicalConnection implements Connection {
+	static final Logger logger = LoggerFactory.getLogger(LogicalConnection.class);
+
 	private boolean connectionClosed;
 	private final LocalXAConnection managedConnection;
 	private final Connection delegateConnection;
@@ -86,7 +91,7 @@ public class LogicalConnection implements Connection {
 
 	public synchronized void close() throws SQLException {
 		if (this.connectionClosed) {
-			// ignore
+			logger.debug("Current connection has already been closed.");
 		} else {
 			this.connectionClosed = true;
 			managedConnection.closeLogicalConnection();

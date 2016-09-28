@@ -110,7 +110,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		case Status.STATUS_COMMITTED:
 		case Status.STATUS_ROLLEDBACK:
 		default:
-			// ignore
+			logger.debug("Current transaction has already been completed.");
 		}
 
 	}

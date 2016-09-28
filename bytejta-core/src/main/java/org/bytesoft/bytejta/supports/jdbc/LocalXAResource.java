@@ -16,13 +16,22 @@
 package org.bytesoft.bytejta.supports.jdbc;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
+import org.bytesoft.common.utils.ByteUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class LocalXAResource implements XAResource {
+	static final Logger logger = LoggerFactory.getLogger(LocalXAResource.class);
+
 	private Connection localTransaction;
 	private Xid currentXid;
 	private Xid suspendXid;
@@ -34,6 +43,37 @@ public class LocalXAResource implements XAResource {
 
 	public LocalXAResource(Connection localTransaction) {
 		this.localTransaction = localTransaction;
+	}
+
+	public void recoverable(Xid xid) throws XAException {
+		String gxid = ByteUtils.byteArrayToString(xid.getGlobalTransactionId());
+		String bxid = null;
+		if (xid.getBranchQualifier() == null || xid.getBranchQualifier().length == 0) {
+			bxid = gxid;
+		} else {
+			bxid = ByteUtils.byteArrayToString(xid.getBranchQualifier());
+		}
+
+		PreparedStatement stmt = null;
+		ResultSet rs = null;
+		try {
+			stmt = this.localTransaction.prepareStatement("select gxid, bxid from bytejta where gxid = ? and bxid = ?");
+			stmt.setString(1, gxid);
+			stmt.setString(2, bxid);
+			rs = stmt.executeQuery();
+			if (rs.next() == false) {
+				throw new XAException(XAException.XAER_NOTA);
+			}
+		} catch (SQLException ex) {
+			logger.warn("Error occurred while recovering local-xa-resource.", ex);
+			throw new XAException(XAException.XAER_RMERR);
+		} catch (RuntimeException ex) {
+			logger.warn("Error occurred while recovering local-xa-resource.", ex);
+			throw new XAException(XAException.XAER_RMERR);
+		} finally {
+			this.closeQuietly(rs);
+			this.closeQuietly(stmt);
+		}
 	}
 
 	public synchronized void start(Xid xid, int flags) throws XAException {
@@ -84,8 +124,29 @@ public class LocalXAResource implements XAResource {
 			this.suspendAutoCommit = this.originalAutoCommit;
 			this.currentXid = null;
 			this.originalAutoCommit = true;
-		} else if (flags == XAResource.TMSUCCESS || flags == XAResource.TMFAIL) {
-			// ignore
+		} else if (flags == XAResource.TMSUCCESS) {
+			String gxid = ByteUtils.byteArrayToString(xid.getGlobalTransactionId());
+			String bxid = null;
+			if (xid.getBranchQualifier() == null || xid.getBranchQualifier().length == 0) {
+				bxid = gxid;
+			} else {
+				bxid = ByteUtils.byteArrayToString(xid.getBranchQualifier());
+			}
+
+			PreparedStatement stmt = null;
+			try {
+				stmt = this.localTransaction.prepareStatement("insert into bytejta(gxid, bxid, ctime) values(?, ?, ?)");
+				stmt.setString(1, gxid);
+				stmt.setString(1, bxid);
+				stmt.setLong(3, System.currentTimeMillis());
+				stmt.executeUpdate();
+			} catch (Exception ex) {
+				logger.debug("Error occurred while ending local-xa-resource: {}", ex.getMessage());
+			} finally {
+				this.closeQuietly(stmt);
+			}
+		} else if (flags == XAResource.TMFAIL) {
+			logger.debug("Error occurred while ending local-xa-resource.");
 		} else {
 			throw new XAException();
 		}
@@ -98,7 +159,7 @@ public class LocalXAResource implements XAResource {
 				return XAResource.XA_RDONLY;
 			}
 		} catch (SQLException ex) {
-			// ignore
+			logger.debug("Error occurred while preparing local-xa-resource: {}", ex.getMessage());
 		}
 		return XAResource.XA_OK;
 	}
@@ -152,7 +213,7 @@ public class LocalXAResource implements XAResource {
 			localTransaction.setAutoCommit(originalAutoCommit);
 		} catch (SQLException ex) {
 		} finally {
-			this.forget(this.currentXid);
+			this.forgetQuietly(this.currentXid);
 		}
 	}
 
@@ -160,9 +221,17 @@ public class LocalXAResource implements XAResource {
 		return this == xares;
 	}
 
-	public synchronized void forget(Xid xid) {
+	public void forgetQuietly(Xid xid) {
+		try {
+			this.forget(xid);
+		} catch (XAException ex) {
+			logger.warn("Error occurred while forgeting local-xa-resource.", xid);
+		}
+	}
+
+	public synchronized void forget(Xid xid) throws XAException {
 		if (xid == null || this.currentXid == null) {
-			// ignore
+			logger.warn("Error occurred while forgeting local-xa-resource: invalid xid.");
 		} else {
 			this.currentXid = null;
 			this.originalAutoCommit = true;
@@ -170,8 +239,38 @@ public class LocalXAResource implements XAResource {
 		}
 	}
 
-	public Xid[] recover(int flags) {
+	public Xid[] recover(int flags) throws XAException {
 		return new Xid[0];
+	}
+
+	protected void closeQuietly(ResultSet closeable) {
+		if (closeable != null) {
+			try {
+				closeable.close();
+			} catch (Exception ex) {
+				logger.debug("Error occurred while closing resource {}.", closeable);
+			}
+		}
+	}
+
+	protected void closeQuietly(Statement closeable) {
+		if (closeable != null) {
+			try {
+				closeable.close();
+			} catch (Exception ex) {
+				logger.debug("Error occurred while closing resource {}.", closeable);
+			}
+		}
+	}
+
+	protected void closeQuietly(Connection closeable) {
+		if (closeable != null) {
+			try {
+				closeable.close();
+			} catch (Exception ex) {
+				logger.debug("Error occurred while closing resource {}.", closeable);
+			}
+		}
 	}
 
 	public int getTransactionTimeout() {

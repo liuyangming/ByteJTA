@@ -119,6 +119,10 @@ public class LocalXADataSource implements XADataSource, DataSource {
 		this.loginTimeout = loginTimeout;
 	}
 
+	public DataSource getDataSource() {
+		return dataSource;
+	}
+
 	public void setDataSource(DataSource dataSource) {
 		this.dataSource = dataSource;
 	}

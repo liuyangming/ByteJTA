@@ -100,7 +100,7 @@ public class TransactionImpl implements Transaction {
 		} else if (this.transactionStatus == Status.STATUS_ACTIVE) {
 			throw new CommitRequiredException();
 		} else if (this.transactionStatus == Status.STATUS_COMMITTED) {
-			// ignore
+			logger.debug("Current transaction has already been committed.");
 		} else {
 			throw new IllegalStateException();
 		}
@@ -639,7 +639,7 @@ public class TransactionImpl implements Transaction {
 		} else if (this.transactionStatus == Status.STATUS_ACTIVE) {
 			throw new RollbackRequiredException();
 		} else if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
-			// ignore
+			logger.debug("Current transaction has already been rolled back.");
 		} else if (this.transactionStatus == Status.STATUS_COMMITTED) {
 			throw new IllegalStateException();
 		} else {

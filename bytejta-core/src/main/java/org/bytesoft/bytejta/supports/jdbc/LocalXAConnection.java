@@ -21,9 +21,13 @@ import java.sql.SQLException;
 import javax.sql.ConnectionEventListener;
 import javax.sql.StatementEventListener;
 import javax.sql.XAConnection;
-import javax.transaction.xa.XAResource;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class LocalXAConnection implements XAConnection {
+	static final Logger logger = LoggerFactory.getLogger(LocalXAConnection.class);
+
 	private final Connection connection;
 	private final LocalXAResource xaResource = new LocalXAResource();
 	private boolean initialized = false;
@@ -71,7 +75,7 @@ public class LocalXAConnection implements XAConnection {
 			try {
 				this.close();
 			} catch (SQLException ex) {
-				// ignore
+				logger.debug(ex.getMessage());
 			}
 		}
 	}
@@ -87,7 +91,7 @@ public class LocalXAConnection implements XAConnection {
 			try {
 				this.close();
 			} catch (SQLException ex) {
-				// ignore
+				logger.debug(ex.getMessage());
 			}
 		}
 	}
@@ -116,7 +120,7 @@ public class LocalXAConnection implements XAConnection {
 		// TODO this.pooledConnection.removeStatementEventListener(paramStatementEventListener);
 	}
 
-	public XAResource getXAResource() throws SQLException {
+	public LocalXAResource getXAResource() throws SQLException {
 		return this.xaResource;
 	}
 
