@@ -343,7 +343,7 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		}
 	}
 
-	public synchronized void recoveryCommit(Xid xid, boolean nativeMode) throws TransactionException, XAException {
+	public synchronized void recoveryCommit(Xid xid) throws TransactionException, XAException {
 		this.fireRecoveryPrepare(xid);
 
 		this.fireRecoveryCommit(xid);
@@ -646,7 +646,7 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		}
 	}
 
-	public synchronized void recoveryRollback(Xid xid, boolean nativeMode) throws TransactionException, XAException {
+	public synchronized void recoveryRollback(Xid xid) throws TransactionException, XAException {
 		this.fireRecoveryPrepare(xid);
 
 		this.fireRecoveryRollback(xid);

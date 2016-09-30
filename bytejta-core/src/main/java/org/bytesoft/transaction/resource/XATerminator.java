@@ -43,8 +43,8 @@ public interface XATerminator extends javax.transaction.xa.XAResource, Synchroni
 
 	public void recover(Transaction transaction) throws SystemException;
 
-	public void recoveryCommit(Xid xid, boolean nativeMode) throws XAException;
+	public void recoveryCommit(Xid xid) throws XAException;
 
-	public void recoveryRollback(Xid xid, boolean nativeMode) throws XAException;
+	public void recoveryRollback(Xid xid) throws XAException;
 
 }
