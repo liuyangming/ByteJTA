@@ -53,7 +53,7 @@ public class XAResourceArchive implements XAResource {
 		}
 	}
 
-	public void recoveryCommit(Xid xid, boolean onePhase) throws XAException {
+	public void recoveryCommit(Xid xid) throws XAException {
 		if (this.readonly) {
 			// ignore
 		} else if (this.committed) {
@@ -61,7 +61,7 @@ public class XAResourceArchive implements XAResource {
 		} else if (this.rolledback) {
 			throw new XAException(XAException.XA_HEURRB);
 		} else {
-			descriptor.recoveryCommit(xid, onePhase);
+			descriptor.recoveryCommit(xid);
 		}
 	}
 

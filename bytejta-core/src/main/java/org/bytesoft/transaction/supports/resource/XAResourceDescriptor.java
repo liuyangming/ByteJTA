@@ -29,7 +29,7 @@ public interface XAResourceDescriptor extends XAResource {
 
 	public boolean isTransactionCommitted(Xid xid) throws IllegalStateException;
 
-	public void recoveryCommit(Xid xid, boolean onePhase) throws XAException;
+	public void recoveryCommit(Xid xid) throws XAException;
 
 	public void recoveryRollback(Xid xid) throws XAException;
 

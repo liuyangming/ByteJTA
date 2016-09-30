@@ -28,6 +28,8 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
+import org.bytesoft.bytejta.supports.jdbc.RecoveredResource;
+import org.bytesoft.bytejta.supports.resource.LocalXAResourceDescriptor;
 import org.bytesoft.bytejta.supports.resource.UnidentifiedResourceDescriptor;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.common.utils.CommonUtils;
@@ -39,6 +41,7 @@ import org.bytesoft.transaction.archive.XAResourceArchive;
 import org.bytesoft.transaction.internal.TransactionException;
 import org.bytesoft.transaction.resource.XATerminator;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
+import org.bytesoft.transaction.supports.serialize.XAResourceDeserializer;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
 import org.slf4j.Logger;
@@ -310,8 +313,194 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 
 	}
 
-	public synchronized void recoveryCommit(Xid xid, boolean onePhase) throws TransactionException, XAException {
-		this.commit(xid, onePhase); // TODO
+	private void fireRecoveryPrepare(Xid xid) throws TransactionException, XAException {
+		XAResourceDeserializer deserializer = this.beanFactory.getResourceDeserializer();
+		for (int i = 0; i < this.resources.size(); i++) {
+			XAResourceArchive archive = this.resources.get(i);
+			XAResourceDescriptor xardesc = archive.getDescriptor();
+			if (LocalXAResourceDescriptor.class.isInstance(xardesc) == false) {
+				continue;
+			}
+			LocalXAResourceDescriptor descriptor = (LocalXAResourceDescriptor) xardesc;
+
+			XAResource oldResource = descriptor.getDelegate();
+			if (RecoveredResource.class.isInstance(oldResource) == false) {
+				XAResource newXAResource = deserializer.deserialize(descriptor.getIdentifier());
+				descriptor.setDelegate(newXAResource);
+			}
+
+			try {
+				if (descriptor.isTransactionCommitted(archive.getXid())) {
+					archive.setCommitted(true);
+					archive.setCompleted(true);
+				} else {
+					archive.setRolledback(true);
+					archive.setCompleted(true);
+				}
+			} catch (IllegalStateException ex) {
+				logger.warn("Error occurred while recovering transaction branch: {}", xid, ex);
+			}
+		}
+	}
+
+	public synchronized void recoveryCommit(Xid xid, boolean nativeMode) throws TransactionException, XAException {
+		this.fireRecoveryPrepare(xid);
+
+		this.fireRecoveryCommit(xid);
+	}
+
+	private void fireRecoveryCommit(Xid xid) throws TransactionException, XAException {
+		boolean commitExists = false;
+		boolean rollbackExists = false;
+		boolean unFinishExists = false;
+		for (int i = this.resources.size() - 1; i >= 0; i--) {
+			XAResourceArchive archive = this.resources.get(i);
+			Xid branchXid = archive.getXid();
+			try {
+				if (archive.isCompleted()) {
+					if (archive.isCommitted()) {
+						commitExists = true;
+					} else if (archive.isRolledback()) {
+						rollbackExists = true;
+					} else {
+						// read-only, ignore.
+					}
+				} else {
+					archive.recoveryCommit(branchXid);
+					commitExists = true;
+					archive.setCommitted(true);
+					archive.setCompleted(true);
+					logger.info("[%s] commit: xares= {}, branch= {}, onePhaseCommit= {}",
+							ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
+							ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), false);
+				}
+			} catch (XAException xaex) {
+				if (commitExists) {
+					// * @exception XAException An error has occurred. Possible XAExceptions
+					// * are XA_HEURHAZ, XA_HEURCOM, XA_HEURRB, XA_HEURMIX, XAER_RMERR,
+					// * XAER_RMFAIL, XAER_NOTA, XAER_INVAL, or XAER_PROTO.
+					// * <P>If the resource manager did not commit the transaction and the
+					// * parameter onePhase is set to true, the resource manager may throw
+					// * one of the XA_RB* exceptions. Upon return, the resource manager has
+					// * rolled back the branch's work and has released all held resources.
+					switch (xaex.errorCode) {
+					case XAException.XA_HEURHAZ:
+						// Due to some failure, the work done on behalf of the specified
+						// transaction branch may have been heuristically completed.
+						commitExists = true;
+						// rollbackExists = true;
+						archive.setCommitted(true);
+						// archive.setRolledback(true); // TODO
+						archive.setHeuristic(true);
+						archive.setCompleted(true);
+						break;
+					case XAException.XA_HEURMIX:
+						// Due to a heuristic decision, the work done on behalf of the specified
+						// transaction branch was partially committed and partially rolled back.
+						commitExists = true;
+						rollbackExists = true;
+						archive.setCommitted(true);
+						archive.setRolledback(true);
+						archive.setHeuristic(true);
+						archive.setCompleted(true);
+						break;
+					case XAException.XA_HEURCOM:
+						// Due to a heuristic decision, the work done on behalf of
+						// the specified transaction branch was committed.
+						commitExists = true;
+						archive.setCommitted(true);
+						archive.setHeuristic(true);
+						archive.setCompleted(true);
+						break;
+					case XAException.XA_HEURRB:
+						// Due to a heuristic decision, the work done on behalf of
+						// the specified transaction branch was rolled back.
+						rollbackExists = true;
+						archive.setRolledback(true);
+						archive.setHeuristic(true);
+						archive.setCompleted(true);
+						break;
+					case XAException.XAER_RMERR:
+						// An error occurred in committing the work performed on behalf of the transaction
+						// branch and the branch’s work has been rolled back. Note that returning this error
+						// signals a catastrophic event to a transaction manager since other resource
+						// managers may successfully commit their work on behalf of this branch. This error
+						// should be returned only when a resource manager concludes that it can never
+						// commit the branch and that it cannot hold the branch’s resources in a prepared
+						// state. Otherwise, [XA_RETRY] should be returned.
+
+						// TODO There's no XA_RETRY in jta.
+						rollbackExists = true;
+						archive.setRolledback(true);
+						archive.setCompleted(true);
+						break;
+					case XAException.XAER_NOTA:
+						// The specified XID is not known by the resource manager.
+						if (archive.isCompleted() == false) {
+							if (archive.isCommitted()) {
+								commitExists = true;
+							}
+							if (archive.isRolledback()) {
+								rollbackExists = true;
+							}
+						} else {
+							int vote = archive.getVote();
+							if (vote == XAResource.XA_RDONLY) {
+								archive.setCompleted(true);
+							} else if (vote == XAResource.XA_OK) {
+								commitExists = true;
+								archive.setCommitted(true);
+								archive.setCompleted(true);
+							} else {
+								// should never happen
+								rollbackExists = true;
+								archive.setRolledback(true);
+								archive.setCompleted(true);
+							}
+						}
+						break;
+					case XAException.XAER_RMFAIL:
+						// An error occurred that makes the resource manager unavailable.
+					case XAException.XAER_INVAL:
+						// Invalid arguments were specified.
+					case XAException.XAER_PROTO:
+						// The routine was invoked in an improper context.
+						unFinishExists = true;
+						break;
+					default:// XA_RB*
+						rollbackExists = true;
+						archive.setRolledback(true);
+						archive.setCompleted(true);
+						rollbackExists = true;
+					}
+				} else {
+					try {
+						this.rollback(xid);
+						throw new XAException(XAException.XA_HEURRB);
+					} catch (XAException xae) {
+						switch (xae.errorCode) {
+						case XAException.XA_HEURCOM:
+							return;
+						case XAException.XA_HEURMIX:
+							throw xae;
+						default:
+							logger.warn("Unknown state in committing transaction phase.");
+						}
+					}
+				}
+			}
+		} // end-for
+
+		try {
+			this.throwCommitExceptionIfNecessary(commitExists, rollbackExists);
+		} catch (XAException xae) {
+			if (unFinishExists) {
+				throw new TransactionException(xae.errorCode);
+			} else {
+				throw xae;
+			}
+		}
+
 	}
 
 	public synchronized void rollback(Xid xid) throws TransactionException, XAException {
@@ -457,8 +646,145 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		}
 	}
 
-	public synchronized void recoveryRollback(Xid xid) throws TransactionException, XAException {
-		this.rollback(xid); // TODO
+	public synchronized void recoveryRollback(Xid xid, boolean nativeMode) throws TransactionException, XAException {
+		this.fireRecoveryPrepare(xid);
+
+		this.fireRecoveryRollback(xid);
+	}
+
+	private void fireRecoveryRollback(Xid xid) throws TransactionException, XAException {
+		boolean commitExists = false;
+		boolean rollbackExists = false;
+		boolean unFinishExists = false;
+		for (int i = 0; i < this.resources.size(); i++) {
+			XAResourceArchive archive = this.resources.get(i);
+			Xid branchXid = archive.getXid();
+			try {
+				if (archive.isCompleted()) {
+					if (archive.isCommitted()) {
+						commitExists = true;
+					} else if (archive.isRolledback()) {
+						rollbackExists = true;
+					} else {
+						// read-only, ignore.
+					}
+				} else {
+					archive.recoveryRollback(branchXid);
+					rollbackExists = true;
+					archive.setRolledback(true);
+					archive.setCompleted(true);
+					logger.info("[{}] rollback: xares= {}, branch= {}",
+							ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
+							ByteUtils.byteArrayToString(branchXid.getBranchQualifier()));
+				}
+			} catch (XAException xaex) {
+				// * @exception XAException An error has occurred. Possible XAExceptions are
+				// * XA_HEURHAZ, XA_HEURCOM, XA_HEURRB, XA_HEURMIX, XAER_RMERR, XAER_RMFAIL,
+				// * XAER_NOTA, XAER_INVAL, or XAER_PROTO.
+				// * <p>If the transaction branch is already marked rollback-only the
+				// * resource manager may throw one of the XA_RB* exceptions. Upon return,
+				// * the resource manager has rolled back the branch's work and has released
+				// * all held resources.
+				switch (xaex.errorCode) {
+				case XAException.XA_HEURHAZ:
+					// Due to some failure, the work done on behalf of the specified transaction branch
+					// may have been heuristically completed. A resource manager may return this
+					// value only if it has successfully prepared xid.
+
+					// commitExists = true;
+					rollbackExists = true;
+					// archive.setCommitted(true); // TODO
+					archive.setRolledback(true);
+					archive.setHeuristic(true);
+					archive.setCompleted(true);
+					break;
+				case XAException.XA_HEURMIX:
+					// Due to a heuristic decision, the work done on behalf of the specified transaction
+					// branch was partially committed and partially rolled back. A resource manager
+					// may return this value only if it has successfully prepared xid.
+					commitExists = true;
+					rollbackExists = true;
+					archive.setCommitted(true);
+					archive.setRolledback(true);
+					archive.setHeuristic(true);
+					archive.setCompleted(true);
+					break;
+				case XAException.XA_HEURCOM:
+					// Due to a heuristic decision, the work done on behalf of the specified transaction
+					// branch was committed. A resource manager may return this value only if it has
+					// successfully prepared xid.
+					commitExists = true;
+					archive.setCommitted(true);
+					archive.setHeuristic(true);
+					archive.setCompleted(true);
+					break;
+				case XAException.XA_HEURRB:
+					// Due to a heuristic decision, the work done on behalf of the specified transaction
+					// branch was rolled back. A resource manager may return this value only if it has
+					// successfully prepared xid.
+					rollbackExists = true;
+					archive.setRolledback(true);
+					archive.setHeuristic(true);
+					archive.setCompleted(true);
+					break;
+				case XAException.XAER_PROTO:
+					// The routine was invoked in an improper context.
+					int archiveVote = archive.getVote();
+					if (archiveVote == XAResource.XA_OK) {
+						commitExists = true;// TODO
+						archive.setCommitted(true);
+						archive.setCompleted(true);
+					} else if (archiveVote == XAResource.XA_RDONLY) {
+						// ignore
+					} else {
+						try {
+							archive.end(branchXid, XAResource.TMFAIL);
+							archive.rollback(branchXid);
+							rollbackExists = true;
+							archive.setRolledback(true);
+							archive.setCompleted(true);
+						} catch (Exception ignore) {
+							unFinishExists = true;// TODO
+						}
+					}
+					break;
+				case XAException.XAER_NOTA:
+					// The specified XID is not known by the resource manager.
+				case XAException.XAER_RMERR:
+					// An error occurred in rolling back the transaction branch. The resource manager is
+					// free to forget about the branch when returning this error so long as all accessing
+					// threads of control have been notified of the branch’s state.
+					rollbackExists = true;
+					archive.setRolledback(true);
+					archive.setCompleted(true);
+					break;
+				case XAException.XAER_RMFAIL:
+					// An error occurred that makes the resource manager unavailable.
+				case XAException.XAER_INVAL:
+					// Invalid arguments were specified.
+					unFinishExists = true;
+					break;
+				default:// XA_RB*
+					// The resource manager has rolled back the transaction branch’s work and has
+					// released all held resources. These values are typically returned when the
+					// branch was already marked rollback-only.
+					rollbackExists = true;
+					archive.setRolledback(true);
+					archive.setCompleted(true);
+				}
+			}
+		}
+
+		try {
+			this.throwRollbackExceptionIfNecessary(commitExists, rollbackExists);
+		} catch (XAException xae) {
+			if (unFinishExists) {
+				throw new TransactionException(xae.errorCode);
+			} else {
+				throw xae;
+			}
+		}
+
 	}
 
 	public int getTransactionTimeout() throws XAException {
@@ -761,8 +1087,8 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		return true;
 	}
 
-	public boolean enlistResource(XAResourceDescriptor descriptor) throws RollbackException, IllegalStateException,
-			SystemException {
+	public boolean enlistResource(XAResourceDescriptor descriptor)
+			throws RollbackException, IllegalStateException, SystemException {
 
 		XAResourceArchive archive = this.locateExisted(descriptor);
 		int flags = XAResource.TMNOFLAGS;

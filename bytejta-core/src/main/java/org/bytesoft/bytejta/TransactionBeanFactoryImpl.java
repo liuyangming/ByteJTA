@@ -24,6 +24,7 @@ import org.bytesoft.transaction.logging.ArchiveDeserializer;
 import org.bytesoft.transaction.logging.TransactionLogger;
 import org.bytesoft.transaction.supports.TransactionTimer;
 import org.bytesoft.transaction.supports.rpc.TransactionInterceptor;
+import org.bytesoft.transaction.supports.serialize.XAResourceDeserializer;
 import org.bytesoft.transaction.xa.XidFactory;
 
 public class TransactionBeanFactoryImpl implements TransactionBeanFactory {
@@ -37,6 +38,7 @@ public class TransactionBeanFactoryImpl implements TransactionBeanFactory {
 	private RemoteCoordinator transactionCoordinator;
 
 	private ArchiveDeserializer archiveDeserializer;
+	private XAResourceDeserializer resourceDeserializer;
 
 	public TransactionManager getTransactionManager() {
 		return transactionManager;
@@ -108,6 +110,14 @@ public class TransactionBeanFactoryImpl implements TransactionBeanFactory {
 
 	public void setArchiveDeserializer(ArchiveDeserializer archiveDeserializer) {
 		this.archiveDeserializer = archiveDeserializer;
+	}
+
+	public XAResourceDeserializer getResourceDeserializer() {
+		return resourceDeserializer;
+	}
+
+	public void setResourceDeserializer(XAResourceDeserializer resourceDeserializer) {
+		this.resourceDeserializer = resourceDeserializer;
 	}
 
 }

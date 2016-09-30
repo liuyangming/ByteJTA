@@ -20,6 +20,7 @@ import org.bytesoft.transaction.logging.ArchiveDeserializer;
 import org.bytesoft.transaction.logging.TransactionLogger;
 import org.bytesoft.transaction.supports.TransactionTimer;
 import org.bytesoft.transaction.supports.rpc.TransactionInterceptor;
+import org.bytesoft.transaction.supports.serialize.XAResourceDeserializer;
 import org.bytesoft.transaction.xa.XidFactory;
 
 public interface TransactionBeanFactory {
@@ -41,5 +42,7 @@ public interface TransactionBeanFactory {
 	public TransactionLogger getTransactionLogger();
 
 	public ArchiveDeserializer getArchiveDeserializer();
+
+	public XAResourceDeserializer getResourceDeserializer();
 
 }

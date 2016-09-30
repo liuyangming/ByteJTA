@@ -968,7 +968,7 @@ public class TransactionImpl implements Transaction {
 
 		boolean unFinishExists = false;
 		try {
-			this.nativeTerminator.recoveryCommit(xid, false);
+			this.nativeTerminator.recoveryCommit(xid, true);
 			committedExists = true;
 		} catch (TransactionException xaex) {
 			unFinishExists = true;
@@ -1059,7 +1059,7 @@ public class TransactionImpl implements Transaction {
 		boolean rolledbackExists = false;
 		boolean unFinishExists = false;
 		try {
-			this.nativeTerminator.recoveryRollback(xid);
+			this.nativeTerminator.recoveryRollback(xid, true);
 			rolledbackExists = true;
 		} catch (TransactionException xaex) {
 			unFinishExists = true;
@@ -1083,7 +1083,7 @@ public class TransactionImpl implements Transaction {
 		}
 
 		try {
-			this.remoteTerminator.recoveryRollback(xid);
+			this.remoteTerminator.recoveryRollback(xid, false);
 			rolledbackExists = true;
 		} catch (TransactionException xaex) {
 			unFinishExists = true;
