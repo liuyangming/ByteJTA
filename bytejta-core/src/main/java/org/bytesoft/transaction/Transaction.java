@@ -22,6 +22,7 @@ import javax.transaction.SystemException;
 
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.supports.TransactionListener;
+import org.bytesoft.transaction.supports.TransactionResourceListener;
 
 public interface Transaction extends javax.transaction.Transaction {
 
@@ -42,6 +43,8 @@ public interface Transaction extends javax.transaction.Transaction {
 	public void setTransactionTimeout(int seconds);
 
 	public void registerTransactionListener(TransactionListener listener);
+
+	public void registerTransactionResourceListener(TransactionResourceListener listener);
 
 	public Object getTransactionalExtra();
 
