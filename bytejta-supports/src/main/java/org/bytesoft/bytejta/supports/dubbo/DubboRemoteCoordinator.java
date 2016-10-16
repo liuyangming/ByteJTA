@@ -44,6 +44,10 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 					String serverHost = this.invocationContext == null ? null : this.invocationContext.getServerHost();
 					int serverPort = this.invocationContext == null ? 0 : this.invocationContext.getServerPort();
 					return this.invocationContext == null ? null : String.format("%s:%s", serverHost, serverPort);
+				} else if ("recoveryCommit".equals(methodName)) {
+					return this.invokeCoordinator(proxy, method, args);
+				} else if ("recoveryRollback".equals(methodName)) {
+					return this.invokeCoordinator(proxy, method, args);
 				} else {
 					throw new XAException(XAException.XAER_RMFAIL);
 				}
