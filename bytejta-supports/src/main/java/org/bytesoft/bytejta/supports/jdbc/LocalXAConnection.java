@@ -21,18 +21,24 @@ import java.sql.SQLException;
 import javax.sql.ConnectionEventListener;
 import javax.sql.StatementEventListener;
 import javax.sql.XAConnection;
+import javax.transaction.xa.XAResource;
 
+import org.bytesoft.bytejta.supports.resource.LocalXAResourceDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class LocalXAConnection implements XAConnection {
 	static final Logger logger = LoggerFactory.getLogger(LocalXAConnection.class);
 
+	private String resourceId;
+
 	private final Connection connection;
 	private final LocalXAResource xaResource = new LocalXAResource();
 	private boolean initialized = false;
 	private boolean logicalConnectionReleased = false;
 	private int pooledConnectionSharingCount = 0;
+
+	private transient LocalXAResourceDescriptor descriptor;
 
 	public LocalXAConnection(Connection connection) {
 		this.connection = connection;
@@ -120,8 +126,22 @@ public class LocalXAConnection implements XAConnection {
 		// TODO this.pooledConnection.removeStatementEventListener(paramStatementEventListener);
 	}
 
-	public LocalXAResource getXAResource() throws SQLException {
-		return this.xaResource;
+	public XAResource getXAResource() throws SQLException {
+		if (this.descriptor == null) {
+			LocalXAResourceDescriptor xares = new LocalXAResourceDescriptor();
+			xares.setIdentifier(this.resourceId);
+			xares.setDelegate(this.xaResource);
+			this.descriptor = xares;
+		}
+		return this.descriptor;
+	}
+
+	public String getResourceId() {
+		return resourceId;
+	}
+
+	public void setResourceId(String resourceId) {
+		this.resourceId = resourceId;
 	}
 
 }

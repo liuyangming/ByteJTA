@@ -28,10 +28,14 @@ import javax.transaction.SystemException;
 import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
 
-public class LocalXADataSource implements XADataSource, DataSource {
+import org.springframework.beans.factory.BeanNameAware;
+
+public class LocalXADataSource implements XADataSource, DataSource, BeanNameAware {
 	private PrintWriter logWriter;
 	private int loginTimeout;
+
 	private DataSource dataSource;
+	private String beanName;
 	private TransactionManager transactionManager;
 
 	public Connection getConnection() throws SQLException {
@@ -91,16 +95,24 @@ public class LocalXADataSource implements XADataSource, DataSource {
 
 	public LocalXAConnection getXAConnection() throws SQLException {
 		Connection connection = this.dataSource.getConnection();
-		return new LocalXAConnection(connection);
+		LocalXAConnection xacon = new LocalXAConnection(connection);
+		xacon.setResourceId(this.beanName);
+		return xacon;
 	}
 
 	public LocalXAConnection getXAConnection(String user, String passwd) throws SQLException {
 		Connection connection = this.dataSource.getConnection(user, passwd);
-		return new LocalXAConnection(connection);
+		LocalXAConnection xacon = new LocalXAConnection(connection);
+		xacon.setResourceId(this.beanName);
+		return xacon;
 	}
 
 	public Logger getParentLogger() throws SQLFeatureNotSupportedException {
 		throw new SQLFeatureNotSupportedException();
+	}
+
+	public void setBeanName(String name) {
+		this.beanName = name;
 	}
 
 	public PrintWriter getLogWriter() {
