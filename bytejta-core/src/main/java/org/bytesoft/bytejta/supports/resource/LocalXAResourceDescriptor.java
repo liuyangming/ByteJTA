@@ -69,7 +69,7 @@ public class LocalXAResourceDescriptor implements XAResourceDescriptor {
 		if (this.delegate == null) {
 			return;
 		}
-		delegate.commit(arg0, false);
+		delegate.commit(arg0, true);
 	}
 
 	public void end(Xid arg0, int arg1) throws XAException {

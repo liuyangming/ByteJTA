@@ -44,7 +44,7 @@ public class RemoteResourceDescriptor implements XAResourceDescriptor {
 	}
 
 	public void recoveryCommit(Xid arg0) throws XAException {
-		delegate.commit(arg0, false);
+		delegate.recoveryCommit(arg0, false);
 	}
 
 	public void end(Xid arg0, int arg1) throws XAException {
@@ -81,7 +81,7 @@ public class RemoteResourceDescriptor implements XAResourceDescriptor {
 	}
 
 	public void recoveryRollback(Xid arg0) throws XAException {
-		delegate.rollback(arg0);
+		delegate.recoveryRollback(arg0);
 	}
 
 	public boolean setTransactionTimeout(int arg0) throws XAException {
