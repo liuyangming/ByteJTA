@@ -15,6 +15,7 @@
  */
 package org.bytesoft.bytejta.supports.serialize;
 
+import java.lang.reflect.Proxy;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
@@ -28,8 +29,12 @@ import javax.sql.XAConnection;
 import javax.sql.XADataSource;
 import javax.transaction.xa.XAResource;
 
+import org.bytesoft.bytejta.supports.dubbo.DubboRemoteCoordinator;
+import org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry;
+import org.bytesoft.bytejta.supports.invoke.InvocationContext;
 import org.bytesoft.bytejta.supports.jdbc.LocalXADataSource;
 import org.bytesoft.bytejta.supports.jdbc.RecoveredResource;
+import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinatorRegistry;
 import org.bytesoft.transaction.supports.serialize.XAResourceDeserializer;
 import org.slf4j.Logger;
@@ -61,6 +66,26 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 			Matcher matcher = pattern.matcher(identifier);
 			if (matcher.find()) {
 				RemoteCoordinatorRegistry registry = RemoteCoordinatorRegistry.getInstance();
+				RemoteCoordinator coordinator = registry.getTransactionManagerStub(identifier);
+				if (coordinator == null) {
+					String[] array = identifier.split("\\:");
+					InvocationContext invocationContext = new InvocationContext();
+					invocationContext.setServerHost(array[0]);
+					invocationContext.setServerPort(Integer.valueOf(array[1]));
+
+					TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
+					RemoteCoordinator consumeCoordinator = beanRegistry.getConsumeCoordinator();
+
+					DubboRemoteCoordinator dubboCoordinator = new DubboRemoteCoordinator();
+					dubboCoordinator.setInvocationContext(invocationContext);
+					dubboCoordinator.setRemoteCoordinator(consumeCoordinator);
+
+					coordinator = (RemoteCoordinator) Proxy.newProxyInstance(
+							DubboRemoteCoordinator.class.getClassLoader(), new Class[] { RemoteCoordinator.class },
+							dubboCoordinator);
+					registry.putTransactionManagerStub(identifier, coordinator);
+				}
+
 				return registry.getTransactionManagerStub(identifier);
 			} else {
 				logger.error("can not find a matching xa-resource(identifier= {})!", identifier);
