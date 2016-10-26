@@ -137,9 +137,13 @@ public class LocalXAResource implements XAResource {
 			try {
 				stmt = this.localTransaction.prepareStatement("insert into bytejta(gxid, bxid, ctime) values(?, ?, ?)");
 				stmt.setString(1, gxid);
-				stmt.setString(1, bxid);
+				stmt.setString(2, bxid);
 				stmt.setLong(3, System.currentTimeMillis());
-				stmt.executeUpdate();
+				int value = stmt.executeUpdate();
+				if (value == 0) {
+					throw new IllegalStateException(
+							"The operation failed and the data was not written to the database!");
+				}
 			} catch (Exception ex) {
 				logger.debug("Error occurred while ending local-xa-resource: {}", ex.getMessage());
 			} finally {
