@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.transaction.xa.XAResource;
+import javax.transaction.xa.Xid;
 
 import org.bytesoft.transaction.supports.TransactionResourceListener;
 import org.slf4j.Logger;
@@ -33,22 +34,22 @@ public class TransactionResourceListenerList implements TransactionResourceListe
 		this.listeners.add(listener);
 	}
 
-	public void onEnlistResource(XAResource xares) {
+	public void onEnlistResource(Xid xid, XAResource xares) {
 		for (int i = 0; i < this.listeners.size(); i++) {
 			try {
 				TransactionResourceListener listener = this.listeners.get(i);
-				listener.onEnlistResource(xares);
+				listener.onEnlistResource(xid, xares);
 			} catch (RuntimeException rex) {
 				logger.debug(rex.getMessage(), rex);
 			}
 		}
 	}
 
-	public void onDelistResource(XAResource xares) {
+	public void onDelistResource(Xid xid, XAResource xares) {
 		for (int i = 0; i < this.listeners.size(); i++) {
 			try {
 				TransactionResourceListener listener = this.listeners.get(i);
-				listener.onDelistResource(xares);
+				listener.onDelistResource(xid, xares);
 			} catch (RuntimeException rex) {
 				logger.debug(rex.getMessage(), rex);
 			}

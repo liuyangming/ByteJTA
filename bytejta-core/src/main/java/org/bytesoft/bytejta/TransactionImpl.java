@@ -40,7 +40,6 @@ import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.internal.SynchronizationList;
 import org.bytesoft.transaction.internal.TransactionException;
 import org.bytesoft.transaction.internal.TransactionListenerList;
-import org.bytesoft.transaction.internal.TransactionResourceListenerList;
 import org.bytesoft.transaction.logging.TransactionLogger;
 import org.bytesoft.transaction.resource.XATerminator;
 import org.bytesoft.transaction.supports.TransactionListener;
@@ -66,7 +65,6 @@ public class TransactionImpl implements Transaction {
 	private final XATerminator remoteTerminator;
 
 	private final SynchronizationList synchronizationList = new SynchronizationList();
-	private final TransactionResourceListenerList transactionResourceListenerList = new TransactionResourceListenerList();
 	private final TransactionListenerList transactionListenerList = new TransactionListenerList();
 
 	public TransactionImpl(TransactionContext txContext) {
@@ -91,8 +89,8 @@ public class TransactionImpl implements Transaction {
 		return sizeOfResNum <= 1;
 	}
 
-	private synchronized void checkBeforeCommit() throws RollbackException, IllegalStateException, RollbackRequiredException,
-			CommitRequiredException {
+	private synchronized void checkBeforeCommit()
+			throws RollbackException, IllegalStateException, RollbackRequiredException, CommitRequiredException {
 
 		if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
 			throw new RollbackException();
@@ -373,8 +371,8 @@ public class TransactionImpl implements Transaction {
 		}
 	}
 
-	public synchronized void fireOnePhaseCommit() throws HeuristicRollbackException, HeuristicMixedException,
-			CommitRequiredException, SystemException {
+	public synchronized void fireOnePhaseCommit()
+			throws HeuristicRollbackException, HeuristicMixedException, CommitRequiredException, SystemException {
 		TransactionXid xid = this.transactionContext.getXid();
 		try {
 			this.transactionListenerList.onCommitStart(xid);
@@ -410,8 +408,8 @@ public class TransactionImpl implements Transaction {
 		}
 	}
 
-	public synchronized void fireTwoPhaseCommit() throws HeuristicRollbackException, HeuristicMixedException,
-			CommitRequiredException, SystemException {
+	public synchronized void fireTwoPhaseCommit()
+			throws HeuristicRollbackException, HeuristicMixedException, CommitRequiredException, SystemException {
 		TransactionXid xid = this.transactionContext.getXid();
 
 		TransactionArchive archive = this.getTransactionArchive();// new TransactionArchive();
@@ -585,15 +583,11 @@ public class TransactionImpl implements Transaction {
 			terminator = this.remoteTerminator;
 		}
 
-		try {
-			return terminator.delistResource(descriptor, flag);
-		} finally {
-			this.transactionResourceListenerList.onDelistResource(descriptor);
-		}
+		return terminator.delistResource(descriptor, flag);
 	}
 
-	public synchronized boolean enlistResource(XAResource xaRes) throws RollbackException, IllegalStateException,
-			SystemException {
+	public synchronized boolean enlistResource(XAResource xaRes)
+			throws RollbackException, IllegalStateException, SystemException {
 
 		if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
 			throw new RollbackException();
@@ -624,20 +618,15 @@ public class TransactionImpl implements Transaction {
 			throw new SystemException("Unknown xa resource!");
 		}
 
-		try {
-			return terminator.enlistResource(descriptor);
-		} finally {
-			this.transactionResourceListenerList.onEnlistResource(descriptor);
-		}
-
+		return terminator.enlistResource(descriptor);
 	}
 
-	public int getStatus() /* throws SystemException */{
+	public int getStatus() /* throws SystemException */ {
 		return this.transactionStatus;
 	}
 
-	public synchronized void registerSynchronization(Synchronization sync) throws RollbackException, IllegalStateException,
-			SystemException {
+	public synchronized void registerSynchronization(Synchronization sync)
+			throws RollbackException, IllegalStateException, SystemException {
 
 		if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
 			throw new RollbackException();
@@ -1160,14 +1149,16 @@ public class TransactionImpl implements Transaction {
 
 		try {
 			this.nativeTerminator.forget(xid);
-			logger.info("[{}] forget native terminator successfully", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+			logger.info("[{}] forget native terminator successfully",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		} catch (XAException xaex) {
 			logger.info("[{}] forget native terminator failued", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		}
 
 		try {
 			this.remoteTerminator.forget(xid);
-			logger.info("[{}] forget remote terminator successfully", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+			logger.info("[{}] forget remote terminator successfully",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		} catch (XAException xaex) {
 			logger.info("[{}] forget remote terminator failed", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		}
@@ -1217,7 +1208,8 @@ public class TransactionImpl implements Transaction {
 	}
 
 	public void registerTransactionResourceListener(TransactionResourceListener listener) {
-		this.transactionResourceListenerList.registerTransactionResourceListener(listener);
+		this.nativeTerminator.registerTransactionResourceListener(listener);
+		this.remoteTerminator.registerTransactionResourceListener(listener);
 	}
 
 	public Object getTransactionalExtra() {

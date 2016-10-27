@@ -25,9 +25,12 @@ import javax.transaction.xa.Xid;
 
 import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.archive.XAResourceArchive;
+import org.bytesoft.transaction.supports.TransactionResourceListener;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 
 public interface XATerminator extends javax.transaction.xa.XAResource, Synchronization {
+
+	public void registerTransactionResourceListener(TransactionResourceListener listener);
 
 	public boolean delistResource(XAResourceDescriptor xaRes, int flag) throws IllegalStateException, SystemException;
 

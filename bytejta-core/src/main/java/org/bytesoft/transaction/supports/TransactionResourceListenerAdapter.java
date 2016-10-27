@@ -16,13 +16,14 @@
 package org.bytesoft.transaction.supports;
 
 import javax.transaction.xa.XAResource;
+import javax.transaction.xa.Xid;
 
 public class TransactionResourceListenerAdapter implements TransactionResourceListener {
 
-	public void onEnlistResource(XAResource xares) {
+	public void onEnlistResource(Xid xid, XAResource xares) {
 	}
 
-	public void onDelistResource(XAResource xares) {
+	public void onDelistResource(Xid xid, XAResource xares) {
 	}
 
 }
