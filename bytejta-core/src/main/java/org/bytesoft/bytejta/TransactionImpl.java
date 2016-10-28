@@ -1143,7 +1143,7 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	public synchronized void recoveryForgetQuietly() {
+	public synchronized void recoveryForget() throws SystemException {
 
 		TransactionXid xid = this.transactionContext.getXid();
 

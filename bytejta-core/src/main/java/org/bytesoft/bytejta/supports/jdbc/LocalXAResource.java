@@ -16,6 +16,7 @@
 package org.bytesoft.bytejta.supports.jdbc;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -141,11 +142,29 @@ public class LocalXAResource implements XAResource {
 				stmt.setLong(3, System.currentTimeMillis());
 				int value = stmt.executeUpdate();
 				if (value == 0) {
-					throw new IllegalStateException(
-							"The operation failed and the data was not written to the database!");
+					throw new IllegalStateException("The operation failed and the data was not written to the database!");
 				}
-			} catch (Exception ex) {
-				logger.debug("Error occurred while ending local-xa-resource: {}", ex.getMessage());
+			} catch (SQLException ex) {
+				boolean tableExists = false;
+				try {
+					tableExists = this.isTableExists(this.localTransaction);
+				} catch (SQLException sqlEx) {
+					logger.error("Error occurred while ending local-xa-resource: {}", ex.getMessage());
+					throw new XAException(XAException.XAER_RMFAIL);
+				} catch (RuntimeException rex) {
+					logger.error("Error occurred while ending local-xa-resource: {}", ex.getMessage());
+					throw new XAException(XAException.XAER_RMFAIL);
+				}
+
+				if (tableExists) {
+					logger.error("Error occurred while ending local-xa-resource: {}", ex.getMessage());
+					throw new XAException(XAException.XAER_RMERR);
+				} else {
+					logger.debug("Error occurred while ending local-xa-resource: {}", ex.getMessage());
+				}
+			} catch (RuntimeException rex) {
+				logger.error("Error occurred while ending local-xa-resource: {}", rex.getMessage());
+				throw new XAException(XAException.XAER_RMERR);
 			} finally {
 				this.closeQuietly(stmt);
 			}
@@ -245,6 +264,17 @@ public class LocalXAResource implements XAResource {
 
 	public Xid[] recover(int flags) throws XAException {
 		return new Xid[0];
+	}
+
+	protected boolean isTableExists(Connection conn) throws SQLException {
+		ResultSet rs = null;
+		try {
+			DatabaseMetaData metadata = conn.getMetaData();
+			rs = metadata.getTables(conn.getCatalog(), conn.getSchema(), "bytejta", null);
+			return rs.next();
+		} finally {
+			this.closeQuietly(rs);
+		}
 	}
 
 	protected void closeQuietly(ResultSet closeable) {

@@ -58,7 +58,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 			TransactionXid xid = transactionContext.getXid();
 			try {
 				this.recoverTransaction(transaction);
-				transaction.recoveryForgetQuietly();
+				transaction.recoveryForget();
 			} catch (CommitRequiredException ex) {
 				logger.debug("[{}] recover: branch={}, message= commit-required",
 						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
@@ -82,8 +82,8 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		logger.info("[transaction-recovery] total= {}, success= {}", total, value);
 	}
 
-	public synchronized void recoverTransaction(Transaction transaction) throws CommitRequiredException,
-			RollbackRequiredException, SystemException {
+	public synchronized void recoverTransaction(Transaction transaction)
+			throws CommitRequiredException, RollbackRequiredException, SystemException {
 
 		TransactionContext transactionContext = transaction.getTransactionContext();
 		if (transactionContext.isCoordinator()) {
@@ -92,8 +92,8 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 
 	}
 
-	private synchronized void recoverCoordinator(Transaction transaction) throws CommitRequiredException,
-			RollbackRequiredException, SystemException {
+	private synchronized void recoverCoordinator(Transaction transaction)
+			throws CommitRequiredException, RollbackRequiredException, SystemException {
 
 		switch (transaction.getTransactionStatus()) {
 		case Status.STATUS_ACTIVE:

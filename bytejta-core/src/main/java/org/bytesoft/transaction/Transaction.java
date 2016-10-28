@@ -59,7 +59,7 @@ public interface Transaction extends javax.transaction.Transaction {
 	public void participantCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
 			SecurityException, IllegalStateException, CommitRequiredException, SystemException;
 
-	public void recoveryForgetQuietly();
+	public void recoveryForget() throws SystemException;
 
 	public void recoveryRollback() throws RollbackRequiredException, SystemException;
 
