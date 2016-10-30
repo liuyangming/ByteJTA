@@ -94,7 +94,7 @@ public class VirtualLoggingFile {
 		this.checkModifiedTime();
 		this.checkEndIndex();
 
-		this.initialized = false;
+		this.initialized = true;
 	}
 
 	private void checkLoggingIdentifier() {
