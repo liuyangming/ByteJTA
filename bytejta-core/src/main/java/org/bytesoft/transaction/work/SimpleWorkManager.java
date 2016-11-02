@@ -34,7 +34,7 @@ import org.apache.log4j.Logger;
 public class SimpleWorkManager implements WorkManager {
 	static final Logger logger = Logger.getLogger(SimpleWorkManager.class.getSimpleName());
 
-	private final ThreadPoolExecutor executor = new ThreadPoolExecutor(1, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS,
+	private final ThreadPoolExecutor executor = new ThreadPoolExecutor(5, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS,
 			new LinkedBlockingQueue<Runnable>());
 	// private final ScheduledThreadPoolExecutor scheduled = new ScheduledThreadPoolExecutor(1);
 

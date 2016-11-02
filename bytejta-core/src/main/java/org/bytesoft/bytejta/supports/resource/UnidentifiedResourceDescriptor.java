@@ -63,6 +63,13 @@ public class UnidentifiedResourceDescriptor implements XAResourceDescriptor {
 		delegate.end(arg0, arg1);
 	}
 
+	public void recoveryForget(Xid arg0) throws XAException {
+		if (this.delegate == null) {
+			return;
+		}
+		delegate.forget(arg0);
+	}
+
 	public void forget(Xid arg0) throws XAException {
 		if (this.delegate == null) {
 			return;

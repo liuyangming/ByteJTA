@@ -51,6 +51,10 @@ public class RemoteResourceDescriptor implements XAResourceDescriptor {
 		// delegate.end(arg0, arg1);
 	}
 
+	public void recoveryForget(Xid arg0) throws XAException {
+		delegate.recoveryForget(arg0);
+	}
+
 	public void forget(Xid arg0) throws XAException {
 		delegate.forget(arg0);
 	}

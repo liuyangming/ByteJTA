@@ -55,6 +55,10 @@ public class CommonResourceDescriptor implements XAResourceDescriptor {
 		delegate.end(arg0, arg1);
 	}
 
+	public void recoveryForget(Xid arg0) throws XAException {
+		delegate.forget(arg0);
+	}
+
 	public void forget(Xid arg0) throws XAException {
 		delegate.forget(arg0);
 	}

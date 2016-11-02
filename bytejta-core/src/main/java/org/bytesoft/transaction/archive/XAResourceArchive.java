@@ -69,6 +69,10 @@ public class XAResourceArchive implements XAResource {
 		descriptor.end(xid, flags);
 	}
 
+	public void recoveryForget(Xid xid) throws XAException {
+		descriptor.recoveryForget(xid);
+	}
+
 	public void forget(Xid ignore) throws XAException {
 		descriptor.forget(xid);
 	}

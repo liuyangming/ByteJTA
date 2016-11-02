@@ -1143,7 +1143,7 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	public synchronized void recoveryForget() throws SystemException {
+	public synchronized void forget() throws SystemException {
 
 		TransactionXid xid = this.transactionContext.getXid();
 
@@ -1170,6 +1170,10 @@ public class TransactionImpl implements Transaction {
 		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
 		transactionLogger.deleteTransaction(this.getTransactionArchive());
 
+	}
+
+	public synchronized void recoveryForget() throws SystemException {
+		this.forget(); // TODO
 	}
 
 	public TransactionArchive getTransactionArchive() {

@@ -31,6 +31,8 @@ public interface RemoteCoordinator extends XAResource {
 
 	public Transaction end(TransactionContext transactionContext, int flags) throws TransactionException;
 
+	public void recoveryForget(Xid xid) throws XAException;
+
 	public void recoveryCommit(Xid xid, boolean onePhase) throws XAException;
 
 	public void recoveryRollback(Xid xid) throws XAException;

@@ -236,6 +236,10 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		}
 	}
 
+	public void recoveryForget(Xid xid) throws XAException {
+		this.forget(xid); // TODO
+	}
+
 	public int getTransactionTimeout() throws XAException {
 		return 0;
 	}
