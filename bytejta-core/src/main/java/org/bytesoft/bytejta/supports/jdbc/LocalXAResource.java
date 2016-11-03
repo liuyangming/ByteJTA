@@ -142,7 +142,8 @@ public class LocalXAResource implements XAResource {
 				stmt.setLong(3, System.currentTimeMillis());
 				int value = stmt.executeUpdate();
 				if (value == 0) {
-					throw new IllegalStateException("The operation failed and the data was not written to the database!");
+					throw new IllegalStateException(
+							"The operation failed and the data was not written to the database!");
 				}
 			} catch (SQLException ex) {
 				boolean tableExists = false;
@@ -267,10 +268,24 @@ public class LocalXAResource implements XAResource {
 	}
 
 	protected boolean isTableExists(Connection conn) throws SQLException {
+
+		String catalog = null;
+		try {
+			catalog = conn.getCatalog();
+		} catch (Throwable throwable) {
+			logger.debug("Error occurred while getting catalog of java.sql.Connection!");
+		}
+		String schema = null;
+		try {
+			schema = conn.getSchema();
+		} catch (Throwable throwable) {
+			logger.debug("Error occurred while getting schema of java.sql.Connection!");
+		}
+
 		ResultSet rs = null;
 		try {
 			DatabaseMetaData metadata = conn.getMetaData();
-			rs = metadata.getTables(conn.getCatalog(), conn.getSchema(), "bytejta", null);
+			rs = metadata.getTables(catalog, schema, "bytejta", null);
 			return rs.next();
 		} finally {
 			this.closeQuietly(rs);

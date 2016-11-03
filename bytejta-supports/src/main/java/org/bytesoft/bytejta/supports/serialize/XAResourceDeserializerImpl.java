@@ -32,6 +32,7 @@ import javax.transaction.xa.XAResource;
 import org.bytesoft.bytejta.supports.dubbo.DubboRemoteCoordinator;
 import org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry;
 import org.bytesoft.bytejta.supports.invoke.InvocationContext;
+import org.bytesoft.bytejta.supports.jdbc.DataSourceHolder;
 import org.bytesoft.bytejta.supports.jdbc.RecoveredResource;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinatorRegistry;
@@ -98,7 +99,12 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 	}
 
 	private XAResource deserializeResource(String identifier, Object bean) throws Exception {
-		if (javax.sql.DataSource.class.isInstance(bean)) {
+		if (DataSourceHolder.class.isInstance(bean)) {
+			DataSourceHolder holder = (DataSourceHolder) bean;
+			RecoveredResource xares = new RecoveredResource();
+			xares.setDataSource(holder.getDataSource());
+			return xares;
+		} else if (javax.sql.DataSource.class.isInstance(bean)) {
 			javax.sql.DataSource dataSource = (javax.sql.DataSource) bean;
 			RecoveredResource xares = new RecoveredResource();
 			xares.setDataSource(dataSource);

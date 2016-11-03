@@ -30,7 +30,7 @@ import javax.transaction.TransactionManager;
 
 import org.springframework.beans.factory.BeanNameAware;
 
-public class LocalXADataSource implements XADataSource, DataSource, BeanNameAware {
+public class LocalXADataSource implements XADataSource, DataSource, DataSourceHolder, BeanNameAware {
 	private PrintWriter logWriter;
 	private int loginTimeout;
 

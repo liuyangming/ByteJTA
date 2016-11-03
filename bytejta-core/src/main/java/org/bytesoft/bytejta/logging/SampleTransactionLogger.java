@@ -15,6 +15,7 @@
  */
 package org.bytesoft.bytejta.logging;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -163,6 +164,18 @@ public class SampleTransactionLogger extends VirtualLoggingSystemImpl
 			}
 		}
 
+	}
+
+	public File getDefaultDirectory() {
+		File directory = new File("bytejta");
+		if (directory.exists() == false) {
+			try {
+				directory.mkdirs();
+			} catch (SecurityException ex) {
+				logger.error("Error occurred while creating directory {}!", directory.getAbsolutePath(), ex);
+			}
+		}
+		return directory;
 	}
 
 	public String getLoggingFilePrefix() {

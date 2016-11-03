@@ -54,6 +54,10 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 	private VirtualLoggingFile slaver;
 
 	public void construct() throws IOException {
+		if (this.directory == null) {
+			this.directory = this.getDefaultDirectory();
+		}
+
 		if (this.directory.exists() == false) {
 			if (this.directory.mkdirs() == false) {
 				throw new RuntimeException();
@@ -183,8 +187,7 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 		System.arraycopy(keyByteArray, 0, byteArray, 0, keyByteArray.length);
 		byteArray[keyByteArray.length] = (byte) (OPERATOR_CREATE & 0xFF);
 		System.arraycopy(sizeByteArray, 0, byteArray, keyByteArray.length + 1, sizeByteArray.length);
-		System.arraycopy(textByteArray, 0, byteArray, keyByteArray.length + 1 + sizeByteArray.length,
-				textByteArray.length);
+		System.arraycopy(textByteArray, 0, byteArray, keyByteArray.length + 1 + sizeByteArray.length, textByteArray.length);
 
 		try {
 			this.lock.lock();
@@ -221,8 +224,7 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 		System.arraycopy(keyByteArray, 0, byteArray, 0, keyByteArray.length);
 		byteArray[keyByteArray.length] = (byte) (OPERATOR_MOFIFY & 0xFF);
 		System.arraycopy(sizeByteArray, 0, byteArray, keyByteArray.length + 1, sizeByteArray.length);
-		System.arraycopy(textByteArray, 0, byteArray, keyByteArray.length + 1 + sizeByteArray.length,
-				textByteArray.length);
+		System.arraycopy(textByteArray, 0, byteArray, keyByteArray.length + 1 + sizeByteArray.length, textByteArray.length);
 
 		try {
 			this.lock.lock();
@@ -351,6 +353,8 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 	public void release() {
 		this.released = true;
 	}
+
+	public abstract File getDefaultDirectory();
 
 	public abstract String getLoggingIdentifier();
 

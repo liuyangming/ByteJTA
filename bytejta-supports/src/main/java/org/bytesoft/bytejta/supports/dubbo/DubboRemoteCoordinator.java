@@ -48,6 +48,8 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 					return this.invokeCoordinator(proxy, method, args);
 				} else if ("recoveryRollback".equals(methodName)) {
 					return this.invokeCoordinator(proxy, method, args);
+				} else if ("recoveryForget".equals(methodName)) {
+					return this.invokeCoordinator(proxy, method, args);
 				} else {
 					throw new XAException(XAException.XAER_RMFAIL);
 				}

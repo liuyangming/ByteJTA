@@ -20,6 +20,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,6 +73,16 @@ public class CommonUtils {
 			} catch (IOException ex) {
 				logger.debug("Error occurred while closing resource {}.", closeable);
 			}
+		}
+	}
+
+	public static String getInetAddress() {
+		try {
+			InetAddress inetAddr = InetAddress.getLocalHost();
+			return inetAddr.getHostAddress();
+		} catch (UnknownHostException ex) {
+			logger.error("Error occurred while getting ip address.", ex);
+			return "127.0.0.1";
 		}
 	}
 
