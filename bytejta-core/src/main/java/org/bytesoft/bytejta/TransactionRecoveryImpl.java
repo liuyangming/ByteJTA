@@ -79,7 +79,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 				continue;
 			}
 		}
-		logger.info("[transaction-recovery] total= {}, success= {}", total, value);
+		logger.debug("[transaction-recovery] total= {}, success= {}", total, value);
 	}
 
 	public synchronized void recoverTransaction(Transaction transaction)
@@ -102,10 +102,12 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		case Status.STATUS_ROLLING_BACK:
 		case Status.STATUS_UNKNOWN:
 			transaction.recoveryRollback();
+			transaction.recoveryForget();
 			break;
 		case Status.STATUS_PREPARED:
 		case Status.STATUS_COMMITTING:
 			transaction.recoveryCommit();
+			transaction.recoveryForget();
 			break;
 		case Status.STATUS_COMMITTED:
 		case Status.STATUS_ROLLEDBACK:
