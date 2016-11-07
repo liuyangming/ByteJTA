@@ -139,6 +139,61 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 		}
 	}
 
+	public synchronized void forget(Xid[] xids) throws XAException {
+		if (xids == null || xids.length == 0) {
+			return;
+		}
+
+		String[][] xidArray = new String[xids.length][];
+
+		for (int i = 0; i < xids.length; i++) {
+			Xid xid = xids[i];
+			String gxid = ByteUtils.byteArrayToString(xid.getGlobalTransactionId());
+			String bxid = null;
+			if (xid.getBranchQualifier() == null || xid.getBranchQualifier().length == 0) {
+				bxid = gxid;
+			} else {
+				bxid = ByteUtils.byteArrayToString(xid.getBranchQualifier());
+			}
+
+			String[] record = new String[2];
+			record[0] = gxid;
+			record[1] = bxid;
+			xidArray[i] = record;
+		}
+
+		Connection conn = null;
+		PreparedStatement stmt = null;
+		try {
+			conn = this.dataSource.getConnection();
+			stmt = conn.prepareStatement("delete from bytejta where gxid = ? and bxid = ?");
+			for (int i = 0; i < xids.length; i++) {
+				stmt.setString(1, xidArray[i][0]);
+				stmt.setString(2, xidArray[i][1]);
+				stmt.addBatch();
+			}
+			stmt.executeBatch();
+		} catch (Exception ex) {
+			boolean tableExists = false;
+			try {
+				tableExists = this.isTableExists(conn);
+			} catch (SQLException sqlEx) {
+				logger.warn("Error occurred while forgeting local-xa-resource.", ex);
+				throw new XAException(XAException.XAER_RMFAIL);
+			} catch (RuntimeException rex) {
+				logger.warn("Error occurred while forgeting local-xa-resource.", ex);
+				throw new XAException(XAException.XAER_RMFAIL);
+			}
+
+			if (tableExists) {
+				throw new XAException(XAException.XAER_RMERR);
+			}
+		} finally {
+			this.closeQuietly(stmt);
+			this.closeQuietly(conn);
+		}
+	}
+
 	public synchronized void forget(Xid xid) throws XAException {
 		if (xid == null) {
 			logger.warn("Error occurred while forgeting local-xa-resource: invalid xid.");
