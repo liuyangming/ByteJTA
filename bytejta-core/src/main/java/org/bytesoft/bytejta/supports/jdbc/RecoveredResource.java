@@ -164,24 +164,44 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 
 		Connection conn = null;
 		PreparedStatement stmt = null;
+		Boolean autoCommit = null;
 		try {
 			conn = this.dataSource.getConnection();
+			autoCommit = conn.getAutoCommit();
+			conn.setAutoCommit(false);
 			stmt = conn.prepareStatement("delete from bytejta where gxid = ? and bxid = ?");
 			for (int i = 0; i < xids.length; i++) {
 				stmt.setString(1, xidArray[i][0]);
 				stmt.setString(2, xidArray[i][1]);
 				stmt.addBatch();
 			}
-			stmt.executeBatch();
+			int number = 0;
+			int[] values = stmt.executeBatch();
+			for (int i = 0; values != null && i < values.length; i++) {
+				int value = values[i];
+				number += value > 0 ? value : 0;
+			}
+			if (number != xids.length) {
+				logger.error("Error occurred while forgetting resources, required: {}, actual: {}.");
+			}
+			conn.commit();
 		} catch (Exception ex) {
+			logger.error("Error occurred while forgetting resources.");
+
+			try {
+				conn.rollback();
+			} catch (SQLException sqlEx) {
+				logger.error("Error occurred while rolling back local resources.", sqlEx);
+			}
+
 			boolean tableExists = false;
 			try {
 				tableExists = this.isTableExists(conn);
 			} catch (SQLException sqlEx) {
-				logger.warn("Error occurred while forgeting local-xa-resource.", ex);
+				logger.warn("Error occurred while forgeting local resources.", ex);
 				throw new XAException(XAException.XAER_RMFAIL);
 			} catch (RuntimeException rex) {
-				logger.warn("Error occurred while forgeting local-xa-resource.", ex);
+				logger.warn("Error occurred while forgeting local resources.", ex);
 				throw new XAException(XAException.XAER_RMFAIL);
 			}
 
@@ -189,6 +209,14 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 				throw new XAException(XAException.XAER_RMERR);
 			}
 		} finally {
+			if (autoCommit != null) {
+				try {
+					conn.setAutoCommit(autoCommit);
+				} catch (SQLException sqlEx) {
+					logger.error("Error occurred while configuring attribute 'autoCommit'.", sqlEx);
+				}
+			}
+
 			this.closeQuietly(stmt);
 			this.closeQuietly(conn);
 		}
