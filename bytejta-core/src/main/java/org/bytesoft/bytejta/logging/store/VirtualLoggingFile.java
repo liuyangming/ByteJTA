@@ -253,7 +253,7 @@ public class VirtualLoggingFile {
 			this.readable = this.raf.getChannel().map(MapMode.READ_ONLY, 0, size);
 			this.writable = this.raf.getChannel().map(MapMode.READ_WRITE, 0, size);
 		} catch (IOException ex) {
-			ex.printStackTrace();
+			logger.error("Error occurred while resizing the logging file!", ex);
 		}
 	}
 
