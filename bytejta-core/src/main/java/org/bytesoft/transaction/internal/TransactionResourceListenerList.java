@@ -40,7 +40,7 @@ public class TransactionResourceListenerList implements TransactionResourceListe
 				TransactionResourceListener listener = this.listeners.get(i);
 				listener.onEnlistResource(xid, xares);
 			} catch (RuntimeException rex) {
-				logger.debug(rex.getMessage(), rex);
+				logger.error(rex.getMessage(), rex);
 			}
 		}
 	}
@@ -51,7 +51,7 @@ public class TransactionResourceListenerList implements TransactionResourceListe
 				TransactionResourceListener listener = this.listeners.get(i);
 				listener.onDelistResource(xid, xares);
 			} catch (RuntimeException rex) {
-				logger.debug(rex.getMessage(), rex);
+				logger.error(rex.getMessage(), rex);
 			}
 		}
 	}

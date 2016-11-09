@@ -39,7 +39,7 @@ public class TransactionListenerList extends TransactionListenerAdapter {
 				TransactionListener listener = this.listeners.get(i);
 				listener.onPrepareStart(xid);
 			} catch (RuntimeException rex) {
-				logger.debug(rex.getMessage(), rex);
+				logger.error(rex.getMessage(), rex);
 			}
 		}
 	}
@@ -50,7 +50,7 @@ public class TransactionListenerList extends TransactionListenerAdapter {
 				TransactionListener listener = this.listeners.get(i);
 				listener.onPrepareSuccess(xid);
 			} catch (RuntimeException rex) {
-				logger.debug(rex.getMessage(), rex);
+				logger.error(rex.getMessage(), rex);
 			}
 		}
 	}
@@ -61,7 +61,7 @@ public class TransactionListenerList extends TransactionListenerAdapter {
 				TransactionListener listener = this.listeners.get(i);
 				listener.onPrepareFailure(xid);
 			} catch (RuntimeException rex) {
-				logger.debug(rex.getMessage(), rex);
+				logger.error(rex.getMessage(), rex);
 			}
 		}
 	}
@@ -72,7 +72,7 @@ public class TransactionListenerList extends TransactionListenerAdapter {
 				TransactionListener listener = this.listeners.get(i);
 				listener.onCommitStart(xid);
 			} catch (RuntimeException rex) {
-				logger.debug(rex.getMessage(), rex);
+				logger.error(rex.getMessage(), rex);
 			}
 		}
 	}
@@ -83,7 +83,7 @@ public class TransactionListenerList extends TransactionListenerAdapter {
 				TransactionListener listener = this.listeners.get(i);
 				listener.onCommitSuccess(xid);
 			} catch (RuntimeException rex) {
-				logger.debug(rex.getMessage(), rex);
+				logger.error(rex.getMessage(), rex);
 			}
 		}
 	}
@@ -94,7 +94,7 @@ public class TransactionListenerList extends TransactionListenerAdapter {
 				TransactionListener listener = this.listeners.get(i);
 				listener.onCommitFailure(xid);
 			} catch (RuntimeException rex) {
-				logger.debug(rex.getMessage(), rex);
+				logger.error(rex.getMessage(), rex);
 			}
 		}
 	}
@@ -105,7 +105,7 @@ public class TransactionListenerList extends TransactionListenerAdapter {
 				TransactionListener listener = this.listeners.get(i);
 				listener.onCommitHeuristicMixed(xid);
 			} catch (RuntimeException rex) {
-				logger.debug(rex.getMessage(), rex);
+				logger.error(rex.getMessage(), rex);
 			}
 		}
 	}
@@ -116,7 +116,7 @@ public class TransactionListenerList extends TransactionListenerAdapter {
 				TransactionListener listener = this.listeners.get(i);
 				listener.onCommitHeuristicRolledback(xid);
 			} catch (RuntimeException rex) {
-				logger.debug(rex.getMessage(), rex);
+				logger.error(rex.getMessage(), rex);
 			}
 		}
 	}
@@ -127,7 +127,7 @@ public class TransactionListenerList extends TransactionListenerAdapter {
 				TransactionListener listener = this.listeners.get(i);
 				listener.onRollbackStart(xid);
 			} catch (RuntimeException rex) {
-				logger.debug(rex.getMessage(), rex);
+				logger.error(rex.getMessage(), rex);
 			}
 		}
 	}
@@ -138,7 +138,7 @@ public class TransactionListenerList extends TransactionListenerAdapter {
 				TransactionListener listener = this.listeners.get(i);
 				listener.onRollbackSuccess(xid);
 			} catch (RuntimeException rex) {
-				logger.debug(rex.getMessage(), rex);
+				logger.error(rex.getMessage(), rex);
 			}
 		}
 	}
@@ -149,7 +149,7 @@ public class TransactionListenerList extends TransactionListenerAdapter {
 				TransactionListener listener = this.listeners.get(i);
 				listener.onRollbackFailure(xid);
 			} catch (RuntimeException rex) {
-				logger.debug(rex.getMessage(), rex);
+				logger.error(rex.getMessage(), rex);
 			}
 		}
 	}

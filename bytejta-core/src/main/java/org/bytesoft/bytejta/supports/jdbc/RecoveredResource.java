@@ -182,7 +182,7 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 				number += value > 0 ? value : 0;
 			}
 			if (number != xids.length) {
-				logger.error("Error occurred while forgetting resources, required: {}, actual: {}.");
+				logger.error("Error occurred while forgetting resources, required: {}, actual: {}.", xids.length, number);
 			}
 			conn.commit();
 		} catch (Exception ex) {
