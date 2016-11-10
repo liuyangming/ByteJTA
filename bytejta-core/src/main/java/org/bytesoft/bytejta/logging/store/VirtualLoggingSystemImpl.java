@@ -312,7 +312,7 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 		for (int i = 0; i < recordList.size(); i++) {
 			VirtualLoggingRecord record = recordList.get(i);
 			Xid xid = record.getIdentifier();
-			if (recordMap.containsKey(xid)) {
+			if (recordMap.containsKey(xid) == false) {
 				byte[] byteArray = record.getContent();
 				this.slaver.write(byteArray);
 			}
