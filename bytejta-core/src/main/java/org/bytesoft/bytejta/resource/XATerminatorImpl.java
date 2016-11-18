@@ -660,6 +660,10 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		this.fireRecoveryRollback(xid);
 	}
 
+	public void recoveryForget(Xid xid) throws XAException {
+		this.forget(xid); // TODO
+	}
+
 	private void fireRecoveryRollback(Xid xid) throws TransactionException, XAException {
 		boolean commitExists = false;
 		boolean rollbackExists = false;
@@ -896,8 +900,7 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 			// ignore
 		} else if (branchPrepared && xidRecovered == false) {
 			if (archive.isIdentified()) {
-				logger.error(
-						"[{}] recover failed: branch= {}, status= preparing, branchPrepared= true, xidRecovered= false",
+				logger.error("[{}] recover failed: branch= {}, status= preparing, branchPrepared= true, xidRecovered= false",
 						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
 						ByteUtils.byteArrayToString(xid.getBranchQualifier()));
 			} else {
@@ -910,8 +913,7 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		}
 	}
 
-	protected void recoverForPreparedTransaction(XAResourceArchive archive, boolean xidRecovered)
-			throws IllegalStateException {
+	protected void recoverForPreparedTransaction(XAResourceArchive archive, boolean xidRecovered) throws IllegalStateException {
 		TransactionXid xid = (TransactionXid) archive.getXid();
 		boolean branchPrepared = archive.getVote() != XAResourceArchive.DEFAULT_VOTE; // default value
 		if (branchPrepared == false) {
@@ -921,14 +923,12 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 			throw new IllegalStateException();
 		} else if (xidRecovered == false) {
 			if (archive.isIdentified()) {
-				logger.error(
-						"[{}] recover failed: branch= {}, status= prepared, branchPrepared= true, xidRecovered= false",
+				logger.error("[{}] recover failed: branch= {}, status= prepared, branchPrepared= true, xidRecovered= false",
 						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
 						ByteUtils.byteArrayToString(xid.getBranchQualifier()));
 			} else {
 				archive.setVote(XAResourceArchive.DEFAULT_VOTE); // vote of unidentified resource will be reset
-				logger.error(
-						"[{}] recover failed: branch= {}, status= prepared, branchPrepared= true, identified= false",
+				logger.error("[{}] recover failed: branch= {}, status= prepared, branchPrepared= true, identified= false",
 						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
 						ByteUtils.byteArrayToString(xid.getBranchQualifier()));
 				// rollback required
@@ -942,8 +942,7 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		// boolean branchCompleted = archive.isCompleted();
 		boolean branchCommitted = archive.isCommitted();
 		if (branchCommitted && xidRecovered) {
-			logger.warn(
-					"[{}] recover failed: branch= {}, status= committing, branchCommitted= true, xidRecovered= true",
+			logger.warn("[{}] recover failed: branch= {}, status= committing, branchCommitted= true, xidRecovered= true",
 					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
 					ByteUtils.byteArrayToString(xid.getBranchQualifier()));
 			archive.forgetQuietly(xid); // Branch has already been committed.
@@ -953,8 +952,7 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 			// ignore
 		} else if (branchCommitted == false && xidRecovered == false) {
 			if (archive.isIdentified()) {
-				logger.warn(
-						"[{}] recover failed: branch= {}, status= committing, branchCommitted= false, xidRecovered= false",
+				logger.warn("[{}] recover failed: branch= {}, status= committing, branchCommitted= false, xidRecovered= false",
 						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
 						ByteUtils.byteArrayToString(xid.getBranchQualifier()));
 				archive.setCommitted(true);
@@ -974,8 +972,7 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		// boolean branchCompleted = archive.isCompleted();
 		boolean branchRolledback = archive.isRolledback();
 		if (branchRolledback && xidRecovered) {
-			logger.warn(
-					"[{}] recover failed: branch= {}, status= rollingback, branchRolledback= true, xidRecovered= true",
+			logger.warn("[{}] recover failed: branch= {}, status= rollingback, branchRolledback= true, xidRecovered= true",
 					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
 					ByteUtils.byteArrayToString(xid.getBranchQualifier()));
 			archive.forgetQuietly(xid); // Branch has already been committed.
@@ -1037,8 +1034,7 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		} // end-for
 	}
 
-	public boolean delistResource(XAResourceDescriptor descriptor, int flag)
-			throws IllegalStateException, SystemException {
+	public boolean delistResource(XAResourceDescriptor descriptor, int flag) throws IllegalStateException, SystemException {
 
 		XAResourceArchive archive = this.locateExisted(descriptor);
 		if (archive == null) {
@@ -1056,8 +1052,7 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		}
 	}
 
-	private boolean delistResource(XAResourceArchive archive, int flag)
-			throws SystemException, RollbackRequiredException {
+	private boolean delistResource(XAResourceArchive archive, int flag) throws SystemException, RollbackRequiredException {
 		try {
 			Xid branchXid = archive.getXid();
 			archive.end(branchXid, flag);

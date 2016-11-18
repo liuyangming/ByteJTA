@@ -48,22 +48,21 @@ public class TransactionConfigPostProcessor implements BeanFactoryPostProcessor 
 				if (StringUtils.isBlank(applicationBeanId)) {
 					applicationBeanId = beanName;
 				} else {
-					throw new FatalBeanException("There is more than one application name was found!");
+					throw new FatalBeanException("There are more than one application name was found!");
 				}
 			} else if (org.bytesoft.bytejta.TransactionCoordinator.class.getName().equals(beanClassName)) {
 				if (StringUtils.isBlank(transactionBeanId)) {
 					transactionBeanId = beanName;
 				} else {
 					throw new FatalBeanException(
-							"There is more than one org.bytesoft.bytejta.TransactionCoordinator was found!");
+							"There are more than one org.bytesoft.bytejta.TransactionCoordinator was found!");
 				}
-			} else if (org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry.class.getName()
-					.equals(beanClassName)) {
+			} else if (org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry.class.getName().equals(beanClassName)) {
 				if (StringUtils.isBlank(registryBeanId)) {
 					registryBeanId = beanName;
 				} else {
 					throw new FatalBeanException(
-							"There is more than one org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry was found!");
+							"There are more than one org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry was found!");
 				}
 			}
 		}
@@ -81,8 +80,7 @@ public class TransactionConfigPostProcessor implements BeanFactoryPostProcessor 
 		}
 
 		if (StringUtils.isBlank(transactionBeanId)) {
-			throw new FatalBeanException(
-					"No configuration of class org.bytesoft.bytejta.TransactionCoordinator was found.");
+			throw new FatalBeanException("No configuration of class org.bytesoft.bytejta.TransactionCoordinator was found.");
 		} else if (registryBeanId == null) {
 			throw new FatalBeanException(
 					"No configuration of class org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry was found.");
@@ -93,8 +91,8 @@ public class TransactionConfigPostProcessor implements BeanFactoryPostProcessor 
 		this.initializeForConsumer(beanFactory, application, registryBeanId);
 	}
 
-	public void initializeForProvider(ConfigurableListableBeanFactory beanFactory, String application,
-			String refBeanName) throws BeansException {
+	public void initializeForProvider(ConfigurableListableBeanFactory beanFactory, String application, String refBeanName)
+			throws BeansException {
 		BeanDefinitionRegistry registry = (BeanDefinitionRegistry) beanFactory;
 
 		GenericBeanDefinition beanDef = new GenericBeanDefinition();
@@ -113,8 +111,8 @@ public class TransactionConfigPostProcessor implements BeanFactoryPostProcessor 
 		registry.registerBeanDefinition(skeletonBeanId, beanDef);
 	}
 
-	public void initializeForConsumer(ConfigurableListableBeanFactory beanFactory, String application,
-			String targetBeanName) throws BeansException {
+	public void initializeForConsumer(ConfigurableListableBeanFactory beanFactory, String application, String targetBeanName)
+			throws BeansException {
 		BeanDefinitionRegistry registry = (BeanDefinitionRegistry) beanFactory;
 
 		// <dubbo:reference id="yyy"

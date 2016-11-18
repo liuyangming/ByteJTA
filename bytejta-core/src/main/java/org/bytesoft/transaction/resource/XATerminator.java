@@ -50,4 +50,6 @@ public interface XATerminator extends javax.transaction.xa.XAResource, Synchroni
 
 	public void recoveryRollback(Xid xid) throws XAException;
 
+	public void recoveryForget(Xid xid) throws XAException;
+
 }

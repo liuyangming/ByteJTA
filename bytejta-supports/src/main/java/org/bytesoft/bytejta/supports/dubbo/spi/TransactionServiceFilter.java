@@ -34,6 +34,8 @@ import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.supports.rpc.TransactionInterceptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.alibaba.dubbo.common.URL;
 import com.alibaba.dubbo.rpc.Filter;
@@ -46,6 +48,7 @@ import com.caucho.hessian.io.HessianInput;
 import com.caucho.hessian.io.HessianOutput;
 
 public class TransactionServiceFilter implements Filter {
+	static final Logger logger = LoggerFactory.getLogger(TransactionServiceFilter.class);
 
 	public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
 		if (RpcContext.getContext().isProviderSide()) {
@@ -58,10 +61,7 @@ public class TransactionServiceFilter implements Filter {
 	public Result providerInvoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
 		RemoteCoordinatorRegistry remoteCoordinatorRegistry = RemoteCoordinatorRegistry.getInstance();
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
-		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
 		RemoteCoordinator consumeCoordinator = beanRegistry.getConsumeCoordinator();
-		TransactionInterceptor transactionInterceptor = beanFactory.getTransactionInterceptor();
-		TransactionManager transactionManager = beanFactory.getTransactionManager();
 
 		URL targetUrl = invoker.getUrl();
 		String targetAddr = targetUrl.getIp();
@@ -77,13 +77,10 @@ public class TransactionServiceFilter implements Filter {
 			dubboCoordinator.setInvocationContext(invocationContext);
 			dubboCoordinator.setRemoteCoordinator(consumeCoordinator);
 
-			remoteCoordinator = (RemoteCoordinator) Proxy.newProxyInstance(
-					DubboRemoteCoordinator.class.getClassLoader(), new Class[] { RemoteCoordinator.class },
-					dubboCoordinator);
+			remoteCoordinator = (RemoteCoordinator) Proxy.newProxyInstance(DubboRemoteCoordinator.class.getClassLoader(),
+					new Class[] { RemoteCoordinator.class }, dubboCoordinator);
 			remoteCoordinatorRegistry.putTransactionManagerStub(address, remoteCoordinator);
 		}
-
-		Result result = null;
 
 		TransactionRequestImpl request = new TransactionRequestImpl();
 		request.setTargetTransactionCoordinator(remoteCoordinator);
@@ -91,26 +88,71 @@ public class TransactionServiceFilter implements Filter {
 		TransactionResponseImpl response = new TransactionResponseImpl();
 		response.setSourceTransactionCoordinator(remoteCoordinator);
 		try {
-			// String transactionContextContent = RpcContext.getContext()
-			// .getAttachment(TransactionContext.class.getName());
-			String transactionContextContent = invocation.getAttachment(TransactionContext.class.getName());
-			if (StringUtils.isNotBlank(transactionContextContent)) {
-				byte[] requestByteArray = ByteUtils.stringToByteArray(transactionContextContent);
-				ByteArrayInputStream bais = new ByteArrayInputStream(requestByteArray);
-				HessianInput input = new HessianInput(bais);
+			this.beforeProviderInvoke(invocation, request, response);
+			return invoker.invoke(invocation);
+		} catch (RpcException rex) {
+			throw rex;
+		} catch (RuntimeException rex) {
+			logger.error("Error occurred in remote call!", rex);
+			throw new RpcException(rex.getMessage());
+		} finally {
+			this.afterProviderInvoke(invocation, request, response);
+		}
+
+	}
+
+	private void beforeProviderInvoke(Invocation invocation, TransactionRequestImpl request, TransactionResponseImpl response)
+			throws RpcException {
+		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
+		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
+		TransactionInterceptor transactionInterceptor = beanFactory.getTransactionInterceptor();
+
+		RpcException rpcError = null;
+		// String transactionContextContent = RpcContext.getContext()
+		// .getAttachment(TransactionContext.class.getName());
+		String transactionContextContent = invocation.getAttachment(TransactionContext.class.getName());
+		if (StringUtils.isNotBlank(transactionContextContent)) {
+			byte[] requestByteArray = ByteUtils.stringToByteArray(transactionContextContent);
+			ByteArrayInputStream bais = new ByteArrayInputStream(requestByteArray);
+			HessianInput input = new HessianInput(bais);
+			try {
 				TransactionContext remoteTransactionContext = (TransactionContext) input.readObject();
 				request.setTransactionContext(remoteTransactionContext);
+			} catch (IOException ex) {
+				logger.error("Error occurred in remote call!", ex);
+				rpcError = new RpcException(ex.getMessage());
 			}
+
+		}
+
+		try {
 			transactionInterceptor.afterReceiveRequest(request);
+		} catch (RuntimeException rex) {
+			logger.error("Error occurred in remote call!", rex);
+			throw new RpcException(rex.getMessage());
+		}
 
-			result = invoker.invoke(invocation);
+		if (rpcError != null) {
+			throw rpcError;
+		}
 
-			Transaction transaction = transactionManager.getTransactionQuietly();
-			TransactionContext nativeTransactionContext = transaction == null ? null
-					: transaction.getTransactionContext();
+	}
 
-			response.setTransactionContext(nativeTransactionContext);
+	private void afterProviderInvoke(Invocation invocation, TransactionRequestImpl request, TransactionResponseImpl response)
+			throws RpcException {
+		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
+		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
+		TransactionInterceptor transactionInterceptor = beanFactory.getTransactionInterceptor();
+		TransactionManager transactionManager = beanFactory.getTransactionManager();
 
+		String transactionContextContent = invocation.getAttachment(TransactionContext.class.getName());
+
+		Transaction transaction = transactionManager.getTransactionQuietly();
+		TransactionContext nativeTransactionContext = transaction == null ? null : transaction.getTransactionContext();
+
+		response.setTransactionContext(nativeTransactionContext);
+
+		try {
 			transactionInterceptor.beforeSendResponse(response);
 			if (StringUtils.isNotBlank(transactionContextContent)) {
 				ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -122,16 +164,12 @@ public class TransactionServiceFilter implements Filter {
 				invocation.getAttachments().put(TransactionContext.class.getName(), nativeTansactionContextContent);
 			}
 		} catch (IOException ex) {
-			// TODO
-			ex.printStackTrace();
-		} catch (RpcException rex) {
-			// TODO
-			rex.printStackTrace();
+			logger.error("Error occurred in remote call!", ex);
+			throw new RpcException(ex.getMessage());
 		} catch (RuntimeException rex) {
-			// TODO
-			rex.printStackTrace();
+			logger.error("Error occurred in remote call!", rex);
+			throw new RpcException(rex.getMessage());
 		}
-		return result;
 	}
 
 	public Result consumerInvoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
@@ -139,7 +177,6 @@ public class TransactionServiceFilter implements Filter {
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
 		RemoteCoordinator consumeCoordinator = beanRegistry.getConsumeCoordinator();
-		TransactionInterceptor transactionInterceptor = beanFactory.getTransactionInterceptor();
 		TransactionManager transactionManager = beanFactory.getTransactionManager();
 		Transaction transaction = transactionManager.getTransactionQuietly();
 		TransactionContext nativeTransactionContext = transaction == null ? null : transaction.getTransactionContext();
@@ -158,13 +195,10 @@ public class TransactionServiceFilter implements Filter {
 			dubboCoordinator.setInvocationContext(invocationContext);
 			dubboCoordinator.setRemoteCoordinator(consumeCoordinator);
 
-			remoteCoordinator = (RemoteCoordinator) Proxy.newProxyInstance(
-					DubboRemoteCoordinator.class.getClassLoader(), new Class[] { RemoteCoordinator.class },
-					dubboCoordinator);
+			remoteCoordinator = (RemoteCoordinator) Proxy.newProxyInstance(DubboRemoteCoordinator.class.getClassLoader(),
+					new Class[] { RemoteCoordinator.class }, dubboCoordinator);
 			remoteCoordinatorRegistry.putTransactionManagerStub(address, remoteCoordinator);
 		}
-
-		Result result = null;
 
 		TransactionRequestImpl request = new TransactionRequestImpl();
 		request.setTransactionContext(nativeTransactionContext);
@@ -173,19 +207,50 @@ public class TransactionServiceFilter implements Filter {
 		TransactionResponseImpl response = new TransactionResponseImpl();
 		response.setSourceTransactionCoordinator(remoteCoordinator);
 		try {
-			transactionInterceptor.beforeSendRequest(request);
-			if (request.getTransactionContext() != null) {
-				ByteArrayOutputStream baos = new ByteArrayOutputStream();
-				HessianOutput output = new HessianOutput(baos);
+			this.beforeConsumerInvoke(invocation, request, response);
+			return invoker.invoke(invocation);
+		} catch (RpcException rex) {
+			throw rex;
+		} catch (RuntimeException rex) {
+			logger.error("Error occurred in remote call!", rex);
+			throw new RpcException(rex.getMessage());
+		} finally {
+			this.afterConsumerInvoke(invocation, request, response);
+		}
+
+	}
+
+	private void beforeConsumerInvoke(Invocation invocation, TransactionRequestImpl request, TransactionResponseImpl response)
+			throws RpcException {
+		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
+		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
+		TransactionInterceptor transactionInterceptor = beanFactory.getTransactionInterceptor();
+
+		transactionInterceptor.beforeSendRequest(request);
+		if (request.getTransactionContext() != null) {
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			HessianOutput output = new HessianOutput(baos);
+			try {
 				output.writeObject(request.getTransactionContext());
-				String transactionContextContent = ByteUtils.byteArrayToString(baos.toByteArray());
-				// RpcContext.getContext().setAttachment(TransactionContext.class.getName(),
-				// transactionContextContent);
-				invocation.getAttachments().put(TransactionContext.class.getName(), transactionContextContent);
+			} catch (IOException ex) {
+				logger.error("Error occurred in remote call!", ex);
+				throw new RpcException(ex.getMessage());
 			}
+			String transactionContextContent = ByteUtils.byteArrayToString(baos.toByteArray());
+			// RpcContext.getContext().setAttachment(TransactionContext.class.getName(),
+			// transactionContextContent);
+			invocation.getAttachments().put(TransactionContext.class.getName(), transactionContextContent);
+		}
+	}
 
-			result = invoker.invoke(invocation);
+	private void afterConsumerInvoke(Invocation invocation, TransactionRequestImpl request, TransactionResponseImpl response)
+			throws RpcException {
+		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
+		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
+		TransactionInterceptor transactionInterceptor = beanFactory.getTransactionInterceptor();
 
+		RpcException rpcError = null;
+		try {
 			if (request.getTransactionContext() != null) {
 				// String transactionContextContent = RpcContext.getContext()
 				// .getAttachment(TransactionContext.class.getName());
@@ -196,17 +261,22 @@ public class TransactionServiceFilter implements Filter {
 				TransactionContext remoteTransactionContext = (TransactionContext) input.readObject();
 				response.setTransactionContext(remoteTransactionContext);
 			}
-			transactionInterceptor.afterReceiveResponse(response);
 		} catch (IOException ex) {
-			// TODO
-			ex.printStackTrace();
-		} catch (RpcException rex) {
-			// TODO
-			rex.printStackTrace();
-		} catch (RuntimeException rex) {
-			// TODO
-			rex.printStackTrace();
+			logger.error("Error occurred in remote call!", ex);
+			rpcError = new RpcException(ex.getMessage());
 		}
-		return result;
+
+		try {
+			transactionInterceptor.afterReceiveResponse(response);
+		} catch (RuntimeException rex) {
+			logger.error("Error occurred in remote call!", rex);
+			throw new RpcException(rex.getMessage());
+		}
+
+		if (rpcError != null) {
+			throw rpcError;
+		}
+
 	}
+
 }

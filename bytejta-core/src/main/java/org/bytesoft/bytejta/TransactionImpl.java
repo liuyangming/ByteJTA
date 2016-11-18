@@ -1144,9 +1144,10 @@ public class TransactionImpl implements Transaction {
 	}
 
 	public synchronized void forget() throws SystemException {
+		TransactionRepository repository = beanFactory.getTransactionRepository();
+		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
 
 		TransactionXid xid = this.transactionContext.getXid();
-
 		try {
 			this.nativeTerminator.forget(xid);
 			logger.info("[{}] forget native terminator successfully",
@@ -1163,17 +1164,39 @@ public class TransactionImpl implements Transaction {
 			logger.info("[{}] forget remote terminator failed", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		}
 
-		TransactionRepository repository = beanFactory.getTransactionRepository();
 		repository.removeErrorTransaction(xid);
 		repository.removeTransaction(xid);
 
-		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
 		transactionLogger.deleteTransaction(this.getTransactionArchive());
-
 	}
 
 	public synchronized void recoveryForget() throws SystemException {
-		this.forget(); // TODO
+		TransactionRepository repository = beanFactory.getTransactionRepository();
+		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
+
+		TransactionXid xid = this.transactionContext.getXid();
+		try {
+			this.nativeTerminator.recoveryForget(xid);
+			logger.info("[{}] recovery-forget native terminator successfully",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+		} catch (XAException xaex) {
+			logger.info("[{}] recovery-forget native terminator failued",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+		}
+
+		try {
+			this.remoteTerminator.recoveryForget(xid);
+			logger.info("[{}] recovery-forget remote terminator successfully",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+		} catch (XAException xaex) {
+			logger.info("[{}] recovery-forget remote terminator failed",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+		}
+
+		repository.removeErrorTransaction(xid);
+		repository.removeTransaction(xid);
+
+		transactionLogger.deleteTransaction(this.getTransactionArchive());
 	}
 
 	public TransactionArchive getTransactionArchive() {

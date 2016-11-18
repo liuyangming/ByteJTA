@@ -237,7 +237,24 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 	}
 
 	public void recoveryForget(Xid xid) throws XAException {
-		this.forget(xid); // TODO
+		if (xid == null) {
+			throw new XAException(XAException.XAER_INVAL);
+		}
+		TransactionRepository transactionRepository = this.beanFactory.getTransactionRepository();
+		XidFactory xidFactory = this.beanFactory.getXidFactory();
+		TransactionXid globalXid = xidFactory.createGlobalXid(xid.getGlobalTransactionId());
+		Transaction transaction = transactionRepository.getTransaction(globalXid);
+		if (transaction == null) {
+			throw new XAException(XAException.XAER_NOTA);
+		}
+
+		try {
+			transaction.recoveryForget();
+		} catch (SystemException ex) {
+			throw new XAException(XAException.XAER_RMERR);
+		} catch (RuntimeException rex) {
+			throw new XAException(XAException.XAER_RMERR);
+		}
 	}
 
 	public int getTransactionTimeout() throws XAException {
