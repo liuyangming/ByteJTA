@@ -22,22 +22,19 @@ import org.bytesoft.transaction.xa.TransactionXid;
 public class TransactionContext implements Serializable, Cloneable {
 	private static final long serialVersionUID = 1L;
 
-	private transient boolean propagated;
-	private transient boolean coordinator;
-	private transient boolean recoveried;
-	private transient boolean compensating;
+	protected transient boolean propagated;
+	protected transient boolean coordinator;
+	protected transient boolean recoveried;
 
-	private TransactionXid xid;
-	private long createdTime;
-	private long expiredTime;
-	private boolean compensable;
+	protected TransactionXid xid;
+	protected long createdTime;
+	protected long expiredTime;
 
 	public TransactionContext clone() {
 		TransactionContext that = new TransactionContext();
 		that.xid = this.xid.clone();
 		that.createdTime = System.currentTimeMillis();
 		that.expiredTime = this.expiredTime;
-		that.compensable = this.compensable;
 		return that;
 	}
 
@@ -79,22 +76,6 @@ public class TransactionContext implements Serializable, Cloneable {
 
 	public void setExpiredTime(long expiredTime) {
 		this.expiredTime = expiredTime;
-	}
-
-	public boolean isCompensable() {
-		return compensable;
-	}
-
-	public void setCompensable(boolean compensable) {
-		this.compensable = compensable;
-	}
-
-	public boolean isCompensating() {
-		return compensating;
-	}
-
-	public void setCompensating(boolean compensating) {
-		this.compensating = compensating;
 	}
 
 	public boolean isPropagated() {
