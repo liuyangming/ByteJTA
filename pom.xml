@@ -4,7 +4,7 @@
 
 	<groupId>org.bytesoft</groupId>
 	<artifactId>bytejta-parent</artifactId>
-	<version>0.3.0-alpha</version>
+	<version>0.3.0-beta</version>
 	<packaging>pom</packaging>
 	<name>bytejta-parent</name>
 	<url>http://maven.apache.org</url>
