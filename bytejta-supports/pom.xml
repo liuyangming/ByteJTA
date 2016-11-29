@@ -11,7 +11,8 @@
 	<packaging>jar</packaging>
 
 	<name>bytejta-supports</name>
-	<url>http://maven.apache.org</url>
+	<description>The bytejta-supports project the module of ByteJTA for integrating with third-party open source project.</description>
+	<url>http://www.bytesoft.org</url>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
