@@ -25,6 +25,7 @@ public class TransactionArchive {
 	private int status;
 	private int vote;
 	private boolean coordinator;
+	private Object propagatedBy;
 	private final List<XAResourceArchive> nativeResources = new ArrayList<XAResourceArchive>();
 	private final List<XAResourceArchive> remoteResources = new ArrayList<XAResourceArchive>();
 
@@ -58,6 +59,14 @@ public class TransactionArchive {
 
 	public void setCoordinator(boolean coordinator) {
 		this.coordinator = coordinator;
+	}
+
+	public Object getPropagatedBy() {
+		return propagatedBy;
+	}
+
+	public void setPropagatedBy(Object propagatedBy) {
+		this.propagatedBy = propagatedBy;
 	}
 
 	public List<XAResourceArchive> getNativeResources() {

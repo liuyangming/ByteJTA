@@ -22,6 +22,7 @@ import org.bytesoft.transaction.xa.TransactionXid;
 public class TransactionContext implements Serializable, Cloneable {
 	private static final long serialVersionUID = 1L;
 
+	protected transient Object propagatedBy;
 	protected transient boolean propagated;
 	protected transient boolean coordinator;
 	protected transient boolean recoveried;
@@ -84,6 +85,14 @@ public class TransactionContext implements Serializable, Cloneable {
 
 	public void setPropagated(boolean propagated) {
 		this.propagated = propagated;
+	}
+
+	public Object getPropagatedBy() {
+		return propagatedBy;
+	}
+
+	public void setPropagatedBy(Object propagatedBy) {
+		this.propagatedBy = propagatedBy;
 	}
 
 }
