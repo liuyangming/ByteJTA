@@ -127,6 +127,7 @@ public class TransactionConfigPostProcessor implements BeanFactoryPostProcessor 
 		mpv.addPropertyValue("cluster", "failfast");
 		mpv.addPropertyValue("loadbalance", "transaction");
 		mpv.addPropertyValue("group", "org.bytesoft.bytejta");
+		mpv.addPropertyValue("check", "false");
 
 		String stubBeanId = String.format("stub@%s", RemoteCoordinator.class.getName());
 		registry.registerBeanDefinition(stubBeanId, beanDef);
