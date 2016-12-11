@@ -13,12 +13,13 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.bytejta.supports.invoke;
+package org.bytesoft.bytejta.supports.dubbo;
 
 public final class InvocationContext {
 
 	private String serverHost;
 	private int serverPort;
+	private String application;
 
 	public String getServerHost() {
 		return serverHost;
@@ -34,6 +35,14 @@ public final class InvocationContext {
 
 	public void setServerPort(int serverPort) {
 		this.serverPort = serverPort;
+	}
+
+	public String getApplication() {
+		return application;
+	}
+
+	public void setApplication(String application) {
+		this.application = application;
 	}
 
 }

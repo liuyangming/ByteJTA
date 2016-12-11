@@ -22,8 +22,8 @@ import java.lang.reflect.Proxy;
 
 import org.apache.commons.lang3.StringUtils;
 import org.bytesoft.bytejta.supports.dubbo.DubboRemoteCoordinator;
+import org.bytesoft.bytejta.supports.dubbo.InvocationContext;
 import org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry;
-import org.bytesoft.bytejta.supports.invoke.InvocationContext;
 import org.bytesoft.bytejta.supports.rpc.TransactionRequestImpl;
 import org.bytesoft.bytejta.supports.rpc.TransactionResponseImpl;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;

@@ -22,8 +22,6 @@ import java.lang.reflect.Method;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 
-import org.bytesoft.bytejta.supports.invoke.InvocationContext;
-import org.bytesoft.bytejta.supports.invoke.InvocationContextRegistry;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 
 public class DubboRemoteCoordinator implements InvocationHandler {
