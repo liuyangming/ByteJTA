@@ -19,7 +19,6 @@ public final class InvocationContext {
 
 	private String serverHost;
 	private int serverPort;
-	private String application;
 
 	public String getServerHost() {
 		return serverHost;
@@ -35,14 +34,6 @@ public final class InvocationContext {
 
 	public void setServerPort(int serverPort) {
 		this.serverPort = serverPort;
-	}
-
-	public String getApplication() {
-		return application;
-	}
-
-	public void setApplication(String application) {
-		this.application = application;
 	}
 
 }
