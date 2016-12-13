@@ -20,6 +20,7 @@ import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.supports.rpc.TransactionRequest;
 
 public class TransactionRequestImpl implements TransactionRequest {
+	private boolean participantEnlisted;
 	private RemoteCoordinator participantCoordinator;
 	private TransactionContext transactionContext;
 
@@ -37,6 +38,14 @@ public class TransactionRequestImpl implements TransactionRequest {
 
 	public void setTransactionContext(TransactionContext transactionContext) {
 		this.transactionContext = transactionContext;
+	}
+
+	public boolean isParticipantEnlisted() {
+		return participantEnlisted;
+	}
+
+	public void setParticipantEnlisted(boolean participantEnlisted) {
+		this.participantEnlisted = participantEnlisted;
 	}
 
 }

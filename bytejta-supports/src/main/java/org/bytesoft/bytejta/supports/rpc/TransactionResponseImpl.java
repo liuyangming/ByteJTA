@@ -21,6 +21,8 @@ import org.bytesoft.transaction.supports.rpc.TransactionResponse;
 
 public class TransactionResponseImpl implements TransactionResponse {
 
+	private boolean participantEnlistedByRequest;
+	private boolean participantPropagatedByMySelf;
 	private boolean participantRollbackRequired;
 	private boolean participantStickyRequired = true;
 	private RemoteCoordinator participantCoordinator;
@@ -56,6 +58,22 @@ public class TransactionResponseImpl implements TransactionResponse {
 
 	public void setParticipantStickyRequired(boolean participantStickyRequired) {
 		this.participantStickyRequired = participantStickyRequired;
+	}
+
+	public boolean isParticipantPropagatedByMySelf() {
+		return participantPropagatedByMySelf;
+	}
+
+	public void setParticipantPropagatedByMySelf(boolean participantPropagatedByMySelf) {
+		this.participantPropagatedByMySelf = participantPropagatedByMySelf;
+	}
+
+	public boolean isParticipantEnlistedByRequest() {
+		return participantEnlistedByRequest;
+	}
+
+	public void setParticipantEnlistedByRequest(boolean participantEnlistedByRequest) {
+		this.participantEnlistedByRequest = participantEnlistedByRequest;
 	}
 
 }
