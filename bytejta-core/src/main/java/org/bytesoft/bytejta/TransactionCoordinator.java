@@ -36,6 +36,7 @@ import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
+import org.bytesoft.transaction.aware.TransactionEndpointAware;
 import org.bytesoft.transaction.internal.TransactionException;
 import org.bytesoft.transaction.logging.TransactionLogger;
 import org.bytesoft.transaction.xa.TransactionXid;
@@ -43,14 +44,11 @@ import org.bytesoft.transaction.xa.XidFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TransactionCoordinator implements RemoteCoordinator, TransactionBeanFactoryAware {
+public class TransactionCoordinator implements RemoteCoordinator, TransactionBeanFactoryAware, TransactionEndpointAware {
 	static final Logger logger = LoggerFactory.getLogger(TransactionCoordinator.class.getSimpleName());
 
+	private String endpoint;
 	private TransactionBeanFactory beanFactory;
-
-	public String getIdentifier() {
-		throw new IllegalStateException();
-	}
 
 	public Transaction getTransactionQuietly() {
 		TransactionManager transactionManager = this.beanFactory.getTransactionManager();
@@ -478,6 +476,14 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 
 	public boolean setTransactionTimeout(int seconds) throws XAException {
 		return false;
+	}
+
+	public void setEndpoint(String identifier) {
+		this.endpoint = identifier;
+	}
+
+	public String getIdentifier() {
+		return this.endpoint;
 	}
 
 	public void setBeanFactory(TransactionBeanFactory tbf) {

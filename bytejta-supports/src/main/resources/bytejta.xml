@@ -13,8 +13,9 @@
 
 	<description>The bytejta transaction manager module</description>
 
-	<bean class="org.bytesoft.bytejta.supports.spring.ManagedConnectionFactoryPostProcessor" />
 	<bean class="org.bytesoft.bytejta.supports.spring.TransactionBeanFactoryPostProcessor" />
+	<bean class="org.bytesoft.bytejta.supports.spring.TransactionEndpointPostProcessor" />
+	<bean class="org.bytesoft.bytejta.supports.spring.ManagedConnectionFactoryPostProcessor" />
 
 	<bean id="bytejtaTransactionManager" class="org.bytesoft.bytejta.TransactionManagerImpl" />
 	<bean id="bytejtaTransactionCoordinator" class="org.bytesoft.bytejta.TransactionCoordinator" />

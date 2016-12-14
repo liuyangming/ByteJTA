@@ -148,6 +148,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		transactionContext.setXid(xidFactory.createGlobalXid(xid.getGlobalTransactionId()));
 		transactionContext.setRecoveried(true);
 		transactionContext.setCoordinator(archive.isCoordinator());
+		transactionContext.setPropagatedBy(archive.getPropagatedBy());
 
 		TransactionImpl transaction = new TransactionImpl(transactionContext);
 		transaction.setBeanFactory(this.beanFactory);

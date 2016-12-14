@@ -58,15 +58,19 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 			throw new NotSupportedException();
 		}
 
+		XidFactory xidFactory = this.beanFactory.getXidFactory();
+		RemoteCoordinator transactionCoordinator = this.beanFactory.getTransactionCoordinator();
+
 		int timeoutSeconds = this.timeoutSeconds;
 
 		TransactionContext transactionContext = new TransactionContext();
+		transactionContext.setPropagatedBy(transactionCoordinator.getIdentifier());
 		transactionContext.setCoordinator(true);
 		long createdTime = System.currentTimeMillis();
 		long expiredTime = createdTime + (timeoutSeconds * 1000L);
 		transactionContext.setCreatedTime(createdTime);
 		transactionContext.setExpiredTime(expiredTime);
-		XidFactory xidFactory = this.beanFactory.getXidFactory();
+
 		TransactionXid globalXid = xidFactory.createGlobalXid();
 		transactionContext.setXid(globalXid);
 
@@ -197,8 +201,8 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		return transaction;
 	}
 
-	public void resume(javax.transaction.Transaction tobj) throws InvalidTransactionException, IllegalStateException,
-			SystemException {
+	public void resume(javax.transaction.Transaction tobj)
+			throws InvalidTransactionException, IllegalStateException, SystemException {
 
 		if (TransactionImpl.class.isInstance(tobj) == false) {
 			throw new InvalidTransactionException();
@@ -270,8 +274,8 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 					if (expired <= current) {
 						expiredTransactions.add(transaction);
 					}
-				}// end-if (transaction.isTiming())
-			}// end-synchronized
+				} // end-if (transaction.isTiming())
+			} // end-synchronized
 		}
 
 		Iterator<Transaction> expiredItr = expiredTransactions.iterator();
@@ -288,8 +292,8 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 				} catch (Exception ex) {
 					transactionRepository.putErrorTransaction(globalXid, transaction);
 				}
-			}// end-else
-		}// end-while
+			} // end-else
+		} // end-while
 	}
 
 	public void stopTiming(Transaction tx) {
