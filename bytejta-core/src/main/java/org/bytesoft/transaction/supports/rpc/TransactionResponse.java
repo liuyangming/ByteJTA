@@ -20,9 +20,9 @@ import org.bytesoft.transaction.TransactionContext;
 
 public interface TransactionResponse {
 
-	public boolean isParticipantRollbackRequired();
-
 	public boolean isParticipantStickyRequired();
+
+	public boolean isParticipantRollbackOnly();
 
 	public RemoteCoordinator getSourceTransactionCoordinator();
 

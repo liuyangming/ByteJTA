@@ -21,12 +21,14 @@ import org.bytesoft.transaction.supports.rpc.TransactionResponse;
 
 public class TransactionResponseImpl implements TransactionResponse {
 
-	private boolean participantEnlistedByRequest;
-	private boolean participantPropagatedByMySelf;
-	private boolean participantRollbackRequired;
 	private boolean participantStickyRequired = true;
+	private boolean participantRollbackOnly;
+
 	private RemoteCoordinator participantCoordinator;
 	private TransactionContext transactionContext;
+
+	private transient boolean participantEnlistFlag;
+	private transient boolean participantDelistFlag;
 
 	public RemoteCoordinator getSourceTransactionCoordinator() {
 		return this.participantCoordinator;
@@ -44,12 +46,12 @@ public class TransactionResponseImpl implements TransactionResponse {
 		this.transactionContext = transactionContext;
 	}
 
-	public boolean isParticipantRollbackRequired() {
-		return participantRollbackRequired;
+	public boolean isParticipantRollbackOnly() {
+		return participantRollbackOnly;
 	}
 
-	public void setParticipantRollbackRequired(boolean participantRollbackRequired) {
-		this.participantRollbackRequired = participantRollbackRequired;
+	public void setParticipantRollbackOnly(boolean participantRollbackOnly) {
+		this.participantRollbackOnly = participantRollbackOnly;
 	}
 
 	public boolean isParticipantStickyRequired() {
@@ -60,20 +62,20 @@ public class TransactionResponseImpl implements TransactionResponse {
 		this.participantStickyRequired = participantStickyRequired;
 	}
 
-	public boolean isParticipantPropagatedByMySelf() {
-		return participantPropagatedByMySelf;
+	public boolean isParticipantDelistFlag() {
+		return participantDelistFlag;
 	}
 
-	public void setParticipantPropagatedByMySelf(boolean participantPropagatedByMySelf) {
-		this.participantPropagatedByMySelf = participantPropagatedByMySelf;
+	public void setParticipantDelistFlag(boolean participantDelistFlag) {
+		this.participantDelistFlag = participantDelistFlag;
 	}
 
-	public boolean isParticipantEnlistedByRequest() {
-		return participantEnlistedByRequest;
+	public boolean isParticipantEnlistFlag() {
+		return participantEnlistFlag;
 	}
 
-	public void setParticipantEnlistedByRequest(boolean participantEnlistedByRequest) {
-		this.participantEnlistedByRequest = participantEnlistedByRequest;
+	public void setParticipantEnlistFlag(boolean participantEnlistFlag) {
+		this.participantEnlistFlag = participantEnlistFlag;
 	}
 
 }
