@@ -11,7 +11,6 @@
            http://www.springframework.org/schema/tx 
            http://www.springframework.org/schema/tx/spring-tx-3.0.xsd">
 
-
 	<import resource="bytejta.xml" />
 
 	<bean id="transactionManager" class="org.springframework.transaction.jta.JtaTransactionManager">
@@ -20,8 +19,13 @@
 	</bean>
 	<tx:annotation-driven transaction-manager="transactionManager" />
 
-
-
-
+	<bean id="transactionWorkManager" class="org.bytesoft.transaction.work.SimpleWorkManager" />
+	<bean id="transactionResourceAdapter" class="org.bytesoft.transaction.adapter.ResourceAdapterImpl">
+		<!-- <property name="workList"> <list></list> </property> -->
+	</bean>
+	<bean id="resourceAdapter" class="org.springframework.jca.support.ResourceAdapterFactoryBean">
+		<property name="workManager" ref="transactionWorkManager" />
+		<property name="resourceAdapter" ref="transactionResourceAdapter" />
+	</bean>
 
 </beans>
