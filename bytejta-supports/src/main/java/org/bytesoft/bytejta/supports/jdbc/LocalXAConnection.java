@@ -62,7 +62,14 @@ public class LocalXAConnection implements XAConnection {
 		} else if (this.initialized) {
 			if (this.logicalConnectionReleased) {
 				throw new SQLException();
-			} else {
+			}
+
+			try {
+				this.connection.close();
+			} catch (SQLException ex) {
+				logger.debug("Error occurred while closing connection!", ex);
+				throw ex;
+			} finally {
 				this.logicalConnectionReleased = true;
 			}
 		} else {
@@ -77,12 +84,6 @@ public class LocalXAConnection implements XAConnection {
 			throw ex;
 		} catch (RuntimeException ex) {
 			throw new SQLException(ex);
-		} finally {
-			try {
-				this.close();
-			} catch (SQLException ex) {
-				logger.debug(ex.getMessage());
-			}
 		}
 	}
 
@@ -93,12 +94,6 @@ public class LocalXAConnection implements XAConnection {
 			throw ex;
 		} catch (RuntimeException ex) {
 			throw new SQLException(ex);
-		} finally {
-			try {
-				this.close();
-			} catch (SQLException ex) {
-				logger.debug(ex.getMessage());
-			}
 		}
 	}
 
