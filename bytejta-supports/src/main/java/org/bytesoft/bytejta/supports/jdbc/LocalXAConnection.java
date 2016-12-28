@@ -17,7 +17,11 @@ package org.bytesoft.bytejta.supports.jdbc;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
 
+import javax.sql.ConnectionEvent;
 import javax.sql.ConnectionEventListener;
 import javax.sql.StatementEventListener;
 import javax.sql.XAConnection;
@@ -34,38 +38,59 @@ public class LocalXAConnection implements XAConnection {
 
 	private final Connection connection;
 	private final LocalXAResource xaResource = new LocalXAResource();
-	private boolean initialized = false;
-	private boolean logicalConnectionReleased = false;
-	private int pooledConnectionSharingCount = 0;
+	private boolean underlyingConCloseRequired = false;
+	private boolean physicalConnectionReleased = false;
+	private int physicalConnectionSharingCount = 0;
 
 	private transient LocalXAResourceDescriptor descriptor;
+
+	private final Set<ConnectionEventListener> listeners = new HashSet<ConnectionEventListener>();
 
 	public LocalXAConnection(Connection connection) {
 		this.connection = connection;
 	}
 
 	public Connection getConnection() throws SQLException {
-		LogicalConnection logicalConnection = new LogicalConnection(this, this.connection);
-		if (this.initialized) {
-			this.pooledConnectionSharingCount++;
-		} else {
-			this.xaResource.setLocalTransaction(logicalConnection);
-			this.initialized = true;
-			this.logicalConnectionReleased = false;
+		if (this.physicalConnectionReleased) {
+			throw new SQLException("LocalXAConnection has already been closed!");
 		}
+
+		LogicalConnection logicalConnection = new LogicalConnection(this, this.connection);
+
+		if (this.physicalConnectionSharingCount == 0) {
+			this.xaResource.setLocalTransaction(logicalConnection);
+		}
+
+		this.physicalConnectionSharingCount++;
+
 		return logicalConnection;
 	}
 
 	public void closeLogicalConnection() throws SQLException {
-		if (this.pooledConnectionSharingCount > 0) {
-			this.pooledConnectionSharingCount--;
-		} else if (this.initialized) {
-			if (this.logicalConnectionReleased) {
-				throw new SQLException();
+		this.physicalConnectionSharingCount--;
+
+		if (this.physicalConnectionSharingCount == 0) {
+			this.underlyingConCloseRequired = true;
+		}
+
+	}
+
+	private void releaseConnection() {
+		if (this.physicalConnectionReleased == false) {
+			try {
+				this.connection.close();
+				this.fireConnectionClosed();
+			} catch (SQLException ex) {
+				logger.debug("Error occurred while closing connection!", ex);
+
+				this.fireConnectionErrorOccurred();
+			} catch (RuntimeException ex) {
+				logger.debug("Error occurred while closing connection!", ex);
+
+				this.fireConnectionErrorOccurred();
+			} finally {
+				this.physicalConnectionReleased = true;
 			}
-			this.logicalConnectionReleased = true;
-		} else {
-			throw new SQLException();
 		}
 	}
 
@@ -77,13 +102,8 @@ public class LocalXAConnection implements XAConnection {
 		} catch (RuntimeException ex) {
 			throw new SQLException(ex);
 		} finally {
-			if (this.logicalConnectionReleased) {
-				try {
-					this.connection.close();
-				} catch (SQLException ex) {
-					logger.debug("Error occurred while closing connection!", ex);
-					throw ex;
-				}
+			if (this.underlyingConCloseRequired) {
+				this.releaseConnection();
 			}
 		}
 	}
@@ -96,39 +116,53 @@ public class LocalXAConnection implements XAConnection {
 		} catch (RuntimeException ex) {
 			throw new SQLException(ex);
 		} finally {
-			if (this.logicalConnectionReleased) {
-				try {
-					this.connection.close();
-				} catch (SQLException ex) {
-					logger.debug("Error occurred while closing connection!", ex);
-					throw ex;
-				}
+			if (this.underlyingConCloseRequired) {
+				this.releaseConnection();
 			}
 		}
 	}
 
 	public void close() throws SQLException {
-		try {
-			this.connection.close();
-		} finally {
-			this.initialized = false;
+		this.underlyingConCloseRequired = true;
+		this.releaseConnection();
+	}
+
+	private void fireConnectionClosed() {
+		Iterator<ConnectionEventListener> itr = this.listeners.iterator();
+		while (itr.hasNext()) {
+			ConnectionEventListener listener = itr.next();
+			try {
+				listener.connectionClosed(new ConnectionEvent(this));
+			} catch (Exception ex) {
+				logger.debug(ex.getMessage(), ex);
+			}
+		}
+	}
+
+	private void fireConnectionErrorOccurred() {
+		Iterator<ConnectionEventListener> itr = this.listeners.iterator();
+		while (itr.hasNext()) {
+			ConnectionEventListener listener = itr.next();
+			try {
+				listener.connectionErrorOccurred(new ConnectionEvent(this));
+			} catch (Exception ex) {
+				logger.debug(ex.getMessage(), ex);
+			}
 		}
 	}
 
 	public void addConnectionEventListener(ConnectionEventListener paramConnectionEventListener) {
-		// TODO this.pooledConnection.addConnectionEventListener(paramConnectionEventListener);
+		this.listeners.add(paramConnectionEventListener);
 	}
 
 	public void removeConnectionEventListener(ConnectionEventListener paramConnectionEventListener) {
-		// TODO this.pooledConnection.removeConnectionEventListener(paramConnectionEventListener);
+		this.listeners.remove(paramConnectionEventListener);
 	}
 
 	public void addStatementEventListener(StatementEventListener paramStatementEventListener) {
-		// TODO this.pooledConnection.addStatementEventListener(paramStatementEventListener);
 	}
 
 	public void removeStatementEventListener(StatementEventListener paramStatementEventListener) {
-		// TODO this.pooledConnection.removeStatementEventListener(paramStatementEventListener);
 	}
 
 	public XAResource getXAResource() throws SQLException {
