@@ -90,6 +90,10 @@ public class LocalXAResource implements XAResource {
 			} else {
 				throw new XAException();
 			}
+		} else if (flags == XAResource.TMJOIN) {
+			if (this.currentXid == null) {
+				throw new XAException();
+			}
 		} else if (flags != XAResource.TMNOFLAGS) {
 			throw new XAException();
 		} else if (this.currentXid != null) {

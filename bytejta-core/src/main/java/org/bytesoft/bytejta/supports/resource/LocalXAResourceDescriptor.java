@@ -19,6 +19,7 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
+import org.apache.commons.lang3.StringUtils;
 import org.bytesoft.bytejta.supports.jdbc.LocalXAResource;
 import org.bytesoft.bytejta.supports.jdbc.RecoveredResource;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
@@ -100,11 +101,18 @@ public class LocalXAResourceDescriptor implements XAResourceDescriptor {
 		return delegate.getTransactionTimeout();
 	}
 
-	public boolean isSameRM(XAResource arg0) throws XAException {
+	public boolean isSameRM(XAResource xares) throws XAException {
 		if (this.delegate == null) {
 			return false;
 		}
-		return delegate.isSameRM(arg0);
+
+		if (LocalXAResourceDescriptor.class.isInstance(xares)) {
+			LocalXAResourceDescriptor that = (LocalXAResourceDescriptor) xares;
+			return StringUtils.equals(this.identifier, that.identifier);
+		} else {
+			return delegate.isSameRM(xares);
+		}
+
 	}
 
 	public int prepare(Xid arg0) throws XAException {
