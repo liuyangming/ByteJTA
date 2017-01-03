@@ -25,7 +25,6 @@ import javax.sql.ConnectionEvent;
 import javax.sql.ConnectionEventListener;
 import javax.sql.StatementEventListener;
 import javax.sql.XAConnection;
-import javax.transaction.xa.XAResource;
 
 import org.bytesoft.bytejta.supports.resource.LocalXAResourceDescriptor;
 import org.slf4j.Logger;
@@ -50,7 +49,7 @@ public class LocalXAConnection implements XAConnection {
 		this.connection = connection;
 	}
 
-	public Connection getConnection() throws SQLException {
+	public LogicalConnection getConnection() throws SQLException {
 		if (this.physicalConnectionReleased) {
 			throw new SQLException("LocalXAConnection has already been closed!");
 		}
@@ -165,7 +164,7 @@ public class LocalXAConnection implements XAConnection {
 	public void removeStatementEventListener(StatementEventListener paramStatementEventListener) {
 	}
 
-	public XAResource getXAResource() throws SQLException {
+	public LocalXAResourceDescriptor getXAResource() throws SQLException {
 		if (this.descriptor == null) {
 			LocalXAResourceDescriptor xares = new LocalXAResourceDescriptor();
 			xares.setIdentifier(this.resourceId);

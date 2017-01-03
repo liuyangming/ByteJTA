@@ -28,6 +28,7 @@ import javax.transaction.SystemException;
 import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
 
+import org.bytesoft.bytejta.supports.resource.LocalXAResourceDescriptor;
 import org.springframework.beans.factory.BeanNameAware;
 
 public class LocalXADataSource implements XADataSource, DataSource, DataSourceHolder, BeanNameAware {
@@ -42,9 +43,12 @@ public class LocalXADataSource implements XADataSource, DataSource, DataSourceHo
 		try {
 			Transaction transaction = this.transactionManager.getTransaction();
 			LocalXAConnection xacon = this.getXAConnection();
-			Connection connection = xacon.getConnection();
+			LogicalConnection connection = xacon.getConnection();
+			LocalXAResourceDescriptor descriptor = xacon.getXAResource();
+			LocalXAResource localRes = (LocalXAResource) descriptor.getDelegate();
 			if (transaction != null) {
-				transaction.enlistResource(xacon.getXAResource());
+				transaction.enlistResource(descriptor);
+				connection.setCloseImmediately(localRes.hasParticipatedTx() == false);
 			}
 			return connection;
 		} catch (SystemException ex) {
@@ -60,9 +64,12 @@ public class LocalXADataSource implements XADataSource, DataSource, DataSourceHo
 		try {
 			Transaction transaction = this.transactionManager.getTransaction();
 			LocalXAConnection xacon = this.getXAConnection(username, password);
-			Connection connection = xacon.getConnection();
+			LogicalConnection connection = xacon.getConnection();
+			LocalXAResourceDescriptor descriptor = xacon.getXAResource();
+			LocalXAResource localRes = (LocalXAResource) descriptor.getDelegate();
 			if (transaction != null) {
 				transaction.enlistResource(xacon.getXAResource());
+				connection.setCloseImmediately(localRes.hasParticipatedTx() == false);
 			}
 			return connection;
 		} catch (SystemException ex) {

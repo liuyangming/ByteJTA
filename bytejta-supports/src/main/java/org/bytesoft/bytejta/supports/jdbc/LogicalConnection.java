@@ -43,6 +43,7 @@ public class LogicalConnection implements Connection {
 	private boolean connectionClosed;
 	private final LocalXAConnection managedConnection;
 	private final Connection delegateConnection;
+	private boolean closeImmediately;
 
 	public LogicalConnection(LocalXAConnection managedConnection, Connection connection) {
 		this.managedConnection = managedConnection;
@@ -95,6 +96,9 @@ public class LogicalConnection implements Connection {
 		} else {
 			this.connectionClosed = true;
 			managedConnection.closeLogicalConnection();
+			if (this.closeImmediately) {
+				managedConnection.close();
+			}
 		}
 	}
 
@@ -271,6 +275,10 @@ public class LogicalConnection implements Connection {
 
 	public int getNetworkTimeout() throws SQLException {
 		return delegateConnection.getNetworkTimeout();
+	}
+
+	public void setCloseImmediately(boolean closeImmediately) {
+		this.closeImmediately = closeImmediately;
 	}
 
 }
