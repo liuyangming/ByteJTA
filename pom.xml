@@ -4,7 +4,7 @@
 
 	<groupId>org.bytesoft</groupId>
 	<artifactId>bytejta-parent</artifactId>
-	<version>0.3.0-RC2</version>
+	<version>0.3.0-RC3</version>
 	<packaging>pom</packaging>
 	<name>bytejta-parent</name>
 	<description>ByteJTA is a XA-complicant transaction manager.</description>
