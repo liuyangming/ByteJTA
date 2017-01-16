@@ -15,40 +15,62 @@
  */
 package org.bytesoft.bytejta.xa;
 
-import java.net.InetAddress;
 import java.net.NetworkInterface;
-import java.net.SocketException;
-import java.net.UnknownHostException;
+import java.util.Enumeration;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class XidFactoryImpl implements XidFactory {
+	static final Logger logger = LoggerFactory.getLogger(XidFactoryImpl.class.getSimpleName());
+
 	static final int SIZE_OF_MAC = 6;
 	static final Random random = new Random();
 	static final byte[] hardwareAddress = new byte[SIZE_OF_MAC];
 	static final AtomicInteger atomic = new AtomicInteger();
 
 	static {
+		byte[] sourceByteArray = getHardwareAddress();
+		System.arraycopy(sourceByteArray, 0, hardwareAddress, 0, SIZE_OF_MAC);
+	}
+
+	private static byte[] getHardwareAddress() {
+		Enumeration<NetworkInterface> enumeration = null;
 		try {
-			InetAddress inetAddress = InetAddress.getLocalHost();
-			NetworkInterface networkInterface = NetworkInterface.getByInetAddress(inetAddress);
-			byte[] hardwareByteArray = networkInterface.getHardwareAddress();
-			int fromLen = hardwareByteArray.length;
-			int distLen = hardwareAddress.length;
-			if (fromLen >= distLen) {
-				System.arraycopy(hardwareByteArray, 0, hardwareAddress, 0, distLen);
-			} else {
-				System.arraycopy(hardwareByteArray, 0, hardwareAddress, 0, fromLen);
-			}
-		} catch (UnknownHostException ex) {
-			throw new IllegalStateException(ex);
-		} catch (SocketException ex) {
-			throw new IllegalStateException(ex);
+			enumeration = NetworkInterface.getNetworkInterfaces();
+		} catch (Exception ex) {
+			logger.debug(ex.getMessage(), ex);
 		}
+
+		byte[] byteArray = null;
+		while (byteArray == null && enumeration != null && enumeration.hasMoreElements()) {
+			NetworkInterface element = enumeration.nextElement();
+
+			try {
+				if (element.isUp() == false) {
+					continue;
+				} else if (element.isPointToPoint() || element.isVirtual()) {
+					continue;
+				}
+
+				byte[] hardwareAddr = element.getHardwareAddress();
+				if (hardwareAddr == null || hardwareAddr.length != SIZE_OF_MAC) {
+					continue;
+				}
+
+				byteArray = new byte[SIZE_OF_MAC];
+				System.arraycopy(hardwareAddr, 0, byteArray, 0, SIZE_OF_MAC);
+			} catch (Exception rex) {
+				logger.debug(rex.getMessage(), rex);
+			}
+		}
+
+		return byteArray != null ? byteArray : new byte[SIZE_OF_MAC];
 	}
 
 	public TransactionXid createGlobalXid() {
