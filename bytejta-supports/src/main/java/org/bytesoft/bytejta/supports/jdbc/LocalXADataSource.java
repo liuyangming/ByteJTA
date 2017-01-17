@@ -46,7 +46,7 @@ public class LocalXADataSource extends TransactionListenerAdapter
 	private String beanName;
 	private TransactionManager transactionManager;
 
-	private final Map<Xid, LogicalConnection> connections = new ConcurrentHashMap<Xid, LogicalConnection>();
+	private final Map<Xid, LocalXAConnection> connections = new ConcurrentHashMap<Xid, LocalXAConnection>();
 
 	public Connection getConnection() throws SQLException {
 		TransactionXid transactionXid = null;
@@ -60,22 +60,17 @@ public class LocalXADataSource extends TransactionListenerAdapter
 
 			transactionXid = transaction.getTransactionContext().getXid();
 
-			LocalXAResourceDescriptor descriptor = null;
-			LocalXAResource localRes = null;
-			LogicalConnection connection = this.connections.get(transactionXid);
-			if (connection == null) {
-				LocalXAConnection xacon = this.getXAConnection();
-				connection = xacon.getConnection();
-				descriptor = xacon.getXAResource();
-				localRes = (LocalXAResource) descriptor.getDelegate();
-				this.connections.put(transactionXid, connection);
+			LocalXAConnection xacon = this.connections.get(transactionXid);
+			if (xacon != null) {
+				return xacon.getConnection();
 			}
 
-			if (descriptor != null) {
-				transaction.enlistResource(descriptor);
-				connection.setCloseImmediately(localRes.hasParticipatedTx() == false);
-			}
+			xacon = this.getXAConnection();
+			LogicalConnection connection = xacon.getConnection();
+			LocalXAResourceDescriptor descriptor = xacon.getXAResource();
+			transaction.enlistResource(descriptor);
 
+			this.connections.put(transactionXid, xacon);
 			return connection;
 		} catch (SystemException ex) {
 			throw new SQLException(ex);
@@ -99,22 +94,17 @@ public class LocalXADataSource extends TransactionListenerAdapter
 
 			transactionXid = transaction.getTransactionContext().getXid();
 
-			LocalXAResourceDescriptor descriptor = null;
-			LocalXAResource localRes = null;
-			LogicalConnection connection = this.connections.get(transactionXid);
-			if (connection == null) {
-				LocalXAConnection xacon = this.getXAConnection(username, password);
-				connection = xacon.getConnection();
-				descriptor = xacon.getXAResource();
-				localRes = (LocalXAResource) descriptor.getDelegate();
-				this.connections.put(transactionXid, connection);
+			LocalXAConnection xacon = this.connections.get(transactionXid);
+			if (xacon != null) {
+				return xacon.getConnection();
 			}
 
-			if (descriptor != null) {
-				transaction.enlistResource(descriptor);
-				connection.setCloseImmediately(localRes.hasParticipatedTx() == false);
-			}
+			xacon = this.getXAConnection(username, password);
+			LogicalConnection connection = xacon.getConnection();
+			LocalXAResourceDescriptor descriptor = xacon.getXAResource();
+			transaction.enlistResource(descriptor);
 
+			this.connections.put(transactionXid, xacon);
 			return connection;
 		} catch (SystemException ex) {
 			throw new SQLException(ex);

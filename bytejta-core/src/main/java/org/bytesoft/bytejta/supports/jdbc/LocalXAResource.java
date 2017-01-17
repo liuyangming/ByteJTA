@@ -325,9 +325,9 @@ public class LocalXAResource implements XAResource {
 		}
 	}
 
-	public boolean hasParticipatedTx() {
-		return currentXid != null;
-	}
+	// public boolean hasParticipatedTx() {
+	// return currentXid != null;
+	// }
 
 	public int getTransactionTimeout() {
 		return 0;
@@ -335,6 +335,10 @@ public class LocalXAResource implements XAResource {
 
 	public boolean setTransactionTimeout(int transactionTimeout) {
 		return false;
+	}
+
+	public Connection getLocalTransaction() {
+		return localTransaction;
 	}
 
 	public void setLocalTransaction(Connection localTransaction) {

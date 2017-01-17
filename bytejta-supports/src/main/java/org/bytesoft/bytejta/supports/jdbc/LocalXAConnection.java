@@ -57,10 +57,11 @@ public class LocalXAConnection implements XAConnection {
 		LogicalConnection logicalConnection = new LogicalConnection(this, this.connection);
 
 		if (this.physicalConnectionSharingCount == 0) {
-			this.xaResource.setLocalTransaction(logicalConnection);
+			this.xaResource.setLocalTransaction(this.connection);
 		}
 
 		this.physicalConnectionSharingCount++;
+		this.underlyingConCloseRequired = false;
 
 		return logicalConnection;
 	}
