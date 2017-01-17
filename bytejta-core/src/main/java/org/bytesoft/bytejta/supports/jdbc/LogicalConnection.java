@@ -90,12 +90,12 @@ public class LogicalConnection implements Connection {
 	}
 
 	public void commit() throws SQLException {
-		// this.validateConnectionStatus();
+		this.validateConnectionStatus();
 		managedConnection.commitLocalTransaction();
 	}
 
 	public void rollback() throws SQLException {
-		// this.validateConnectionStatus();
+		this.validateConnectionStatus();
 		managedConnection.rollbackLocalTransaction();
 	}
 
