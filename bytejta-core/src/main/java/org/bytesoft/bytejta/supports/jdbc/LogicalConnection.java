@@ -80,8 +80,7 @@ public class LogicalConnection implements Connection {
 	}
 
 	public void setAutoCommit(boolean autoCommit) throws SQLException {
-		this.validateConnectionStatus();
-		delegateConnection.setAutoCommit(autoCommit);
+		throw new SQLException("Illegal operation!");
 	}
 
 	public boolean getAutoCommit() throws SQLException {
@@ -91,12 +90,12 @@ public class LogicalConnection implements Connection {
 
 	public void commit() throws SQLException {
 		this.validateConnectionStatus();
-		managedConnection.commitLocalTransaction();
+		throw new SQLException("Illegal operation!");
 	}
 
 	public void rollback() throws SQLException {
 		this.validateConnectionStatus();
-		managedConnection.rollbackLocalTransaction();
+		throw new SQLException("Illegal operation!");
 	}
 
 	public synchronized void close() throws SQLException {
