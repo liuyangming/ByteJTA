@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
 public class LocalXAResource implements XAResource {
 	static final Logger logger = LoggerFactory.getLogger(LocalXAResource.class);
 
-	private Connection localTransaction;
+	private LocalXAConnection managedConnection;
 	private Xid currentXid;
 	private Xid suspendXid;
 	private boolean suspendAutoCommit;
@@ -42,8 +42,8 @@ public class LocalXAResource implements XAResource {
 	public LocalXAResource() {
 	}
 
-	public LocalXAResource(Connection localTransaction) {
-		this.localTransaction = localTransaction;
+	public LocalXAResource(LocalXAConnection managedConnection) {
+		this.managedConnection = managedConnection;
 	}
 
 	public void recoverable(Xid xid) throws XAException {
@@ -55,10 +55,12 @@ public class LocalXAResource implements XAResource {
 			bxid = ByteUtils.byteArrayToString(xid.getBranchQualifier());
 		}
 
+		Connection connection = this.managedConnection.getPhysicalConnection();
+
 		PreparedStatement stmt = null;
 		ResultSet rs = null;
 		try {
-			stmt = this.localTransaction.prepareStatement("select gxid, bxid from bytejta where gxid = ? and bxid = ?");
+			stmt = connection.prepareStatement("select gxid, bxid from bytejta where gxid = ? and bxid = ?");
 			stmt.setString(1, gxid);
 			stmt.setString(2, bxid);
 			rs = stmt.executeQuery();
@@ -99,14 +101,16 @@ public class LocalXAResource implements XAResource {
 		} else if (this.currentXid != null) {
 			throw new XAException();
 		} else {
+			Connection connection = this.managedConnection.getPhysicalConnection();
+
 			try {
-				originalAutoCommit = localTransaction.getAutoCommit();
+				originalAutoCommit = connection.getAutoCommit();
 			} catch (SQLException ignored) {
 				originalAutoCommit = true;
 			}
 
 			try {
-				localTransaction.setAutoCommit(false);
+				connection.setAutoCommit(false);
 			} catch (SQLException ex) {
 				XAException xae = new XAException();
 				xae.initCause(ex);
@@ -138,9 +142,11 @@ public class LocalXAResource implements XAResource {
 				bxid = ByteUtils.byteArrayToString(xid.getBranchQualifier());
 			}
 
+			Connection connection = this.managedConnection.getPhysicalConnection();
+
 			PreparedStatement stmt = null;
 			try {
-				stmt = this.localTransaction.prepareStatement("insert into bytejta(gxid, bxid, ctime) values(?, ?, ?)");
+				stmt = connection.prepareStatement("insert into bytejta(gxid, bxid, ctime) values(?, ?, ?)");
 				stmt.setString(1, gxid);
 				stmt.setString(2, bxid);
 				stmt.setLong(3, System.currentTimeMillis());
@@ -151,7 +157,7 @@ public class LocalXAResource implements XAResource {
 			} catch (SQLException ex) {
 				boolean tableExists = false;
 				try {
-					tableExists = this.isTableExists(this.localTransaction);
+					tableExists = this.isTableExists(connection);
 				} catch (SQLException sqlEx) {
 					logger.error("Error occurred while ending local-xa-resource: {}", ex.getMessage());
 					throw new XAException(XAException.XAER_RMFAIL);
@@ -180,9 +186,10 @@ public class LocalXAResource implements XAResource {
 	}
 
 	public synchronized int prepare(Xid xid) {
+		Connection connection = this.managedConnection.getPhysicalConnection();
 		try {
-			if (localTransaction.isReadOnly()) {
-				localTransaction.setAutoCommit(originalAutoCommit);
+			if (connection.isReadOnly()) {
+				connection.setAutoCommit(originalAutoCommit);
 				return XAResource.XA_RDONLY;
 			}
 		} catch (SQLException ex) {
@@ -200,11 +207,10 @@ public class LocalXAResource implements XAResource {
 			throw new XAException();
 		}
 
+		Connection connection = this.managedConnection.getPhysicalConnection();
 		try {
-			if (localTransaction.isClosed()) {
-				throw new XAException();
-			} else if (!localTransaction.isReadOnly()) {
-				localTransaction.commit();
+			if (!connection.isReadOnly()) {
+				this.managedConnection.commitLocalTransaction();
 			}
 		} catch (SQLException ex) {
 			XAException xae = new XAException();
@@ -225,7 +231,7 @@ public class LocalXAResource implements XAResource {
 		}
 
 		try {
-			localTransaction.rollback();
+			this.managedConnection.rollbackLocalTransaction();
 		} catch (SQLException ex) {
 			XAException xae = new XAException();
 			xae.initCause(ex);
@@ -236,8 +242,9 @@ public class LocalXAResource implements XAResource {
 	}
 
 	private void resetXAResource() {
+		Connection connection = this.managedConnection.getPhysicalConnection();
 		try {
-			localTransaction.setAutoCommit(originalAutoCommit);
+			connection.setAutoCommit(originalAutoCommit);
 		} catch (SQLException ex) {
 		} finally {
 			this.forgetQuietly(this.currentXid);
@@ -262,7 +269,7 @@ public class LocalXAResource implements XAResource {
 		} else {
 			this.currentXid = null;
 			this.originalAutoCommit = true;
-			this.localTransaction = null;
+			this.managedConnection = null;
 		}
 	}
 
@@ -337,12 +344,8 @@ public class LocalXAResource implements XAResource {
 		return false;
 	}
 
-	public Connection getLocalTransaction() {
-		return localTransaction;
-	}
-
-	public void setLocalTransaction(Connection localTransaction) {
-		this.localTransaction = localTransaction;
-	}
+	// public void setLocalTransaction(Connection localTransaction) {
+	// this.localTransaction = localTransaction;
+	// }
 
 }

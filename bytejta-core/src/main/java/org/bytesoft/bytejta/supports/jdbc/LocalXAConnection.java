@@ -36,7 +36,7 @@ public class LocalXAConnection implements XAConnection {
 	private String resourceId;
 
 	private final Connection connection;
-	private final LocalXAResource xaResource = new LocalXAResource();
+	private final LocalXAResource xaResource = new LocalXAResource(this);
 	private boolean underlyingConCloseRequired = false;
 	private boolean physicalConnectionReleased = false;
 	private int physicalConnectionSharingCount = 0;
@@ -49,6 +49,10 @@ public class LocalXAConnection implements XAConnection {
 		this.connection = connection;
 	}
 
+	protected Connection getPhysicalConnection() {
+		return this.connection;
+	}
+
 	public LogicalConnection getConnection() throws SQLException {
 		if (this.physicalConnectionReleased) {
 			throw new SQLException("LocalXAConnection has already been closed!");
@@ -56,9 +60,9 @@ public class LocalXAConnection implements XAConnection {
 
 		LogicalConnection logicalConnection = new LogicalConnection(this, this.connection);
 
-		if (this.physicalConnectionSharingCount == 0) {
-			this.xaResource.setLocalTransaction(this.connection);
-		}
+		// if (this.physicalConnectionSharingCount == 0) {
+		// this.xaResource.setLocalTransaction(logicalConnection);
+		// }
 
 		this.physicalConnectionSharingCount++;
 		this.underlyingConCloseRequired = false;
