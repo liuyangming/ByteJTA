@@ -108,10 +108,7 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 			boolean tableExists = false;
 			try {
 				tableExists = this.isTableExists(conn);
-			} catch (SQLException sqlEx) {
-				logger.warn("Error occurred while recovering local-xa-resource.", ex);
-				throw new XAException(XAException.XAER_RMFAIL);
-			} catch (RuntimeException rex) {
+			} catch (Exception sqlEx) {
 				logger.warn("Error occurred while recovering local-xa-resource.", ex);
 				throw new XAException(XAException.XAER_RMFAIL);
 			}
@@ -190,17 +187,14 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 
 			try {
 				conn.rollback();
-			} catch (SQLException sqlEx) {
+			} catch (Exception sqlEx) {
 				logger.error("Error occurred while rolling back local resources.", sqlEx);
 			}
 
 			boolean tableExists = false;
 			try {
 				tableExists = this.isTableExists(conn);
-			} catch (SQLException sqlEx) {
-				logger.warn("Error occurred while forgeting local resources.", ex);
-				throw new XAException(XAException.XAER_RMFAIL);
-			} catch (RuntimeException rex) {
+			} catch (Exception sqlEx) {
 				logger.warn("Error occurred while forgeting local resources.", ex);
 				throw new XAException(XAException.XAER_RMFAIL);
 			}
@@ -250,10 +244,7 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 			boolean tableExists = false;
 			try {
 				tableExists = this.isTableExists(conn);
-			} catch (SQLException sqlEx) {
-				logger.warn("Error occurred while forgeting local-xa-resource.", ex);
-				throw new XAException(XAException.XAER_RMFAIL);
-			} catch (RuntimeException rex) {
+			} catch (Exception sqlEx) {
 				logger.warn("Error occurred while forgeting local-xa-resource.", ex);
 				throw new XAException(XAException.XAER_RMFAIL);
 			}

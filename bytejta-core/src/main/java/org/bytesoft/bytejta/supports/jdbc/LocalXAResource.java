@@ -67,10 +67,7 @@ public class LocalXAResource implements XAResource {
 			if (rs.next() == false) {
 				throw new XAException(XAException.XAER_NOTA);
 			}
-		} catch (SQLException ex) {
-			logger.warn("Error occurred while recovering local-xa-resource.", ex);
-			throw new XAException(XAException.XAER_RMERR);
-		} catch (RuntimeException ex) {
+		} catch (Exception ex) {
 			logger.warn("Error occurred while recovering local-xa-resource.", ex);
 			throw new XAException(XAException.XAER_RMERR);
 		} finally {
@@ -105,13 +102,13 @@ public class LocalXAResource implements XAResource {
 
 			try {
 				originalAutoCommit = connection.getAutoCommit();
-			} catch (SQLException ignored) {
+			} catch (Exception ignored) {
 				originalAutoCommit = true;
 			}
 
 			try {
 				connection.setAutoCommit(false);
-			} catch (SQLException ex) {
+			} catch (Exception ex) {
 				XAException xae = new XAException();
 				xae.initCause(ex);
 				throw xae;
@@ -158,10 +155,7 @@ public class LocalXAResource implements XAResource {
 				boolean tableExists = false;
 				try {
 					tableExists = this.isTableExists(connection);
-				} catch (SQLException sqlEx) {
-					logger.error("Error occurred while ending local-xa-resource: {}", ex.getMessage());
-					throw new XAException(XAException.XAER_RMFAIL);
-				} catch (RuntimeException rex) {
+				} catch (Exception sqlEx) {
 					logger.error("Error occurred while ending local-xa-resource: {}", ex.getMessage());
 					throw new XAException(XAException.XAER_RMFAIL);
 				}
@@ -192,7 +186,7 @@ public class LocalXAResource implements XAResource {
 				connection.setAutoCommit(originalAutoCommit);
 				return XAResource.XA_RDONLY;
 			}
-		} catch (SQLException ex) {
+		} catch (Exception ex) {
 			logger.debug("Error occurred while preparing local-xa-resource: {}", ex.getMessage());
 		}
 		return XAResource.XA_OK;
@@ -207,12 +201,9 @@ public class LocalXAResource implements XAResource {
 			throw new XAException();
 		}
 
-		Connection connection = this.managedConnection.getPhysicalConnection();
 		try {
-			if (!connection.isReadOnly()) {
-				this.managedConnection.commitLocalTransaction();
-			}
-		} catch (SQLException ex) {
+			this.managedConnection.commitLocalTransaction();
+		} catch (Exception ex) {
 			XAException xae = new XAException();
 			xae.initCause(ex);
 			throw xae;
@@ -232,7 +223,7 @@ public class LocalXAResource implements XAResource {
 
 		try {
 			this.managedConnection.rollbackLocalTransaction();
-		} catch (SQLException ex) {
+		} catch (Exception ex) {
 			XAException xae = new XAException();
 			xae.initCause(ex);
 			throw xae;
@@ -245,7 +236,8 @@ public class LocalXAResource implements XAResource {
 		Connection connection = this.managedConnection.getPhysicalConnection();
 		try {
 			connection.setAutoCommit(originalAutoCommit);
-		} catch (SQLException ex) {
+		} catch (Exception ex) {
+			logger.warn("Error occurred while configuring attr 'autoCommit' of physical connection.", ex);
 		} finally {
 			this.forgetQuietly(this.currentXid);
 		}
