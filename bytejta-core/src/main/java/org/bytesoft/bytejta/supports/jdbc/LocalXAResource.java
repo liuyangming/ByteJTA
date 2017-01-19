@@ -193,16 +193,18 @@ public class LocalXAResource implements XAResource {
 	}
 
 	public synchronized void commit(Xid xid, boolean onePhase) throws XAException {
-		if (xid == null) {
-			throw new XAException();
-		} else if (this.currentXid == null) {
-			throw new XAException();
-		} else if (!this.currentXid.equals(xid)) {
-			throw new XAException();
-		}
-
 		try {
+			if (xid == null) {
+				throw new XAException();
+			} else if (this.currentXid == null) {
+				throw new XAException();
+			} else if (!this.currentXid.equals(xid)) {
+				throw new XAException();
+			}
+
 			this.managedConnection.commitLocalTransaction();
+		} catch (XAException xae) {
+			throw xae;
 		} catch (Exception ex) {
 			XAException xae = new XAException();
 			xae.initCause(ex);
@@ -213,16 +215,18 @@ public class LocalXAResource implements XAResource {
 	}
 
 	public synchronized void rollback(Xid xid) throws XAException {
-		if (xid == null) {
-			throw new XAException();
-		} else if (this.currentXid == null) {
-			throw new XAException();
-		} else if (!this.currentXid.equals(xid)) {
-			throw new XAException();
-		}
-
 		try {
+			if (xid == null) {
+				throw new XAException();
+			} else if (this.currentXid == null) {
+				throw new XAException();
+			} else if (!this.currentXid.equals(xid)) {
+				throw new XAException();
+			}
+
 			this.managedConnection.rollbackLocalTransaction();
+		} catch (XAException xae) {
+			throw xae;
 		} catch (Exception ex) {
 			XAException xae = new XAException();
 			xae.initCause(ex);
@@ -239,6 +243,9 @@ public class LocalXAResource implements XAResource {
 		} catch (Exception ex) {
 			logger.warn("Error occurred while configuring attr 'autoCommit' of physical connection.", ex);
 		} finally {
+			// LocalXAConnection is only used for wrapping,
+			// once the transaction completed it can be closed immediately.
+			this.managedConnection.closeQuietly();
 			this.forgetQuietly(this.currentXid);
 		}
 	}
@@ -250,7 +257,7 @@ public class LocalXAResource implements XAResource {
 	public void forgetQuietly(Xid xid) {
 		try {
 			this.forget(xid);
-		} catch (XAException ex) {
+		} catch (Exception ex) {
 			logger.warn("Error occurred while forgeting local-xa-resource.", xid);
 		}
 	}

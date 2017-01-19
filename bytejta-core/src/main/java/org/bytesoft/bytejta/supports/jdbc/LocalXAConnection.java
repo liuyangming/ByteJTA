@@ -126,6 +126,14 @@ public class LocalXAConnection implements XAConnection {
 		}
 	}
 
+	public void closeQuietly() {
+		try {
+			this.close();
+		} catch (Exception ex) {
+			logger.warn("Error occurred while closing physical connection.", ex);
+		}
+	}
+
 	public void close() throws SQLException {
 		this.underlyingConCloseRequired = true;
 		this.releaseConnection();
