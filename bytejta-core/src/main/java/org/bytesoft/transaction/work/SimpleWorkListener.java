@@ -22,10 +22,11 @@ import java.util.concurrent.locks.ReentrantLock;
 import javax.resource.spi.work.WorkEvent;
 import javax.resource.spi.work.WorkListener;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SimpleWorkListener implements WorkListener {
-	static final Logger logger = Logger.getLogger(SimpleWorkListener.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(SimpleWorkListener.class.getSimpleName());
 
 	private long acceptedTime = -1;
 	private long startedTime = -1;

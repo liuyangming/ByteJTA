@@ -29,10 +29,11 @@ import javax.resource.spi.work.WorkException;
 import javax.resource.spi.work.WorkListener;
 import javax.resource.spi.work.WorkManager;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SimpleWorkManager implements WorkManager {
-	static final Logger logger = Logger.getLogger(SimpleWorkManager.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(SimpleWorkManager.class.getSimpleName());
 
 	private final ThreadPoolExecutor executor = new ThreadPoolExecutor(5, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS,
 			new LinkedBlockingQueue<Runnable>());
