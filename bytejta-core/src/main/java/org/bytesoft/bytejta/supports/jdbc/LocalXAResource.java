@@ -210,7 +210,7 @@ public class LocalXAResource implements XAResource {
 			xae.initCause(ex);
 			throw xae;
 		} finally {
-			this.resetXAResource();
+			this.releasePhysicalConnection();
 		}
 	}
 
@@ -232,11 +232,11 @@ public class LocalXAResource implements XAResource {
 			xae.initCause(ex);
 			throw xae;
 		} finally {
-			this.resetXAResource();
+			this.releasePhysicalConnection();
 		}
 	}
 
-	private void resetXAResource() {
+	private void releasePhysicalConnection() {
 		Connection connection = this.managedConnection.getPhysicalConnection();
 		try {
 			connection.setAutoCommit(originalAutoCommit);

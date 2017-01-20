@@ -60,10 +60,6 @@ public class LocalXAConnection implements XAConnection {
 
 		LogicalConnection logicalConnection = new LogicalConnection(this, this.connection);
 
-		// if (this.physicalConnectionSharingCount == 0) {
-		// this.xaResource.setLocalTransaction(logicalConnection);
-		// }
-
 		this.physicalConnectionSharingCount++;
 		this.underlyingConCloseRequired = false;
 
@@ -105,10 +101,6 @@ public class LocalXAConnection implements XAConnection {
 			throw ex;
 		} catch (RuntimeException ex) {
 			throw new SQLException(ex);
-		} finally {
-			if (this.underlyingConCloseRequired) {
-				this.releaseConnection();
-			}
 		}
 	}
 
@@ -119,10 +111,6 @@ public class LocalXAConnection implements XAConnection {
 			throw ex;
 		} catch (RuntimeException ex) {
 			throw new SQLException(ex);
-		} finally {
-			if (this.underlyingConCloseRequired) {
-				this.releaseConnection();
-			}
 		}
 	}
 
@@ -135,7 +123,10 @@ public class LocalXAConnection implements XAConnection {
 	}
 
 	public void close() throws SQLException {
-		this.underlyingConCloseRequired = true;
+		if (this.underlyingConCloseRequired == false) {
+			logger.warn("Illegal state: there is at least one connection that is not closed!");
+		}
+
 		this.releaseConnection();
 	}
 
