@@ -53,6 +53,8 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 	private VirtualLoggingFile master;
 	private VirtualLoggingFile slaver;
 
+	private boolean optimized = true;
+
 	public void construct() throws IOException {
 		if (this.directory == null) {
 			this.directory = this.getDefaultDirectory();
@@ -73,6 +75,8 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 		slaverMgr.initialize(false);
 
 		this.initialize(masterMgr, slaverMgr);
+
+		this.flushAllIfNecessary();
 	}
 
 	private void initialize(VirtualLoggingFile prev, VirtualLoggingFile next) {
@@ -96,6 +100,7 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 			this.master.clearMarkedFlag();
 			this.slaver.clearMarkedFlag();
 		}
+
 	}
 
 	private void fixSwitchError(VirtualLoggingFile prev, VirtualLoggingFile next) {
@@ -192,6 +197,8 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 		try {
 			this.lock.lock();
 			this.master.write(byteArray);
+
+			this.flushMasterIfNecessary();
 		} finally {
 			this.lock.unlock();
 		}
@@ -210,6 +217,8 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 		try {
 			this.lock.lock();
 			this.master.write(byteArray);
+
+			this.flushMasterIfNecessary();
 		} finally {
 			this.lock.unlock();
 		}
@@ -229,6 +238,8 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 		try {
 			this.lock.lock();
 			this.master.write(byteArray);
+
+			this.flushMasterIfNecessary();
 		} finally {
 			this.lock.unlock();
 		}
@@ -239,6 +250,8 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 		Map<Xid, Boolean> recordMap = this.syncStepOne();
 		this.master.prepareForReading();
 		this.syncStepTwo(recordMap);
+
+		this.flushSlaverIfNecessary();
 	}
 
 	public Map<Xid, Boolean> syncStepOne() {
@@ -329,12 +342,31 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 			this.master.switchToSlaver();
 			this.slaver.switchToMaster();
 
+			this.flushAllIfNecessary();
+
 			VirtualLoggingFile theNextMaster = this.slaver;
 			this.slaver = this.master;
 			this.master = theNextMaster;
 
 		} finally {
 			this.lock.unlock();
+		}
+	}
+
+	private void flushAllIfNecessary() {
+		this.flushMasterIfNecessary();
+		this.flushSlaverIfNecessary();
+	}
+
+	private void flushMasterIfNecessary() {
+		if (this.optimized == false) {
+			this.master.flushImmediately();
+		}
+	}
+
+	private void flushSlaverIfNecessary() {
+		if (this.optimized == false) {
+			this.slaver.flushImmediately();
 		}
 	}
 
@@ -365,6 +397,14 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 		logging.setTrigger(this);
 		logging.setIdentifier(this.getLoggingIdentifier().getBytes());
 		return logging;
+	}
+
+	public boolean isOptimized() {
+		return optimized;
+	}
+
+	public void setOptimized(boolean optimized) {
+		this.optimized = optimized;
 	}
 
 	public File getDirectory() {
