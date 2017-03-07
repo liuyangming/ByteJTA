@@ -27,6 +27,7 @@ public class XAResourceArchive implements XAResource {
 	static final Logger logger = LoggerFactory.getLogger(XAResourceArchive.class);
 	public static final int DEFAULT_VOTE = -1;
 
+	private boolean suspended;
 	private boolean delisted;
 	private boolean completed;
 	private boolean readonly;
@@ -155,6 +156,14 @@ public class XAResourceArchive implements XAResource {
 
 	public void setDescriptor(XAResourceDescriptor descriptor) {
 		this.descriptor = descriptor;
+	}
+
+	public boolean isSuspended() {
+		return suspended;
+	}
+
+	public void setSuspended(boolean suspended) {
+		this.suspended = suspended;
 	}
 
 	public boolean isDelisted() {

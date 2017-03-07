@@ -1055,14 +1055,17 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 	private boolean delistResource(XAResourceArchive archive, int flag) throws SystemException, RollbackRequiredException {
 		try {
 			Xid branchXid = archive.getXid();
-			archive.end(branchXid, flag);
 
 			switch (flag) {
 			case XAResource.TMSUCCESS:
 			case XAResource.TMFAIL:
+				archive.end(branchXid, flag);
 				archive.setDelisted(true);
 				break;
 			case XAResource.TMSUSPEND:
+				archive.end(branchXid, flag);
+				archive.setDelisted(true);
+				archive.setSuspended(true);
 				break;
 			default:
 				throw new SystemException();
@@ -1156,6 +1159,8 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 				break;
 			case XAResource.TMRESUME:
 				archive.start(branchXid, flag);
+				archive.setDelisted(false);
+				archive.setSuspended(false);
 				break;
 			default:
 				throw new SystemException();
