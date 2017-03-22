@@ -14,15 +14,19 @@
 	<import resource="classpath:bytejta-core.xml" />
 	<import resource="classpath:bytejta-dubbo.xml" />
 
-	<bean id="transactionManager" class="org.springframework.transaction.jta.JtaTransactionManager">
-		<property name="userTransaction" ref="bytejtaUserTransaction" />
-		<property name="transactionManager" ref="bytejtaTransactionManager" />
-	</bean>
+	<bean id="transactionManager" class="org.springframework.transaction.jta.JtaTransactionManager" />
 	<tx:annotation-driven transaction-manager="transactionManager" />
+
+	<bean id="transactionWork" class="org.bytesoft.bytejta.work.TransactionWork" />
 
 	<bean id="transactionWorkManager" class="org.bytesoft.transaction.work.SimpleWorkManager" />
 	<bean id="transactionResourceAdapter" class="org.bytesoft.transaction.adapter.ResourceAdapterImpl">
-		<!-- <property name="workList"> <list></list> </property> -->
+		<property name="workList">
+			<list>
+				<ref bean="transactionWork" />
+				<ref bean="bytejtaTransactionLogger" />
+			</list>
+		</property>
 	</bean>
 	<bean id="resourceAdapter" class="org.springframework.jca.support.ResourceAdapterFactoryBean">
 		<property name="workManager" ref="transactionWorkManager" />

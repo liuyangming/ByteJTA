@@ -210,9 +210,9 @@ public class TransactionImpl implements Transaction {
 			this.rollback();
 			throw new HeuristicRollbackException();
 		} else if (this.transactionStatus == Status.STATUS_ROLLING_BACK) {
-			throw new IllegalStateException();
+			throw new HeuristicMixedException();
 		} else if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
-			throw new RollbackException();
+			throw new HeuristicRollbackException();
 		} else if (this.transactionStatus == Status.STATUS_UNKNOWN) {
 			throw new IllegalStateException();
 		} else if (this.transactionStatus == Status.STATUS_NO_TRANSACTION) {
@@ -1237,6 +1237,15 @@ public class TransactionImpl implements Transaction {
 	public void registerTransactionResourceListener(TransactionResourceListener listener) {
 		this.nativeTerminator.registerTransactionResourceListener(listener);
 		this.remoteTerminator.registerTransactionResourceListener(listener);
+	}
+
+	public synchronized void stopTiming() {
+		this.setTiming(false);
+	}
+
+	public synchronized void changeTransactionTimeout(int timeout) {
+		long created = this.transactionContext.getCreatedTime();
+		transactionContext.setExpiredTime(created + timeout);
 	}
 
 	public Object getTransactionalExtra() {

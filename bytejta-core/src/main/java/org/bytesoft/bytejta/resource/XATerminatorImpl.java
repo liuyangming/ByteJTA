@@ -54,6 +54,7 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 	private TransactionContext transactionContext;
 	private int transactionTimeout;
 	private TransactionBeanFactory beanFactory;
+	private boolean unidentifiedExists;
 	private final List<XAResourceArchive> resources = new ArrayList<XAResourceArchive>();
 
 	private final TransactionResourceListenerList resourceListenerList = new TransactionResourceListenerList();
@@ -174,24 +175,23 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 		for (int i = this.resources.size() - 1; i >= 0; i--) {
 			XAResourceArchive archive = this.resources.get(i);
 			Xid branchXid = archive.getXid();
-			try {
-				if (archive.isCompleted()) {
-					if (archive.isCommitted()) {
-						commitExists = true;
-					} else if (archive.isRolledback()) {
-						rollbackExists = true;
-					} else {
-						// read-only, ignore.
-					}
-				} else {
-					archive.commit(branchXid, false);
+			if (archive.isCompleted()) {
+				if (archive.isCommitted()) {
 					commitExists = true;
-					archive.setCommitted(true);
-					archive.setCompleted(true);
-					logger.info("[%s] commit: xares= {}, branch= {}, onePhaseCommit= {}",
-							ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
-							ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), false);
+				} else if (archive.isRolledback()) {
+					rollbackExists = true;
 				}
+				continue;
+			}
+
+			try {
+				archive.commit(branchXid, false);
+				commitExists = true;
+				archive.setCommitted(true);
+				archive.setCompleted(true);
+				logger.info("[%s] commit: xares= {}, branch= {}, onePhaseCommit= {}",
+						ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
+						ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), false);
 			} catch (XAException xaex) {
 				if (commitExists) {
 					// * @exception XAException An error has occurred. Possible XAExceptions
@@ -1112,12 +1112,18 @@ public class XATerminatorImpl implements XATerminator, Comparator<XAResourceArch
 	public boolean enlistResource(XAResourceDescriptor descriptor)
 			throws RollbackException, IllegalStateException, SystemException {
 
+		boolean identified = UnidentifiedResourceDescriptor.class.isInstance(descriptor) == false;
+		if (identified == false && this.unidentifiedExists) {
+			throw new IllegalStateException("An unknown resource already exists in current transaction.");
+		}
+		this.unidentifiedExists = identified ? this.unidentifiedExists : true;
+
 		XAResourceArchive archive = this.locateExisted(descriptor);
 		int flags = XAResource.TMNOFLAGS;
 		if (archive == null) {
 			archive = new XAResourceArchive();
 			archive.setDescriptor(descriptor);
-			archive.setIdentified(UnidentifiedResourceDescriptor.class.isInstance(descriptor) == false);
+			archive.setIdentified(identified);
 			TransactionXid globalXid = this.transactionContext.getXid();
 			XidFactory xidFactory = this.beanFactory.getXidFactory();
 			archive.setXid(xidFactory.createBranchXid(globalXid));

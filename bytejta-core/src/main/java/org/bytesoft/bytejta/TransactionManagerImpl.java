@@ -252,11 +252,7 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		} else if (seconds == 0) {
 			// ignore
 		} else {
-			synchronized (transaction) {
-				TransactionContext transactionContext = transaction.getTransactionContext();
-				long createdTime = transactionContext.getCreatedTime();
-				transactionContext.setExpiredTime(createdTime + seconds * 1000L);
-			}
+			((TransactionImpl) transaction).changeTransactionTimeout(seconds * 1000);
 		}
 	}
 
@@ -267,15 +263,12 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		Iterator<Transaction> activeItr = activeTransactions.iterator();
 		while (activeItr.hasNext()) {
 			Transaction transaction = activeItr.next();
-			synchronized (transaction) {
-				if (transaction.isTiming()) {
-					TransactionContext transactionContext = transaction.getTransactionContext();
-					long expired = transactionContext.getExpiredTime();
-					if (expired <= current) {
-						expiredTransactions.add(transaction);
-					}
-				} // end-if (transaction.isTiming())
-			} // end-synchronized
+			if (transaction.isTiming()) {
+				TransactionContext transactionContext = transaction.getTransactionContext();
+				if (transactionContext.getExpiredTime() <= current) {
+					expiredTransactions.add(transaction);
+				}
+			} // end-if (transaction.isTiming())
 		}
 
 		Iterator<Transaction> expiredItr = expiredTransactions.iterator();
@@ -283,27 +276,34 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 			Transaction transaction = expiredItr.next();
 			if (transaction.getTransactionStatus() == Status.STATUS_ACTIVE
 					|| transaction.getTransactionStatus() == Status.STATUS_MARKED_ROLLBACK) {
-				TransactionContext transactionContext = transaction.getTransactionContext();
-				TransactionXid globalXid = transactionContext.getXid();
-				TransactionRepository transactionRepository = this.beanFactory.getTransactionRepository();
-				try {
-					transaction.rollback();
-					transactionRepository.removeTransaction(globalXid);
-				} catch (Exception ex) {
-					transactionRepository.putErrorTransaction(globalXid, transaction);
-				}
-			} // end-else
-		} // end-while
-	}
-
-	public void stopTiming(Transaction tx) {
-		if (TransactionImpl.class.isInstance(tx) == false) {
-			return;
+				this.timingRollback(transaction);
+			}
 		}
 
-		TransactionImpl transaction = (TransactionImpl) tx;
-		synchronized (transaction) {
-			transaction.setTiming(false);
+	}
+
+	private void timingRollback(Transaction transaction) {
+		TransactionContext transactionContext = transaction.getTransactionContext();
+		TransactionXid globalXid = transactionContext.getXid();
+		TransactionRepository transactionRepository = this.beanFactory.getTransactionRepository();
+
+		boolean removeRequired = transactionContext.isCoordinator();
+		try {
+			transaction.rollback();
+		} catch (Exception ex) {
+			removeRequired = false;
+			transactionRepository.putErrorTransaction(globalXid, transaction);
+		} finally {
+			if (removeRequired) {
+				transactionRepository.removeTransaction(globalXid);
+			}
+		}
+
+	}
+
+	public void stopTiming(Transaction transaction) {
+		if (TransactionImpl.class.isInstance(transaction)) {
+			((TransactionImpl) transaction).stopTiming();
 		}
 	}
 

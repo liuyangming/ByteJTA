@@ -29,7 +29,7 @@
 	<bean id="bytejtaTransactionInterceptor" class="org.bytesoft.bytejta.supports.rpc.TransactionInterceptorImpl" />
 
 	<bean id="bytejtaTransactionLogger" class="org.bytesoft.bytejta.logging.SampleTransactionLogger" init-method="construct" />
-	<bean id="bytejtaResourceDeserializer" class="org.bytesoft.bytejta.supports.serialize.XAResourceDeserializerImpl" />
+	<bean id="bytejtaResourceDeserializer" class="org.bytesoft.bytejta.supports.dubbo.serialize.XAResourceDeserializerImpl" />
 
 	<bean id="bytejtaBeanFactory" class="org.bytesoft.bytejta.TransactionBeanFactoryImpl">
 		<property name="transactionManager" ref="bytejtaTransactionManager" />

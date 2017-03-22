@@ -18,3 +18,5 @@ hs_err_pid*
 /bytejta-supports/.gitignore
 /bytejta-supports/.project
 target
+/bytejta-supports-dubbo/.classpath
+/bytejta-supports-dubbo/.project
