@@ -32,22 +32,22 @@
 		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-context</artifactId>
-			<version>3.2.8.RELEASE</version>
+			<version>4.3.7.RELEASE</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-tx</artifactId>
-			<version>3.2.8.RELEASE</version>
+			<version>4.3.7.RELEASE</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-jdbc</artifactId>
-			<version>3.2.8.RELEASE</version>
+			<version>4.3.7.RELEASE</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-aop</artifactId>
-			<version>3.2.8.RELEASE</version>
+			<version>4.3.7.RELEASE</version>
 		</dependency>
 		<dependency>
 			<groupId>aopalliance</groupId>

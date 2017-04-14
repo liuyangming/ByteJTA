@@ -11,24 +11,15 @@
            http://www.springframework.org/schema/tx 
            http://www.springframework.org/schema/tx/spring-tx-3.0.xsd">
 
-	<description>The bytejta transaction manager module</description>
+	<import resource="classpath:bytejta-supports-core.xml" />
+	<import resource="classpath:bytejta-supports-task.xml" />
 
-	<bean class="org.bytesoft.bytejta.supports.spring.TransactionBeanFactoryPostProcessor" />
-	<bean class="org.bytesoft.bytejta.supports.spring.TransactionManagerPostProcessor" />
-	<bean class="org.bytesoft.bytejta.supports.spring.ManagedConnectionFactoryPostProcessor" />
+	<bean class="org.bytesoft.bytejta.supports.dubbo.TransactionEndpointPostProcessor" />
+	<bean class="org.bytesoft.bytejta.supports.dubbo.DubboConfigPostProcessor" />
+	<bean class="org.bytesoft.bytejta.supports.dubbo.TransactionConfigPostProcessor" />
 
-	<bean id="bytejtaUserTransaction" class="org.bytesoft.bytejta.UserTransactionImpl" />
+	<bean class="org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry" factory-method="getInstance" />
 
-	<bean id="bytejtaTransactionManager" class="org.bytesoft.bytejta.TransactionManagerImpl" />
-	<bean id="bytejtaTransactionCoordinator" class="org.bytesoft.bytejta.TransactionCoordinator" />
-	<bean id="bytejtaTransactionRecovery" class="org.bytesoft.bytejta.TransactionRecoveryImpl" />
-	<bean id="bytejtaTransactionRepository" class="org.bytesoft.bytejta.TransactionRepositoryImpl" />
-
-	<bean id="bytejtaXidFactory" class="org.bytesoft.bytejta.xa.XidFactoryImpl" />
-
-	<bean id="bytejtaTransactionInterceptor" class="org.bytesoft.bytejta.supports.rpc.TransactionInterceptorImpl" />
-
-	<bean id="bytejtaTransactionLogger" class="org.bytesoft.bytejta.logging.SampleTransactionLogger" init-method="construct" />
 	<bean id="bytejtaResourceDeserializer" class="org.bytesoft.bytejta.supports.dubbo.serialize.XAResourceDeserializerImpl" />
 
 	<bean id="bytejtaBeanFactory" class="org.bytesoft.bytejta.TransactionBeanFactoryImpl">
