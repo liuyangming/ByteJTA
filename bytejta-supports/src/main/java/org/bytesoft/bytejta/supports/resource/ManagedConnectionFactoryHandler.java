@@ -119,6 +119,10 @@ public class ManagedConnectionFactoryHandler implements InvocationHandler {
 		}
 	}
 
+	public Object getDelegate() {
+		return delegate;
+	}
+
 	public String getIdentifier() {
 		return identifier;
 	}
