@@ -149,7 +149,8 @@ public class LocalXAResource implements XAResource {
 				stmt.setLong(3, System.currentTimeMillis());
 				int value = stmt.executeUpdate();
 				if (value == 0) {
-					throw new IllegalStateException("The operation failed and the data was not written to the database!");
+					throw new IllegalStateException(
+							"The operation failed and the data was not written to the database!");
 				}
 			} catch (SQLException ex) {
 				boolean tableExists = false;
@@ -346,5 +347,9 @@ public class LocalXAResource implements XAResource {
 	// public void setLocalTransaction(Connection localTransaction) {
 	// this.localTransaction = localTransaction;
 	// }
+
+	public LocalXAConnection getManagedConnection() {
+		return managedConnection;
+	}
 
 }

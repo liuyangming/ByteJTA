@@ -32,9 +32,12 @@ public interface XATerminator extends javax.transaction.xa.XAResource, Synchroni
 
 	public void registerTransactionResourceListener(TransactionResourceListener listener);
 
+	public XAResourceDescriptor getXAResource(String identifier);
+
 	public boolean delistResource(XAResourceDescriptor xaRes, int flag) throws IllegalStateException, SystemException;
 
-	public boolean enlistResource(XAResourceDescriptor xaRes) throws RollbackException, IllegalStateException, SystemException;
+	public boolean enlistResource(XAResourceDescriptor xaRes)
+			throws RollbackException, IllegalStateException, SystemException;
 
 	public void resumeAllResource() throws RollbackException, SystemException;
 

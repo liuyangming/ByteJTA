@@ -19,6 +19,7 @@ import javax.transaction.HeuristicMixedException;
 import javax.transaction.HeuristicRollbackException;
 import javax.transaction.RollbackException;
 import javax.transaction.SystemException;
+import javax.transaction.xa.XAResource;
 
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.supports.TransactionListener;
@@ -49,6 +50,10 @@ public interface Transaction extends javax.transaction.Transaction {
 	public Object getTransactionalExtra();
 
 	public void setTransactionalExtra(Object transactionalExtra);
+
+	public XAResource getLocalXAResource(String identifier);
+
+	public XAResource getRemoteCoordinator(String identifier);
 
 	public TransactionContext getTransactionContext();
 

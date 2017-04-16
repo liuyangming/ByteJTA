@@ -76,6 +76,14 @@ public class TransactionImpl implements Transaction {
 		this.synchronizationList.registerSynchronizationQuietly(this.remoteTerminator);
 	}
 
+	public XAResource getLocalXAResource(String identifier) {
+		return this.remoteTerminator.getXAResource(identifier);
+	}
+
+	public XAResource getRemoteCoordinator(String identifier) {
+		return this.remoteTerminator.getXAResource(identifier);
+	}
+
 	public void setBeanFactory(TransactionBeanFactory tbf) {
 		this.beanFactory = tbf;
 		((XATerminatorImpl) this.nativeTerminator).setBeanFactory(tbf);
@@ -201,8 +209,9 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	public synchronized void participantCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
-			SecurityException, IllegalStateException, CommitRequiredException, SystemException {
+	public synchronized void participantCommit()
+			throws RollbackException, HeuristicMixedException, HeuristicRollbackException, SecurityException,
+			IllegalStateException, CommitRequiredException, SystemException {
 
 		if (this.transactionStatus == Status.STATUS_ACTIVE) {
 			throw new IllegalStateException();
@@ -325,8 +334,9 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	private synchronized void delegateCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
-			SecurityException, IllegalStateException, CommitRequiredException, SystemException {
+	private synchronized void delegateCommit()
+			throws RollbackException, HeuristicMixedException, HeuristicRollbackException, SecurityException,
+			IllegalStateException, CommitRequiredException, SystemException {
 		// stop-timing
 		TransactionTimer transactionTimer = beanFactory.getTransactionTimer();
 		transactionTimer.stopTiming(this);
@@ -550,7 +560,8 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	public synchronized boolean delistResource(XAResource xaRes, int flag) throws IllegalStateException, SystemException {
+	public synchronized boolean delistResource(XAResource xaRes, int flag)
+			throws IllegalStateException, SystemException {
 		if (this.transactionStatus != Status.STATUS_ACTIVE && this.transactionStatus != Status.STATUS_MARKED_ROLLBACK) {
 			throw new IllegalStateException();
 		}
@@ -666,7 +677,8 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	private synchronized void delegateRollback() throws IllegalStateException, RollbackRequiredException, SystemException {
+	private synchronized void delegateRollback()
+			throws IllegalStateException, RollbackRequiredException, SystemException {
 		// stop-timing
 		TransactionTimer transactionTimer = beanFactory.getTransactionTimer();
 		transactionTimer.stopTiming(this);
@@ -1153,7 +1165,8 @@ public class TransactionImpl implements Transaction {
 			logger.info("[{}] forget native terminator successfully",
 					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		} catch (XAException xaex) {
-			logger.info("[{}] forget native terminator failued", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+			logger.info("[{}] forget native terminator failued",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		}
 
 		try {
@@ -1161,7 +1174,8 @@ public class TransactionImpl implements Transaction {
 			logger.info("[{}] forget remote terminator successfully",
 					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		} catch (XAException xaex) {
-			logger.info("[{}] forget remote terminator failed", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+			logger.info("[{}] forget remote terminator failed",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		}
 
 		repository.removeErrorTransaction(xid);

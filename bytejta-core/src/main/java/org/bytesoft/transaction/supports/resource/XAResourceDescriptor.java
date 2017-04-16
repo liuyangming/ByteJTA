@@ -25,6 +25,8 @@ public interface XAResourceDescriptor extends XAResource {
 
 	public String getIdentifier();
 
+	public XAResource getDelegate();
+
 	public void setTransactionTimeoutQuietly(int timeout);
 
 	public boolean isTransactionCommitted(Xid xid) throws IllegalStateException;
