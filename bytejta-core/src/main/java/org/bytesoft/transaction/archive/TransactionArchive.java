@@ -27,6 +27,7 @@ public class TransactionArchive {
 	private boolean coordinator;
 	private Object propagatedBy;
 	private final List<XAResourceArchive> nativeResources = new ArrayList<XAResourceArchive>();
+	private final List<XAResourceArchive> optmizedResources = new ArrayList<XAResourceArchive>();
 	private final List<XAResourceArchive> remoteResources = new ArrayList<XAResourceArchive>();
 
 	public Xid getXid() {
@@ -71,6 +72,10 @@ public class TransactionArchive {
 
 	public List<XAResourceArchive> getNativeResources() {
 		return nativeResources;
+	}
+
+	public List<XAResourceArchive> getOptmizedResources() {
+		return optmizedResources;
 	}
 
 	public List<XAResourceArchive> getRemoteResources() {

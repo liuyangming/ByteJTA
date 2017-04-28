@@ -158,6 +158,10 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		List<XAResourceArchive> nativeResources = archive.getNativeResources();
 		nativeTerminator.getResourceArchives().addAll(nativeResources);
 
+		XATerminator optimizedTerminator = transaction.getNativeTerminator();
+		List<XAResourceArchive> optimizedResources = archive.getOptmizedResources();
+		optimizedTerminator.getResourceArchives().addAll(optimizedResources);
+
 		XATerminator remoteTerminator = transaction.getRemoteTerminator();
 		List<XAResourceArchive> remoteResources = archive.getRemoteResources();
 		remoteTerminator.getResourceArchives().addAll(remoteResources);

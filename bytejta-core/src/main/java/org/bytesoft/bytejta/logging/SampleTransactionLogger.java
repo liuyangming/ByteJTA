@@ -141,6 +141,15 @@ public class SampleTransactionLogger extends VirtualLoggingSystemImpl
 						}
 					}
 
+					List<XAResourceArchive> optimizedResources = archive.getOptmizedResources();
+					for (int i = 0; matched == false && optimizedResources != null && i < optimizedResources.size(); i++) {
+						XAResourceArchive element = optimizedResources.get(i);
+						if (resourceArchive.getXid().equals(element.getXid())) {
+							matched = true;
+							optimizedResources.set(i, resourceArchive);
+						}
+					}
+
 					List<XAResourceArchive> remoteResources = archive.getRemoteResources();
 					for (int i = 0; matched == false && remoteResources != null && i < remoteResources.size(); i++) {
 						XAResourceArchive element = remoteResources.get(i);

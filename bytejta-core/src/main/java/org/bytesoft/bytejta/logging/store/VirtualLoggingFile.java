@@ -107,7 +107,7 @@ public class VirtualLoggingFile {
 			writable.position(0);
 			writable.put(identifier);
 		} else {
-			throw new IllegalStateException();
+			throw new IllegalStateException("Illegal file format!");
 		}
 	}
 
@@ -115,14 +115,14 @@ public class VirtualLoggingFile {
 		this.writable.position(identifier.length);
 		int major = this.writable.get();
 		int minor = this.writable.get();
-		if (major == 0 && minor == 1) {
+		if (major == 0 && minor == 2) {
 			// ignore
 		} else if (this.initialized == false) {
 			writable.position(identifier.length);
 			writable.put((byte) 0x0);
 			writable.put((byte) 0x1);
 		} else {
-			throw new IllegalStateException();
+			throw new IllegalStateException("Incompatible version!");
 		}
 	}
 
