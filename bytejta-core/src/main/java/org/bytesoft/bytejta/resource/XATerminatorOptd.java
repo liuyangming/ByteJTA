@@ -72,6 +72,10 @@ public class XATerminatorOptd implements XATerminator {
 	}
 
 	public synchronized int prepare(Xid xid) throws XAException {
+		if (this.archive == null) {
+			return XAResource.XA_RDONLY;
+		}
+
 		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
 
 		Xid branchXid = this.archive.getXid();
@@ -94,7 +98,9 @@ public class XATerminatorOptd implements XATerminator {
 	}
 
 	public synchronized void commit(Xid xid, boolean onePhase) throws TransactionException, XAException {
-		if (onePhase) {
+		if (this.archive == null) {
+			return;
+		} else if (onePhase) {
 			this.fireOnePhaseCommit(xid);
 		} else {
 			this.fireTwoPhaseCommit(xid);
@@ -286,9 +292,12 @@ public class XATerminatorOptd implements XATerminator {
 	}
 
 	public synchronized void recoveryCommit(Xid xid) throws TransactionException, XAException {
-		this.fireRecoveryPrepare(xid);
-
-		this.fireRecoveryCommit(xid);
+		if (this.archive == null) {
+			return;
+		} else {
+			this.fireRecoveryPrepare(xid);
+			this.fireRecoveryCommit(xid);
+		}
 	}
 
 	private void fireRecoveryCommit(Xid xid) throws TransactionException, XAException {
@@ -398,7 +407,9 @@ public class XATerminatorOptd implements XATerminator {
 	}
 
 	public synchronized void rollback(Xid xid) throws TransactionException, XAException {
-		if (this.archive.isCommitted()) {
+		if (this.archive == null) {
+			return;
+		} else if (this.archive.isCommitted()) {
 			throw new XAException(XAException.XA_HEURCOM);
 		} else if (archive.isRolledback() || this.archive.isReadonly()) {
 			return;
@@ -503,9 +514,12 @@ public class XATerminatorOptd implements XATerminator {
 	}
 
 	public synchronized void recoveryRollback(Xid xid) throws TransactionException, XAException {
-		this.fireRecoveryPrepare(xid);
-
-		this.fireRecoveryRollback(xid);
+		if (this.archive == null) {
+			return;
+		} else {
+			this.fireRecoveryPrepare(xid);
+			this.fireRecoveryRollback(xid);
+		}
 	}
 
 	public void recoveryForget(Xid xid) throws XAException {
@@ -653,8 +667,8 @@ public class XATerminatorOptd implements XATerminator {
 			return;
 		}
 
-		if (this.archive.isRecovered() || this.archive.isReadonly() || this.archive.isCommitted()
-				|| this.archive.isRolledback()) {
+		if (this.archive == null || this.archive.isRecovered() || this.archive.isReadonly() //
+				|| this.archive.isCommitted() || this.archive.isRolledback()) {
 			return;
 		}
 
@@ -808,6 +822,10 @@ public class XATerminatorOptd implements XATerminator {
 	}
 
 	public void forget(Xid xid) throws XAException {
+		if (this.archive == null) {
+			return;
+		}
+
 		Xid currentXid = archive.getXid();
 		if (archive.isHeuristic()) {
 			try {
@@ -841,10 +859,15 @@ public class XATerminatorOptd implements XATerminator {
 	}
 
 	public XAResourceDescriptor getXAResource(String identifier) {
+		if (this.archive == null) {
+			return null;
+		}
+
 		XAResourceDescriptor descriptor = archive.getDescriptor();
 		if (StringUtils.equals(identifier, descriptor.getIdentifier())) {
 			return descriptor;
 		}
+
 		return null;
 	}
 
@@ -1029,6 +1052,10 @@ public class XATerminatorOptd implements XATerminator {
 	}
 
 	private XAResourceArchive locateExisted(XAResourceDescriptor descriptor) {
+		if (this.archive == null) {
+			return null;
+		}
+
 		XAResourceDescriptor existedDescriptor = this.archive.getDescriptor();
 		String identifier = descriptor.getIdentifier();
 		String existedIdentifirer = existedDescriptor.getIdentifier();

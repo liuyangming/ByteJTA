@@ -120,7 +120,7 @@ public class VirtualLoggingFile {
 		} else if (this.initialized == false) {
 			writable.position(identifier.length);
 			writable.put((byte) 0x0);
-			writable.put((byte) 0x1);
+			writable.put((byte) 0x2);
 		} else {
 			throw new IllegalStateException("Incompatible version!");
 		}

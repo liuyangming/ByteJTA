@@ -92,6 +92,7 @@ public class TransactionImpl implements Transaction {
 	public void setBeanFactory(TransactionBeanFactory tbf) {
 		this.beanFactory = tbf;
 		((XATerminatorImpl) this.nativeTerminator).setBeanFactory(tbf);
+		((XATerminatorOptd) this.optimizedTerminator).setBeanFactory(tbf);
 		((XATerminatorImpl) this.remoteTerminator).setBeanFactory(tbf);
 	}
 
