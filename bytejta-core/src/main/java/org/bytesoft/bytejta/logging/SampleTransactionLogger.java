@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
 
 public class SampleTransactionLogger extends VirtualLoggingSystemImpl
 		implements TransactionLogger, LoggingFlushable, TransactionBeanFactoryAware {
-	static final Logger logger = LoggerFactory.getLogger(SampleTransactionLogger.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(SampleTransactionLogger.class);
 
 	private TransactionBeanFactory beanFactory;
 
@@ -141,12 +141,11 @@ public class SampleTransactionLogger extends VirtualLoggingSystemImpl
 						}
 					}
 
-					List<XAResourceArchive> optimizedResources = archive.getOptmizedResources();
-					for (int i = 0; matched == false && optimizedResources != null && i < optimizedResources.size(); i++) {
-						XAResourceArchive element = optimizedResources.get(i);
-						if (resourceArchive.getXid().equals(element.getXid())) {
+					XAResourceArchive optimizedResource = archive.getOptimizedResource();
+					if (matched == false && optimizedResource != null) {
+						if (resourceArchive.getXid().equals(optimizedResource.getXid())) {
 							matched = true;
-							optimizedResources.set(i, resourceArchive);
+							archive.setOptimizedResource(resourceArchive);
 						}
 					}
 

@@ -15,6 +15,13 @@
  */
 package org.bytesoft.bytejta;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.transaction.HeuristicCommitException;
 import javax.transaction.HeuristicMixedException;
 import javax.transaction.HeuristicRollbackException;
 import javax.transaction.RollbackException;
@@ -23,10 +30,16 @@ import javax.transaction.Synchronization;
 import javax.transaction.SystemException;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
+import javax.transaction.xa.Xid;
 
 import org.bytesoft.bytejta.resource.XATerminatorImpl;
 import org.bytesoft.bytejta.resource.XATerminatorOptd;
+import org.bytesoft.bytejta.strategy.CommonTransactionStrategy;
+import org.bytesoft.bytejta.strategy.LastResourceOptimizeStrategy;
+import org.bytesoft.bytejta.strategy.SimpleTransactionStrategy;
+import org.bytesoft.bytejta.strategy.VacantTransactionStrategy;
 import org.bytesoft.bytejta.supports.resource.CommonResourceDescriptor;
+import org.bytesoft.bytejta.supports.resource.LocalXAResourceDescriptor;
 import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
 import org.bytesoft.bytejta.supports.resource.UnidentifiedResourceDescriptor;
 import org.bytesoft.common.utils.ByteUtils;
@@ -38,88 +51,66 @@ import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.archive.TransactionArchive;
+import org.bytesoft.transaction.archive.XAResourceArchive;
 import org.bytesoft.transaction.internal.SynchronizationList;
 import org.bytesoft.transaction.internal.TransactionException;
 import org.bytesoft.transaction.internal.TransactionListenerList;
+import org.bytesoft.transaction.internal.TransactionResourceListenerList;
 import org.bytesoft.transaction.logging.TransactionLogger;
-import org.bytesoft.transaction.resource.XATerminator;
 import org.bytesoft.transaction.supports.TransactionListener;
 import org.bytesoft.transaction.supports.TransactionResourceListener;
 import org.bytesoft.transaction.supports.TransactionTimer;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 import org.bytesoft.transaction.xa.TransactionXid;
+import org.bytesoft.transaction.xa.XidFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TransactionImpl implements Transaction {
-	static final Logger logger = LoggerFactory.getLogger(TransactionImpl.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(TransactionImpl.class);
 
 	private transient boolean timing = true;
 	private TransactionBeanFactory beanFactory;
+
+	private TransactionStrategy transactionStrategy;
 
 	private int transactionStatus;
 	private int transactionTimeout;
 	private int transactionVote;
 	private Object transactionalExtra;
 	private final TransactionContext transactionContext;
-	private final XATerminator nativeTerminator;
-	private final XATerminator optimizedTerminator;
-	private final XATerminator remoteTerminator;
+
+	private final TransactionResourceListenerList resourceListenerList = new TransactionResourceListenerList();
+
+	private final Map<String, XAResourceArchive> participantMap = new HashMap<String, XAResourceArchive>();
+	private XAResourceArchive participant; // last resource
+	private final List<XAResourceArchive> participantList = new ArrayList<XAResourceArchive>();
+	private final List<XAResourceArchive> nativeParticipantList = new ArrayList<XAResourceArchive>();
+	private final List<XAResourceArchive> remoteParticipantList = new ArrayList<XAResourceArchive>();
 
 	private final SynchronizationList synchronizationList = new SynchronizationList();
 	private final TransactionListenerList transactionListenerList = new TransactionListenerList();
 
 	public TransactionImpl(TransactionContext txContext) {
 		this.transactionContext = txContext;
-
-		this.nativeTerminator = new XATerminatorImpl(this.transactionContext);
-		this.optimizedTerminator = new XATerminatorOptd(this.transactionContext);
-		this.remoteTerminator = new XATerminatorImpl(this.transactionContext);
 	}
 
 	public XAResource getLocalXAResource(String identifier) {
-		return this.remoteTerminator.getXAResource(identifier);
-	}
-
-	public XATerminator getOptimizedTerminator() {
-		return optimizedTerminator;
+		// return this.remoteTerminator.getXAResource(identifier);
+		return this.participantMap.get(identifier); // TODO
 	}
 
 	public XAResource getRemoteCoordinator(String identifier) {
-		return this.remoteTerminator.getXAResource(identifier);
+		// return this.remoteTerminator.getXAResource(identifier);
+		return this.participantMap.get(identifier); // TODO
 	}
 
 	public void setBeanFactory(TransactionBeanFactory tbf) {
 		this.beanFactory = tbf;
-		((XATerminatorImpl) this.nativeTerminator).setBeanFactory(tbf);
-		((XATerminatorOptd) this.optimizedTerminator).setBeanFactory(tbf);
-		((XATerminatorImpl) this.remoteTerminator).setBeanFactory(tbf);
 	}
 
 	public boolean isLocalTransaction() {
-		int nativeResNum = this.nativeTerminator.getResourceArchives().size();
-		int optimzResNum = this.optimizedTerminator.getResourceArchives().size();
-		int remoteResNum = this.remoteTerminator.getResourceArchives().size();
-		int sizeOfResNum = nativeResNum + optimzResNum + remoteResNum;
-		return sizeOfResNum <= 1;
-	}
-
-	private synchronized void checkBeforeCommit()
-			throws RollbackException, IllegalStateException, RollbackRequiredException, CommitRequiredException {
-
-		if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
-			throw new RollbackException();
-		} else if (this.transactionStatus == Status.STATUS_ROLLING_BACK) {
-			throw new RollbackRequiredException();
-		} else if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
-			throw new RollbackRequiredException();
-		} else if (this.transactionStatus == Status.STATUS_ACTIVE) {
-			throw new CommitRequiredException();
-		} else if (this.transactionStatus == Status.STATUS_COMMITTED) {
-			logger.debug("Current transaction has already been committed.");
-		} else {
-			throw new IllegalStateException();
-		}
+		return this.participantList.size() <= 1;
 	}
 
 	public synchronized void participantPrepare() throws RollbackRequiredException, CommitRequiredException {
@@ -172,44 +163,28 @@ public class TransactionImpl implements Transaction {
 		transactionLogger.createTransaction(archive);
 		this.transactionListenerList.onPrepareStart(xid);
 
-		XATerminator[] terminators = new XATerminator[] { this.optimizedTerminator, this.nativeTerminator,
-				this.remoteTerminator };
-		int finalVote = XAResource.XA_RDONLY;
-		for (int i = 0; i < terminators.length; i++) {
-			XATerminator terminator = terminators[i];
-			if (terminator.getResourceArchives().isEmpty()) {
-				continue;
-			}
-
-			try {
-				int vote = terminator.prepare(xid);
-				finalVote = vote == XAResource.XA_OK ? XAResource.XA_OK : finalVote;
-			} catch (XAException xaex) {
-				this.transactionStatus = Status.STATUS_ROLLING_BACK;
-				this.transactionListenerList.onPrepareFailure(xid);
-				throw new RollbackRequiredException();
-			} catch (RuntimeException xaex) {
-				this.transactionStatus = Status.STATUS_ROLLING_BACK;
-				this.transactionListenerList.onPrepareFailure(xid);
-				throw new RollbackRequiredException();
-			}
+		int vote = XAResource.XA_RDONLY;
+		try {
+			this.getTransactionStrategy().prepare(xid);
+		} catch (CommitRequiredException xaex) {
+			vote = XAResource.XA_OK;
+		} catch (RollbackRequiredException rrex) {
+			this.transactionStatus = Status.STATUS_ROLLING_BACK;
+			this.transactionListenerList.onPrepareFailure(xid);
+			throw rrex;
+		} catch (RuntimeException xaex) {
+			this.transactionStatus = Status.STATUS_ROLLING_BACK;
+			this.transactionListenerList.onPrepareFailure(xid);
+			throw new RollbackRequiredException();
 		}
 
 		this.transactionStatus = Status.STATUS_PREPARED;
 		archive.setStatus(this.transactionStatus);
 		this.transactionListenerList.onPrepareSuccess(xid);
 
-		if (finalVote == XAResource.XA_OK) {
-			this.transactionVote = XAResource.XA_OK;
-			archive.setVote(XAResource.XA_OK);
-			transactionLogger.updateTransaction(archive);
-			throw new CommitRequiredException();
-		} else {
-			this.transactionVote = XAResource.XA_RDONLY;
-			archive.setVote(XAResource.XA_RDONLY);
-			transactionLogger.deleteTransaction(archive);
-		}
-
+		this.transactionVote = vote;
+		archive.setVote(vote);
+		transactionLogger.updateTransaction(archive);
 	}
 
 	public synchronized void participantCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
@@ -241,76 +216,26 @@ public class TransactionImpl implements Transaction {
 		this.transactionStatus = Status.STATUS_COMMITTING;
 		this.transactionListenerList.onCommitStart(xid);
 
-		boolean mixedExists = false;
-		boolean unFinishExists = false;
-		boolean committedExists = false;
-		boolean rolledbackExists = false;
-
-		XATerminator[] terminators = new XATerminator[] { this.optimizedTerminator, this.nativeTerminator,
-				this.remoteTerminator };
-		for (int i = 0; i < terminators.length; i++) {
-			XATerminator terminator = terminators[i];
-			if (terminator.getResourceArchives().isEmpty()) {
-				continue;
-			}
-
-			try {
-				terminator.commit(xid, false);
-				committedExists = true;
-				mixedExists = rolledbackExists ? true : mixedExists;
-			} catch (XAException xaex) {
-				unFinishExists = TransactionException.class.isInstance(xaex);
-
-				switch (xaex.errorCode) {
-				case XAException.XA_HEURCOM:
-					committedExists = true;
-					mixedExists = rolledbackExists ? true : mixedExists;
-					break;
-				case XAException.XA_HEURMIX:
-					mixedExists = true;
-					break;
-				case XAException.XA_HEURRB:
-					if (mixedExists == false && committedExists == false) {
-						this.rollback();
-						throw new HeuristicRollbackException();
-					} else {
-						rolledbackExists = true;
-						mixedExists = committedExists ? true : mixedExists;
-					}
-				default:
-					logger.error("Unknown state in committing transaction phase.", xaex);
-				}
-			} catch (RuntimeException rex) {
-				unFinishExists = true;
-				logger.error("Unknown state in committing transaction phase.", rex);
-			}
-		}
-
-		int txStatus = Status.STATUS_COMMITTED;
+		boolean unFinishExists = true;
 		try {
-			if (mixedExists) {
-				this.transactionListenerList.onCommitHeuristicMixed(xid);
-				throw new HeuristicMixedException();
-			} else if (unFinishExists) {
-				if (rolledbackExists) {
-					this.transactionListenerList.onCommitHeuristicRolledback(xid);
-					throw new HeuristicRollbackException();
-				} else {
-					this.transactionListenerList.onCommitFailure(xid);
-					throw new CommitRequiredException();
-				}
-			} else {
-				if (rolledbackExists) {
-					this.transactionListenerList.onCommitHeuristicRolledback(xid);
-					txStatus = Status.STATUS_ROLLEDBACK;
-					throw new HeuristicRollbackException();
-				} else {
-					this.transactionListenerList.onCommitSuccess(xid);
-				}
-			}
+			this.getTransactionStrategy().commit(xid);
+			unFinishExists = false;
+			this.transactionListenerList.onCommitSuccess(xid);
+		} catch (HeuristicMixedException ex) {
+			this.transactionListenerList.onCommitHeuristicMixed(xid);
+			throw ex;
+		} catch (HeuristicRollbackException ex) {
+			this.transactionListenerList.onCommitHeuristicRolledback(xid);
+			throw ex;
+		} catch (SystemException ex) {
+			this.transactionListenerList.onCommitFailure(xid);
+			throw ex;
+		} catch (RuntimeException ex) {
+			this.transactionListenerList.onCommitFailure(xid);
+			throw ex;
 		} finally {
 			if (unFinishExists == false) {
-				this.transactionStatus = txStatus; // Status.STATUS_COMMITTED;
+				this.transactionStatus = Status.STATUS_COMMITTED; // Status.STATUS_COMMITTED;
 				archive.setStatus(this.transactionStatus);
 				transactionLogger.deleteTransaction(archive);
 
@@ -321,25 +246,40 @@ public class TransactionImpl implements Transaction {
 
 	}
 
+	private synchronized void checkBeforeCommit()
+			throws RollbackException, IllegalStateException, RollbackRequiredException, HeuristicCommitException {
+
+		if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
+			throw new RollbackException();
+		} else if (this.transactionStatus == Status.STATUS_ROLLING_BACK) {
+			throw new RollbackRequiredException();
+		} else if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
+			throw new RollbackRequiredException();
+		} else if (this.transactionStatus == Status.STATUS_ACTIVE) {
+			// throw new CommitRequiredException(); // ignore
+		} else if (this.transactionStatus == Status.STATUS_COMMITTED) {
+			throw new HeuristicCommitException();
+		} else {
+			throw new IllegalStateException();
+		}
+
+	}
+
 	public synchronized void commit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
 			SecurityException, IllegalStateException, CommitRequiredException, SystemException {
 
 		try {
 			this.checkBeforeCommit();
+		} catch (HeuristicCommitException hcex) {
+			logger.debug("Current transaction has already been committed.");
+			return;
 		} catch (RollbackRequiredException rrex) {
 			this.rollback();
 			throw new HeuristicRollbackException();
-		} catch (CommitRequiredException crex) {
-			this.delegateCommit();
 		}
 
-	}
-
-	private synchronized void delegateCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
-			SecurityException, IllegalStateException, CommitRequiredException, SystemException {
 		// stop-timing
-		TransactionTimer transactionTimer = beanFactory.getTransactionTimer();
-		transactionTimer.stopTiming(this);
+		beanFactory.getTransactionTimer().stopTiming(this);
 
 		// before-completion
 		this.synchronizationList.beforeCompletion();
@@ -362,17 +302,10 @@ public class TransactionImpl implements Transaction {
 			TransactionXid xid = this.transactionContext.getXid();
 			logger.info("[{}] commit-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
-			int nativeResNum = this.nativeTerminator.getResourceArchives().size();
-			int optmizResNum = this.optimizedTerminator.getResourceArchives().size();
-			int remoteResNum = this.remoteTerminator.getResourceArchives().size();
-			int sizeOfResNum = nativeResNum + optmizResNum + remoteResNum;
-			if (sizeOfResNum == 1) {
+			if (this.participantList.size() <= 1) {
 				this.fireOnePhaseCommit();
-			} else if (sizeOfResNum > 1) {
-				this.fireTwoPhaseCommit();
 			} else {
-				this.transactionListenerList.onCommitStart(xid);
-				this.transactionListenerList.onCommitSuccess(xid);
+				this.fireTwoPhaseCommit();
 			}
 
 			logger.info("[{}] commit-transaction complete successfully",
@@ -384,16 +317,20 @@ public class TransactionImpl implements Transaction {
 
 	public synchronized void fireOnePhaseCommit()
 			throws HeuristicRollbackException, HeuristicMixedException, CommitRequiredException, SystemException {
+
+		XAResourceArchive archive = null;
+		if (this.nativeParticipantList.size() > 0) {
+			archive = this.nativeParticipantList.get(0);
+		} else if (this.remoteParticipantList.size() > 0) {
+			archive = this.remoteParticipantList.get(0);
+		} else {
+			archive = this.participant;
+		}
+
 		TransactionXid xid = this.transactionContext.getXid();
 		try {
 			this.transactionListenerList.onCommitStart(xid);
-			if (this.optimizedTerminator.getResourceArchives().size() > 0) {
-				this.optimizedTerminator.commit(xid, true);
-			} else if (this.nativeTerminator.getResourceArchives().size() > 0) {
-				this.nativeTerminator.commit(xid, true);
-			} else {
-				this.remoteTerminator.commit(xid, true);
-			}
+			archive.commit(xid, true);
 			this.transactionListenerList.onCommitSuccess(xid);
 		} catch (TransactionException xaex) {
 			this.transactionListenerList.onCommitFailure(xid);
@@ -418,12 +355,18 @@ public class TransactionImpl implements Transaction {
 				ex.initCause(xaex);
 				throw ex;
 			}
+		} catch (RuntimeException rex) {
+			this.transactionListenerList.onCommitFailure(xid);
+			logger.warn("Unknown error occurred while committing transaction.", rex);
+			throw new SystemException();
 		}
 	}
 
 	public synchronized void fireTwoPhaseCommit()
 			throws HeuristicRollbackException, HeuristicMixedException, CommitRequiredException, SystemException {
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
+
+		TransactionStrategy transactionStrategy = this.getTransactionStrategy();
 
 		TransactionXid xid = this.transactionContext.getXid();
 
@@ -434,39 +377,30 @@ public class TransactionImpl implements Transaction {
 
 		this.transactionListenerList.onPrepareStart(xid);
 
-		XATerminator[] terminators = new XATerminator[] { this.optimizedTerminator, this.nativeTerminator,
-				this.remoteTerminator };
-		int finalVote = XAResource.XA_RDONLY;
-		for (int i = 0; i < terminators.length; i++) {
-			XATerminator terminator = terminators[i];
-			if (terminator.getResourceArchives().isEmpty()) {
-				continue;
-			}
-
-			try {
-				int vote = terminator.prepare(xid);
-				finalVote = vote == XAResource.XA_OK ? XAResource.XA_OK : finalVote;
-			} catch (XAException xaex) {
-				this.transactionListenerList.onPrepareFailure(xid);
-				this.rollback();
-				throw new HeuristicRollbackException();
-			} catch (RuntimeException xaex) {
-				this.transactionListenerList.onPrepareFailure(xid);
-				this.rollback();
-				throw new HeuristicRollbackException();
-			}
+		int vote = XAResource.XA_RDONLY;
+		try {
+			transactionStrategy.prepare(xid);
+		} catch (RollbackRequiredException xaex) {
+			this.transactionListenerList.onPrepareFailure(xid);
+			this.rollback();
+			throw new HeuristicRollbackException();
+		} catch (CommitRequiredException xaex) {
+			vote = XAResource.XA_OK;
+		} catch (RuntimeException rex) {
+			this.transactionListenerList.onPrepareFailure(xid);
+			this.rollback();
+			throw new HeuristicRollbackException();
 		}
 
 		this.transactionListenerList.onPrepareSuccess(xid);
 
-		if (finalVote == XAResource.XA_RDONLY) {
+		if (vote == XAResource.XA_RDONLY) {
 			this.transactionStatus = Status.STATUS_PREPARED;// .setStatusPrepared();
 			this.transactionVote = XAResource.XA_RDONLY;
 			archive.setVote(XAResource.XA_RDONLY);
 			archive.setStatus(this.transactionStatus);
 			this.transactionListenerList.onCommitSuccess(xid);
 			transactionLogger.deleteTransaction(archive);
-			return; // return
 		} else {
 			this.transactionStatus = Status.STATUS_PREPARED;// .setStatusPrepared();
 			this.transactionVote = XAResource.XA_OK;
@@ -477,82 +411,31 @@ public class TransactionImpl implements Transaction {
 			this.transactionStatus = Status.STATUS_COMMITTING;// .setStatusCommiting();
 			this.transactionListenerList.onCommitStart(xid);
 
-			boolean mixedExists = false;
-			boolean unFinishExists = false;
-			boolean committedExists = false;
-			boolean rolledbackExists = false;
-
-			for (int i = 0; i < terminators.length; i++) {
-				XATerminator terminator = terminators[i];
-				if (terminator.getResourceArchives().isEmpty()) {
-					continue;
-				}
-
-				try {
-					terminator.commit(xid, false);
-					committedExists = true;
-					mixedExists = rolledbackExists ? true : mixedExists;
-				} catch (XAException xaex) {
-					unFinishExists = TransactionException.class.isInstance(xaex);
-
-					switch (xaex.errorCode) {
-					case XAException.XA_HEURCOM:
-						committedExists = true;
-						mixedExists = rolledbackExists ? true : mixedExists;
-						break;
-					case XAException.XA_HEURMIX:
-						mixedExists = true;
-						break;
-					case XAException.XA_HEURRB:
-						if (mixedExists == false && committedExists == false) {
-							this.rollback();
-							throw new HeuristicRollbackException();
-						} else {
-							rolledbackExists = true;
-							mixedExists = committedExists ? true : mixedExists;
-						}
-					default:
-						logger.error("Unknown state in committing transaction phase.", xaex);
-					}
-				} catch (RuntimeException rex) {
-					unFinishExists = true;
-					logger.error("Unknown state in committing transaction phase.", rex);
-				}
-			}
-
-			int txStatus = Status.STATUS_COMMITTED;
+			boolean unFinishExists = true;
 			try {
-				if (mixedExists) {
-					this.transactionListenerList.onCommitHeuristicMixed(xid);
-					throw new HeuristicMixedException();
-				} else if (unFinishExists) {
-					if (rolledbackExists) {
-						this.transactionListenerList.onCommitHeuristicRolledback(xid);
-						throw new HeuristicRollbackException();
-					} else {
-						this.transactionListenerList.onCommitFailure(xid);
-						throw new CommitRequiredException();
-					}
-				} else {
-					if (rolledbackExists) {
-						this.transactionListenerList.onCommitHeuristicRolledback(xid);
-						txStatus = Status.STATUS_ROLLEDBACK;
-						throw new HeuristicRollbackException();
-					} else {
-						this.transactionListenerList.onCommitSuccess(xid);
-					}
-				}
+				transactionStrategy.commit(xid);
+				unFinishExists = true;
+				this.transactionListenerList.onCommitSuccess(xid);
+			} catch (HeuristicMixedException ex) {
+				this.transactionListenerList.onCommitHeuristicMixed(xid);
+				throw ex;
+			} catch (HeuristicRollbackException ex) {
+				this.transactionListenerList.onCommitHeuristicRolledback(xid);
+				throw ex;
+			} catch (SystemException ex) {
+				this.transactionListenerList.onCommitFailure(xid);
+				throw ex;
+			} catch (RuntimeException ex) {
+				this.transactionListenerList.onCommitFailure(xid);
+				throw ex;
 			} finally {
 				if (unFinishExists == false) {
-					this.transactionStatus = txStatus; // Status.STATUS_COMMITTED;
+					this.transactionStatus = Status.STATUS_COMMITTED; // Status.STATUS_COMMITTED;
 					archive.setStatus(this.transactionStatus);
 					transactionLogger.deleteTransaction(archive);
-
-					logger.info("[{}] commit-transaction complete successfully",
-							ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 				}
 			}
-		} // end-else-if (finalVote == XAResource.XA_RDONLY)
+		} // end-else-if (vote == XAResource.XA_RDONLY)
 
 	}
 
@@ -562,7 +445,14 @@ public class TransactionImpl implements Transaction {
 		}
 
 		try {
-			return this.invokeDelistResource(xaRes, flag);
+			if (XAResourceDescriptor.class.isInstance(xaRes)) {
+				return this.delistResource((XAResourceDescriptor) xaRes, flag);
+			} else {
+				XAResourceDescriptor descriptor = new UnidentifiedResourceDescriptor();
+				((UnidentifiedResourceDescriptor) descriptor).setDelegate(xaRes);
+				((UnidentifiedResourceDescriptor) descriptor).setIdentifier("");
+				return this.delistResource(descriptor, flag);
+			}
 		} finally {
 			if (flag == XAResource.TMFAIL) {
 				this.setRollbackOnlyQuietly();
@@ -571,25 +461,81 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	private boolean invokeDelistResource(XAResource xaRes, int flag) throws IllegalStateException, SystemException {
-		XATerminator terminator = null;
-		XAResourceDescriptor descriptor = null;
-		if (XAResourceDescriptor.class.isInstance(xaRes)) {
-			descriptor = (XAResourceDescriptor) xaRes;
-			if (CommonResourceDescriptor.class.isInstance(xaRes)) {
-				terminator = this.nativeTerminator;
-			} else if (RemoteResourceDescriptor.class.isInstance(xaRes)) {
-				terminator = this.remoteTerminator;
-			} else {
-				terminator = this.optimizedTerminator;
-			}
-		} else {
-			descriptor = new UnidentifiedResourceDescriptor();
-			((UnidentifiedResourceDescriptor) descriptor).setDelegate(xaRes);
-			terminator = this.optimizedTerminator;
+	public boolean delistResource(XAResourceDescriptor descriptor, int flag) throws IllegalStateException, SystemException {
+		String identifier = descriptor.getIdentifier();
+
+		XAResourceArchive archive = this.participantMap.get(identifier);
+		if (archive == null) {
+			throw new SystemException();
 		}
 
-		return terminator.delistResource(descriptor, flag);
+		boolean success = false;
+		try {
+			success = this.delistResource(archive, flag);
+		} finally {
+			if (success) {
+				this.resourceListenerList.onDelistResource(archive.getXid(), descriptor);
+			}
+		}
+
+		return true;
+	}
+
+	private boolean delistResource(XAResourceArchive archive, int flag) throws SystemException, RollbackRequiredException {
+		try {
+			Xid branchXid = archive.getXid();
+
+			switch (flag) {
+			case XAResource.TMSUCCESS:
+			case XAResource.TMFAIL:
+				archive.end(branchXid, flag);
+				archive.setDelisted(true);
+				break;
+			case XAResource.TMSUSPEND:
+				archive.end(branchXid, flag);
+				archive.setDelisted(true);
+				archive.setSuspended(true);
+				break;
+			default:
+				throw new SystemException();
+			}
+
+			logger.info("[{}] delist: xares= {}, branch= {}, flags= {}",
+					ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
+					ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), flag);
+		} catch (XAException xae) {
+			logger.error("XATerminatorImpl.delistResource(XAResourceArchive, int)", xae);
+
+			// Possible XAException values are XAER_RMERR, XAER_RMFAIL,
+			// XAER_NOTA, XAER_INVAL, XAER_PROTO, or XA_RB*.
+			switch (xae.errorCode) {
+			case XAException.XAER_NOTA:
+				// The specified XID is not known by the resource manager.
+			case XAException.XAER_INVAL:
+				// Invalid arguments were specified.
+			case XAException.XAER_PROTO:
+				// The routine was invoked in an improper context.
+				return false;
+			case XAException.XAER_RMFAIL:
+				// An error occurred that makes the resource manager unavailable.
+			case XAException.XAER_RMERR:
+				// An error occurred in dissociating the transaction branch from the thread of control.
+				SystemException sysex = new SystemException();
+				sysex.initCause(xae);
+				throw sysex;
+			default:
+				// XA_RB*
+				RollbackRequiredException rrex = new RollbackRequiredException();
+				rrex.initCause(xae);
+				throw rrex;
+			}
+		} catch (RuntimeException ex) {
+			SystemException sysex = new SystemException();
+			sysex.initCause(ex);
+			throw sysex;
+		}
+
+		return true;
 	}
 
 	public synchronized boolean enlistResource(XAResource xaRes)
@@ -601,30 +547,151 @@ public class TransactionImpl implements Transaction {
 			throw new IllegalStateException();
 		}
 
-		XATerminator terminator = null;
-		XAResourceDescriptor descriptor = null;
 		if (XAResourceDescriptor.class.isInstance(xaRes)) {
-			descriptor = (XAResourceDescriptor) xaRes;
-			descriptor.setTransactionTimeoutQuietly(this.transactionTimeout);
-
-			if (CommonResourceDescriptor.class.isInstance(xaRes)) {
-				terminator = this.nativeTerminator;
-			} else if (RemoteResourceDescriptor.class.isInstance(xaRes)) {
-				terminator = this.remoteTerminator;
-			} else {
-				terminator = this.optimizedTerminator;
-			}
-		} else if (this.transactionContext.isCoordinator()) {
-			descriptor = new UnidentifiedResourceDescriptor();
+			return this.enlistResource((XAResourceDescriptor) xaRes);
+		} else if (XAResourceDescriptor.class.isInstance(xaRes) == false && this.transactionContext.isCoordinator()) {
+			XAResourceDescriptor descriptor = new UnidentifiedResourceDescriptor();
+			((UnidentifiedResourceDescriptor) descriptor).setIdentifier("");
 			((UnidentifiedResourceDescriptor) descriptor).setDelegate(xaRes);
-			descriptor.setTransactionTimeoutQuietly(this.transactionTimeout);
-
-			terminator = this.optimizedTerminator;
+			return this.enlistResource(descriptor);
 		} else {
 			throw new SystemException("Unknown xa resource!");
 		}
 
-		return terminator.enlistResource(descriptor);
+	}
+
+	public boolean enlistResource(XAResourceDescriptor descriptor)
+			throws RollbackException, IllegalStateException, SystemException {
+		String identifier = descriptor.getIdentifier();
+
+		XAResourceArchive archive = null;
+
+		XAResourceArchive element = this.participantMap.get(identifier);
+		if (element != null) {
+			XAResourceDescriptor xard = element.getDescriptor();
+			try {
+				archive = xard.isSameRM(descriptor) ? element : archive;
+			} catch (Exception ex) {
+				logger.debug(ex.getMessage(), ex);
+			}
+		}
+
+		int flags = XAResource.TMNOFLAGS;
+		if (archive == null) {
+			archive = new XAResourceArchive();
+			archive.setDescriptor(descriptor);
+			archive.setIdentified(true);
+			TransactionXid globalXid = this.transactionContext.getXid();
+			XidFactory xidFactory = this.beanFactory.getXidFactory();
+			archive.setXid(xidFactory.createBranchXid(globalXid));
+		} else {
+			flags = XAResource.TMJOIN;
+		}
+
+		descriptor.setTransactionTimeoutQuietly(this.transactionTimeout);
+
+		if (this.participant != null && (LocalXAResourceDescriptor.class.isInstance(descriptor)
+				|| UnidentifiedResourceDescriptor.class.isInstance(descriptor))) {
+			XAResourceDescriptor lro = this.participant.getDescriptor();
+			try {
+				if (lro.isSameRM(descriptor) == false) {
+					throw new SystemException();
+				}
+			} catch (XAException ex) {
+				throw new SystemException();
+			} catch (RuntimeException ex) {
+				throw new IllegalStateException();
+			}
+		}
+
+		boolean success = false;
+		try {
+			success = this.enlistResource(archive, flags);
+		} finally {
+			if (success) {
+				if (CommonResourceDescriptor.class.isInstance(descriptor)) {
+					this.nativeParticipantList.add(archive);
+				} else if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
+					this.remoteParticipantList.add(archive);
+				} else {
+					this.participant = this.participant == null ? archive : this.participant;
+				}
+
+				this.participantList.add(archive);
+				this.participantMap.put(identifier, archive);
+
+				this.resourceListenerList.onEnlistResource(archive.getXid(), descriptor);
+			}
+		}
+
+		return true;
+	}
+
+	private boolean enlistResource(XAResourceArchive archive, int flag) throws SystemException, RollbackException {
+		try {
+			Xid branchXid = archive.getXid();
+			logger.info("[{}] enlist: xares= {}, branch= {}, flags: {}",
+					ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
+					ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), flag);
+
+			switch (flag) {
+			case XAResource.TMNOFLAGS:
+				long expired = this.transactionContext.getExpiredTime();
+				long current = System.currentTimeMillis();
+				long remains = expired - current;
+				int timeout = (int) (remains / 1000L);
+				archive.setTransactionTimeout(timeout);
+				archive.start(branchXid, flag);
+				return true;
+			case XAResource.TMJOIN:
+				archive.start(branchXid, flag);
+				archive.setDelisted(false);
+				return false;
+			case XAResource.TMRESUME:
+				archive.start(branchXid, flag);
+				archive.setDelisted(false);
+				archive.setSuspended(false);
+				return false;
+			default:
+				throw new SystemException();
+			}
+		} catch (XAException xae) {
+			logger.error("XATerminatorImpl.enlistResource(XAResourceArchive, int)", xae);
+
+			// Possible exceptions are XA_RB*, XAER_RMERR, XAER_RMFAIL,
+			// XAER_DUPID, XAER_OUTSIDE, XAER_NOTA, XAER_INVAL, or XAER_PROTO.
+			switch (xae.errorCode) {
+			case XAException.XAER_DUPID:
+				// * If neither TMJOIN nor TMRESUME is specified and the transaction
+				// * specified by xid has previously been seen by the resource manager,
+				// * the resource manager throws the XAException exception with XAER_DUPID error code.
+				return false;
+			case XAException.XAER_OUTSIDE:
+				// The resource manager is doing work outside any global transaction
+				// on behalf of the application.
+			case XAException.XAER_NOTA:
+				// Either TMRESUME or TMJOIN was set inflags, and the specified XID is not
+				// known by the resource manager.
+			case XAException.XAER_INVAL:
+				// Invalid arguments were specified.
+			case XAException.XAER_PROTO:
+				// The routine was invoked in an improper context.
+				return false;
+			case XAException.XAER_RMFAIL:
+				// An error occurred that makes the resource manager unavailable
+			case XAException.XAER_RMERR:
+				// An error occurred in associating the transaction branch with the thread of control
+				SystemException sysex = new SystemException();
+				sysex.initCause(xae);
+				throw sysex;
+			default:
+				// XA_RB*
+				throw new RollbackException();
+			}
+		} catch (RuntimeException ex) {
+			throw new RollbackException();
+		}
+
 	}
 
 	public int getStatus() /* throws SystemException */ {
@@ -646,18 +713,12 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	private void checkBeforeRollback() throws IllegalStateException, RollbackRequiredException {
+	private void checkBeforeRollback() throws IllegalStateException, HeuristicRollbackException {
 
-		if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
-			throw new RollbackRequiredException();
-		} else if (this.transactionStatus == Status.STATUS_ACTIVE) {
-			throw new RollbackRequiredException();
-		} else if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
-			logger.debug("Current transaction has already been rolled back.");
+		if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
+			throw new HeuristicRollbackException();
 		} else if (this.transactionStatus == Status.STATUS_COMMITTED) {
 			throw new IllegalStateException();
-		} else {
-			throw new RollbackRequiredException();
 		}
 
 	}
@@ -666,16 +727,13 @@ public class TransactionImpl implements Transaction {
 
 		try {
 			this.checkBeforeRollback();
-		} catch (RollbackRequiredException rrex) {
-			this.delegateRollback();
+		} catch (HeuristicRollbackException rrex) {
+			logger.debug("Current transaction has already been rolled back.");
+			return;
 		}
 
-	}
-
-	private synchronized void delegateRollback() throws IllegalStateException, RollbackRequiredException, SystemException {
 		// stop-timing
-		TransactionTimer transactionTimer = beanFactory.getTransactionTimer();
-		transactionTimer.stopTiming(this);
+		beanFactory.getTransactionTimer().stopTiming(this);
 
 		// before-completion
 		this.synchronizationList.beforeCompletion();
@@ -683,197 +741,101 @@ public class TransactionImpl implements Transaction {
 		// delist all resources
 		this.delistAllResourceQuietly();
 
+		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
+		TransactionXid xid = this.transactionContext.getXid();
+
+		boolean unFinishExists = true;
 		try {
-			TransactionXid xid = this.transactionContext.getXid();
 			logger.info("[{}] rollback-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
-			this.invokeRollback();
+			this.transactionStatus = Status.STATUS_ROLLING_BACK;
+			TransactionArchive archive = this.getTransactionArchive();
+			archive.setStatus(this.transactionStatus);
+			// transactionLogger.createTransaction(archive); // TODO
+
+			this.transactionListenerList.onRollbackStart(xid);
+
+			TransactionStrategy transactionStrategy = this.getTransactionStrategy();
+			transactionStrategy.rollback(xid);
+
+			unFinishExists = false;
+			this.transactionListenerList.onRollbackSuccess(xid);
 
 			logger.info("[{}] rollback-transaction complete successfully",
 					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+		} catch (HeuristicMixedException ex) {
+			this.transactionListenerList.onRollbackFailure(xid);
+			throw new SystemException();
+		} catch (HeuristicCommitException ex) {
+			this.transactionListenerList.onRollbackFailure(xid);
+			throw new SystemException();
+		} catch (SystemException ex) {
+			this.transactionListenerList.onRollbackFailure(xid);
+			throw ex;
+		} catch (RuntimeException ex) {
+			this.transactionListenerList.onRollbackFailure(xid);
+			throw ex;
 		} finally {
+			if (unFinishExists == false) {
+				this.transactionStatus = Status.STATUS_ROLLEDBACK; // Status.STATUS_ROLLEDBACK;
+				TransactionArchive archive = this.getTransactionArchive();// new TransactionArchive();
+				transactionLogger.deleteTransaction(archive);
+			}
 			this.synchronizationList.afterCompletion(this.transactionStatus);
 		}
 	}
 
-	public synchronized void invokeRollback() throws IllegalStateException, RollbackRequiredException, SystemException {
+	public void suspend() throws RollbackRequiredException, SystemException {
+		boolean rollbackRequired = false;
+		boolean errorExists = false;
 
-		boolean unFinishExists = false;
-		boolean committedExists = false;
-		boolean rolledbackExists = false;
-		boolean mixedExists = false;
-
-		TransactionXid xid = this.transactionContext.getXid();
-
-		TransactionArchive archive = this.getTransactionArchive();// new TransactionArchive();
-
-		this.transactionStatus = Status.STATUS_ROLLING_BACK;
-		archive.setStatus(this.transactionStatus);
-
-		this.transactionListenerList.onRollbackStart(xid);
-
-		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
-		transactionLogger.createTransaction(archive);
-
-		XATerminator[] terminators = new XATerminator[] { this.optimizedTerminator, this.nativeTerminator,
-				this.remoteTerminator };
-		for (int i = 0; i < terminators.length; i++) {
-			XATerminator terminator = terminators[i];
-			if (terminator.getResourceArchives().isEmpty()) {
-				continue;
-			}
-
-			try {
-				terminator.rollback(xid);
-				rolledbackExists = true;
-				mixedExists = committedExists ? true : mixedExists;
-			} catch (XAException xaex) {
-				unFinishExists = TransactionException.class.isInstance(xaex);
-
-				switch (xaex.errorCode) {
-				case XAException.XA_HEURRB:
-					rolledbackExists = true;
-					mixedExists = committedExists ? true : mixedExists;
-					break;
-				case XAException.XA_HEURMIX:
-					mixedExists = true;
-					break;
-				case XAException.XA_HEURCOM:
-					committedExists = true;
-					mixedExists = rolledbackExists ? true : mixedExists;
-					break;
-				default:
-					// unFinishExists = true;
-					logger.error("Unknown state in rollingback transaction phase.", xaex);
+		for (int i = 0; i < this.participantList.size(); i++) {
+			XAResourceArchive xares = this.participantList.get(i);
+			if (xares.isDelisted() == false) {
+				try {
+					this.delistResource(xares, XAResource.TMSUSPEND);
+				} catch (RollbackRequiredException ex) {
+					rollbackRequired = true;
+				} catch (SystemException ex) {
+					errorExists = true;
+				} catch (RuntimeException ex) {
+					errorExists = true;
 				}
-			} catch (RuntimeException rex) {
-				unFinishExists = true;
-				logger.error("Unknown state in rollingback transaction phase.", rex);
 			}
 		}
 
-		int txStatus = Status.STATUS_ROLLEDBACK;
-		try {
-			if (mixedExists) {
-				this.transactionListenerList.onRollbackFailure(xid);
-				SystemException systemErr = new SystemException();
-				systemErr.initCause(new XAException(XAException.XA_HEURMIX));
-				throw systemErr;
-			} else if (unFinishExists) {
-				if (committedExists) {
-					this.transactionListenerList.onRollbackFailure(xid);
-					SystemException committedErr = new SystemException();
-					committedErr.initCause(new XAException(XAException.XA_HEURCOM));
-					throw committedErr;
-				} else {
-					this.transactionListenerList.onRollbackFailure(xid);
-					throw new SystemException();
-				}
-			} else {
-				if (committedExists) {
-					txStatus = Status.STATUS_COMMITTED;
-					this.transactionListenerList.onRollbackFailure(xid);
-					SystemException committedErr = new SystemException();
-					committedErr.initCause(new XAException(XAException.XA_HEURCOM));
-					throw committedErr;
-				} else {
-					this.transactionListenerList.onRollbackSuccess(xid);
-				}
-			}
-		} finally {
-			if (unFinishExists == false) {
-				this.transactionStatus = txStatus; // Status.STATUS_ROLLEDBACK;
-				archive.setStatus(this.transactionStatus);
-				transactionLogger.deleteTransaction(archive);
-			}
+		if (rollbackRequired) {
+			this.setRollbackOnlyQuietly();
+			throw new RollbackRequiredException();
+		} else if (errorExists) {
+			throw new SystemException(XAException.XAER_RMERR);
 		}
 
 	}
 
-	public void suspend() throws SystemException {
-		SystemException throwable = null;
-		if (this.optimizedTerminator != null) {
-			try {
-				this.optimizedTerminator.suspendAllResource();
-			} catch (RollbackException rex) {
-				this.setRollbackOnlyQuietly();
-				throwable = new SystemException();
-				throwable.initCause(rex);
-			} catch (SystemException ex) {
-				throwable = ex;
+	public void resume() throws RollbackRequiredException, SystemException {
+		boolean rollbackRequired = false;
+		boolean errorExists = false;
+		for (int i = 0; i < this.participantList.size(); i++) {
+			XAResourceArchive xares = this.participantList.get(i);
+			if (xares.isDelisted()) {
+				try {
+					this.enlistResource(xares, XAResource.TMRESUME);
+				} catch (RollbackException rex) {
+					rollbackRequired = true;
+				} catch (SystemException rex) {
+					errorExists = true;
+				} catch (RuntimeException rex) {
+					errorExists = true;
+				}
 			}
 		}
 
-		if (this.nativeTerminator != null) {
-			try {
-				this.nativeTerminator.suspendAllResource();
-			} catch (RollbackException rex) {
-				this.setRollbackOnlyQuietly();
-				throwable = new SystemException();
-				throwable.initCause(rex);
-			} catch (SystemException ex) {
-				throwable = ex;
-			}
-		}
-
-		if (this.remoteTerminator != null) {
-			try {
-				this.remoteTerminator.suspendAllResource();
-			} catch (RollbackException rex) {
-				this.setRollbackOnlyQuietly();
-				throwable = new SystemException();
-				throwable.initCause(rex);
-			} catch (SystemException ex) {
-				throwable = ex;
-			}
-		}
-
-		if (throwable != null) {
-			throw throwable;
-		}
-
-	}
-
-	public void resume() throws SystemException {
-		SystemException throwable = null;
-		if (this.optimizedTerminator != null) {
-			try {
-				this.optimizedTerminator.resumeAllResource();
-			} catch (RollbackException rex) {
-				this.setRollbackOnlyQuietly();
-				throwable = new SystemException();
-				throwable.initCause(rex);
-			} catch (SystemException ex) {
-				throwable = ex;
-			}
-		}
-
-		if (this.nativeTerminator != null) {
-			try {
-				this.nativeTerminator.resumeAllResource();
-			} catch (RollbackException rex) {
-				this.setRollbackOnlyQuietly();
-				throwable = new SystemException();
-				throwable.initCause(rex);
-			} catch (SystemException ex) {
-				throwable = ex;
-			}
-		}
-
-		if (this.remoteTerminator != null) {
-			try {
-				this.remoteTerminator.resumeAllResource();
-			} catch (RollbackException rex) {
-				this.setRollbackOnlyQuietly();
-				throwable = new SystemException();
-				throwable.initCause(rex);
-			} catch (SystemException ex) {
-				throwable = ex;
-			}
-		}
-
-		if (throwable != null) {
-			throw throwable;
+		if (rollbackRequired) {
+			this.setRollbackOnlyQuietly();
+			throw new RollbackRequiredException();
+		} else if (errorExists) {
+			throw new SystemException(XAException.XAER_RMERR);
 		}
 
 	}
@@ -891,45 +853,30 @@ public class TransactionImpl implements Transaction {
 	}
 
 	private void delistAllResource() throws RollbackRequiredException, SystemException {
-		RollbackRequiredException rrex = null;
-		SystemException systemEx = null;
-
-		if (this.optimizedTerminator != null) {
-			try {
-				this.optimizedTerminator.delistAllResource();
-			} catch (RollbackException rex) {
-				rrex = new RollbackRequiredException();
-			} catch (SystemException ex) {
-				systemEx = ex;
+		boolean rollbackRequired = false;
+		boolean errorExists = false;
+		for (int i = 0; i < this.participantList.size(); i++) {
+			XAResourceArchive xares = this.participantList.get(i);
+			if (xares.isDelisted() == false) {
+				try {
+					this.delistResource(xares, XAResource.TMSUCCESS);
+				} catch (RollbackRequiredException ex) {
+					rollbackRequired = true;
+				} catch (SystemException ex) {
+					errorExists = true;
+				} catch (RuntimeException ex) {
+					errorExists = true;
+				} finally {
+					this.resourceListenerList.onDelistResource(xares.getXid(), xares.getDescriptor());
+				}
 			}
-		}
+		} // end-for
 
-		if (this.nativeTerminator != null) {
-			try {
-				this.nativeTerminator.delistAllResource();
-			} catch (RollbackException rex) {
-				rrex = new RollbackRequiredException();
-			} catch (SystemException ex) {
-				systemEx = ex;
-			}
+		if (rollbackRequired) {
+			throw new RollbackRequiredException();
+		} else if (errorExists) {
+			throw new SystemException(XAException.XAER_RMERR);
 		}
-
-		if (this.remoteTerminator != null) {
-			try {
-				this.remoteTerminator.delistAllResource();
-			} catch (RollbackException rex) {
-				rrex = new RollbackRequiredException();
-			} catch (SystemException ex) {
-				systemEx = ex;
-			}
-		}
-
-		if (rrex != null) {
-			throw rrex;
-		} else if (systemEx != null) {
-			throw systemEx;
-		}
-
 	}
 
 	public void setRollbackOnlyQuietly() {
@@ -949,45 +896,208 @@ public class TransactionImpl implements Transaction {
 	}
 
 	public synchronized void cleanup() {
-		TransactionXid xid = this.transactionContext.getXid();
+		for (int i = 0; i < this.participantList.size(); i++) {
+			XAResourceArchive archive = this.participantList.get(i);
+			Xid currentXid = archive.getXid();
+			if (archive.isHeuristic()) {
+				try {
+					Xid branchXid = archive.getXid();
+					archive.forget(branchXid);
+				} catch (XAException xae) {
+					// Possible exception values are XAER_RMERR, XAER_RMFAIL
+					// , XAER_NOTA, XAER_INVAL, or XAER_PROTO.
+					switch (xae.errorCode) {
+					case XAException.XAER_RMERR:
+						logger.error("[{}] forget: xares= {}, branch={}, error= {}",
+								ByteUtils.byteArrayToString(currentXid.getGlobalTransactionId()), archive,
+								ByteUtils.byteArrayToString(currentXid.getBranchQualifier()), xae.errorCode);
+						break;
+					case XAException.XAER_RMFAIL:
+						logger.error("[{}] forget: xares= {}, branch={}, error= {}",
+								ByteUtils.byteArrayToString(currentXid.getGlobalTransactionId()), archive,
+								ByteUtils.byteArrayToString(currentXid.getBranchQualifier()), xae.errorCode);
+						break;
+					case XAException.XAER_NOTA:
+					case XAException.XAER_INVAL:
+					case XAException.XAER_PROTO:
+						break;
+					default:
+						logger.error("[{}] forget: xares= {}, branch={}, error= {}",
+								ByteUtils.byteArrayToString(currentXid.getGlobalTransactionId()), archive,
+								ByteUtils.byteArrayToString(currentXid.getBranchQualifier()), xae.errorCode);
+					}
+				}
+			} // end-if
+		} // end-for
+	}
 
-		try {
-			this.optimizedTerminator.forget(xid);
-		} catch (XAException ex) {
-			logger.debug(ex.getMessage(), ex);
+	public synchronized void recoveryInit() throws SystemException {
+		TransactionXid globalXid = this.transactionContext.getXid();
+		if (transactionStatus != Status.STATUS_PREPARING && transactionStatus != Status.STATUS_PREPARED
+				&& transactionStatus != Status.STATUS_COMMITTING && transactionStatus != Status.STATUS_ROLLING_BACK) {
+			return;
 		}
 
-		try {
-			this.nativeTerminator.forget(xid);
-		} catch (XAException ex) {
-			logger.debug(ex.getMessage(), ex);
-		}
+		for (int i = 0; i < this.participantList.size(); i++) {
+			XAResourceArchive archive = this.participantList.get(i);
+			if (archive.isRecovered()) {
+				continue;
+			} else if (archive.isReadonly()) {
+				continue;
+			} else if (archive.isCommitted()) {
+				continue;
+			} else if (archive.isRolledback()) {
+				continue;
+			}
 
-		try {
-			this.remoteTerminator.forget(xid);
-		} catch (XAException ex) {
-			logger.debug(ex.getMessage(), ex);
+			boolean xidRecovered = false;
+			if (archive.isIdentified()) {
+				Xid thisXid = archive.getXid();
+				byte[] thisGlobalTransactionId = thisXid.getGlobalTransactionId();
+				byte[] thisBranchQualifier = thisXid.getBranchQualifier();
+				try {
+					Xid[] array = archive.recover(XAResource.TMSTARTRSCAN | XAResource.TMENDRSCAN);
+					for (int j = 0; array != null && j < array.length; j++) {
+						Xid thatXid = array[j];
+						byte[] thatGlobalTransactionId = thatXid.getGlobalTransactionId();
+						byte[] thatBranchQualifier = thatXid.getBranchQualifier();
+						if (thisXid.getFormatId() == thatXid.getFormatId()
+								&& Arrays.equals(thisGlobalTransactionId, thatGlobalTransactionId)
+								&& Arrays.equals(thisBranchQualifier, thatBranchQualifier)) {
+							xidRecovered = true;
+							break;
+						}
+					}
+				} catch (Exception ex) {
+					logger.error("[{}] recover-transaction failed. branch= {}",
+							ByteUtils.byteArrayToString(globalXid.getGlobalTransactionId()),
+							ByteUtils.byteArrayToString(globalXid.getBranchQualifier()));
+					continue;
+				}
+			}
+
+			if (transactionStatus == Status.STATUS_PREPARING) {
+				this.recoverForPreparingTransaction(archive, xidRecovered);
+			} else if (transactionStatus == Status.STATUS_PREPARED) {
+				try {
+					this.recoverForPreparedTransaction(archive, xidRecovered);
+				} catch (IllegalStateException ex) {
+					transactionStatus = Status.STATUS_PREPARING;
+				}
+			} else if (transactionStatus == Status.STATUS_COMMITTING) {
+				this.recoverForCommittingTransaction(archive, xidRecovered);
+			} else if (transactionStatus == Status.STATUS_ROLLING_BACK) {
+				this.recoverForRollingBackTransaction(archive, xidRecovered);
+			}
+
+			archive.setRecovered(true);
 		}
 
 	}
 
-	public synchronized void recoveryInit() throws SystemException {
-		SystemException systemEx = null;
-		try {
-			this.optimizedTerminator.recover(this);
-		} catch (SystemException ex) {
-			systemEx = ex;
-		}
+	protected void recoverForPreparingTransaction(XAResourceArchive archive, boolean xidRecovered) {
+		TransactionXid xid = (TransactionXid) archive.getXid();
+		boolean branchPrepared = archive.getVote() != -1; // default value
 
-		try {
-			this.nativeTerminator.recover(this);
-		} catch (SystemException ex) {
-			systemEx = ex;
+		if (branchPrepared && xidRecovered) {
+			// ignore
+		} else if (branchPrepared && xidRecovered == false) {
+			if (archive.isIdentified()) {
+				logger.error("[{}] recover failed: branch= {}, status= preparing, branchPrepared= true, xidRecovered= false",
+						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+						ByteUtils.byteArrayToString(xid.getBranchQualifier()));
+			} else {
+				// TODO
+			}
+		} else if (branchPrepared == false && xidRecovered) {
+			archive.setVote(XAResource.XA_OK);
+		} else if (branchPrepared == false && xidRecovered == false) {
+			// rollback required
 		}
+	}
 
-		this.remoteTerminator.recover(this);
-		if (systemEx != null) {
-			throw systemEx;
+	protected void recoverForPreparedTransaction(XAResourceArchive archive, boolean xidRecovered) throws IllegalStateException {
+		TransactionXid xid = (TransactionXid) archive.getXid();
+		boolean branchPrepared = archive.getVote() != XAResourceArchive.DEFAULT_VOTE; // default value
+		if (branchPrepared == false) {
+			logger.error("[{}] recover failed: branch= {}, status= prepared, branchPrepared= false",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+					ByteUtils.byteArrayToString(xid.getBranchQualifier()));
+			throw new IllegalStateException();
+		} else if (xidRecovered == false) {
+			if (archive.isIdentified()) {
+				logger.error("[{}] recover failed: branch= {}, status= prepared, branchPrepared= true, xidRecovered= false",
+						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+						ByteUtils.byteArrayToString(xid.getBranchQualifier()));
+			} else {
+				archive.setVote(XAResourceArchive.DEFAULT_VOTE); // vote of unidentified resource will be reset
+				logger.error("[{}] recover failed: branch= {}, status= prepared, branchPrepared= true, identified= false",
+						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+						ByteUtils.byteArrayToString(xid.getBranchQualifier()));
+				// rollback required
+				throw new IllegalStateException();
+			}
+		}
+	}
+
+	protected void recoverForCommittingTransaction(XAResourceArchive archive, boolean xidRecovered) {
+		TransactionXid xid = (TransactionXid) archive.getXid();
+		// boolean branchCompleted = archive.isCompleted();
+		boolean branchCommitted = archive.isCommitted();
+		if (branchCommitted && xidRecovered) {
+			logger.warn("[{}] recover failed: branch= {}, status= committing, branchCommitted= true, xidRecovered= true",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+					ByteUtils.byteArrayToString(xid.getBranchQualifier()));
+			archive.forgetQuietly(xid); // Branch has already been committed.
+		} else if (branchCommitted && xidRecovered == false) {
+			// ignore
+		} else if (branchCommitted == false && xidRecovered) {
+			// ignore
+		} else if (branchCommitted == false && xidRecovered == false) {
+			if (archive.isIdentified()) {
+				logger.warn("[{}] recover failed: branch= {}, status= committing, branchCommitted= false, xidRecovered= false",
+						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+						ByteUtils.byteArrayToString(xid.getBranchQualifier()));
+				archive.setCommitted(true);
+				archive.setCompleted(true);
+			} else {
+				// TODO upgrade
+				archive.setHeuristic(true);
+				archive.setCommitted(true);
+				archive.setRolledback(true);
+				archive.setCompleted(true);
+			}
+		}
+	}
+
+	protected void recoverForRollingBackTransaction(XAResourceArchive archive, boolean xidRecovered) {
+		TransactionXid xid = (TransactionXid) archive.getXid();
+		// boolean branchCompleted = archive.isCompleted();
+		boolean branchRolledback = archive.isRolledback();
+		if (branchRolledback && xidRecovered) {
+			logger.warn("[{}] recover failed: branch= {}, status= rollingback, branchRolledback= true, xidRecovered= true",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+					ByteUtils.byteArrayToString(xid.getBranchQualifier()));
+			archive.forgetQuietly(xid); // Branch has already been committed.
+		} else if (branchRolledback && xidRecovered == false) {
+			// ignore
+		} else if (branchRolledback == false && xidRecovered) {
+			// ignore
+		} else if (branchRolledback == false && xidRecovered == false) {
+			if (archive.isIdentified()) {
+				logger.warn(
+						"[{}] recover failed: branch= {}, status= rollingback, branchRolledback= false, xidRecovered= false",
+						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+						ByteUtils.byteArrayToString(xid.getBranchQualifier()));
+				archive.setRolledback(true);
+				archive.setCompleted(true);
+			} else {
+				// TODO upgrade
+				archive.setHeuristic(true);
+				archive.setCommitted(true);
+				archive.setRolledback(true);
+				archive.setCompleted(true);
+			}
 		}
 	}
 
@@ -1005,81 +1115,28 @@ public class TransactionImpl implements Transaction {
 
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 
-		boolean mixedExists = false;
-		boolean unFinishExists = false;
-		boolean committedExists = false;
-		boolean rolledbackExists = false;
-
-		XATerminator[] terminators = new XATerminator[] { this.optimizedTerminator, this.nativeTerminator,
-				this.remoteTerminator };
-		for (int i = 0; i < terminators.length; i++) {
-			XATerminator terminator = terminators[i];
-			if (terminator.getResourceArchives().isEmpty()) {
-				continue;
-			}
-
-			try {
-				terminator.recoveryCommit(xid);
-				committedExists = true;
-				mixedExists = rolledbackExists ? true : mixedExists;
-			} catch (XAException xaex) {
-				unFinishExists = TransactionException.class.isInstance(xaex);
-
-				switch (xaex.errorCode) {
-				case XAException.XA_HEURCOM:
-					committedExists = true;
-					mixedExists = rolledbackExists ? true : mixedExists;
-					break;
-				case XAException.XA_HEURMIX:
-					mixedExists = true;
-					break;
-				case XAException.XA_HEURRB:
-					if (mixedExists == false && committedExists == false) {
-						this.rollback();
-						throw new SystemException();
-					} else {
-						rolledbackExists = true;
-						mixedExists = committedExists ? true : mixedExists;
-					}
-				default:
-					logger.error("Unknown state in recovery-committing phase.", xaex);
-				}
-			} catch (RuntimeException rex) {
-				unFinishExists = true;
-				logger.error("Unknown state in recovery-committing phase.", rex);
-			}
-		}
-
-		int txStatus = Status.STATUS_COMMITTED;
+		boolean unFinishExists = true;
 		try {
-			if (mixedExists) {
-				this.transactionListenerList.onCommitHeuristicMixed(xid);
-				throw new SystemException();
-			} else if (unFinishExists) {
-				if (rolledbackExists) {
-					this.transactionListenerList.onCommitHeuristicRolledback(xid);
-					throw new SystemException();
-				} else {
-					this.transactionListenerList.onCommitFailure(xid);
-					throw new CommitRequiredException();
-				}
-			} else {
-				if (rolledbackExists) {
-					this.transactionListenerList.onCommitHeuristicRolledback(xid);
-					txStatus = Status.STATUS_ROLLEDBACK;
-					logger.error("[{}] recovery-commit: rolled back successfully",
-							ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-					throw new SystemException();
-				} else {
-					this.transactionListenerList.onCommitSuccess(xid);
+			TransactionStrategy transactionStrategy = this.getTransactionStrategy();
+			transactionStrategy.commit(xid);
+			unFinishExists = false;
 
-					logger.info("[{}] recovery-commit: committed successfully",
-							ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-				}
-			}
+			this.transactionListenerList.onCommitSuccess(xid);
+		} catch (HeuristicMixedException ex) {
+			this.transactionListenerList.onCommitHeuristicMixed(xid);
+			throw new SystemException();
+		} catch (HeuristicRollbackException ex) {
+			this.transactionListenerList.onCommitHeuristicRolledback(xid);
+			throw new SystemException();
+		} catch (SystemException ex) {
+			this.transactionListenerList.onCommitFailure(xid);
+			throw new CommitRequiredException();
+		} catch (RuntimeException ex) {
+			this.transactionListenerList.onCommitFailure(xid);
+			throw new CommitRequiredException();
 		} finally {
 			if (unFinishExists == false) {
-				this.transactionStatus = txStatus; // Status.STATUS_COMMITTED;
+				this.transactionStatus = Status.STATUS_COMMITTED; // Status.STATUS_COMMITTED;
 				TransactionArchive archive = this.getTransactionArchive();
 				archive.setStatus(this.transactionStatus);
 				transactionLogger.deleteTransaction(archive);
@@ -1094,96 +1151,44 @@ public class TransactionImpl implements Transaction {
 			this.recoveryInit();
 		}
 
+		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
+
 		TransactionXid xid = this.transactionContext.getXid();
 
 		this.transactionStatus = Status.STATUS_ROLLING_BACK;
 
 		this.transactionListenerList.onRollbackStart(xid);
 
-		boolean mixedExists = false;
-		boolean committedExists = false;
-		boolean rolledbackExists = false;
-		boolean unFinishExists = false;
-
-		XATerminator[] terminators = new XATerminator[] { this.optimizedTerminator, this.nativeTerminator,
-				this.remoteTerminator };
-		for (int i = 0; i < terminators.length; i++) {
-			XATerminator terminator = terminators[i];
-			if (terminator.getResourceArchives().isEmpty()) {
-				continue;
-			}
-
-			try {
-				terminator.rollback(xid);
-				rolledbackExists = true;
-				mixedExists = committedExists ? true : mixedExists;
-			} catch (XAException xaex) {
-				unFinishExists = TransactionException.class.isInstance(xaex);
-
-				switch (xaex.errorCode) {
-				case XAException.XA_HEURRB:
-					rolledbackExists = true;
-					mixedExists = committedExists ? true : mixedExists;
-					break;
-				case XAException.XA_HEURMIX:
-					mixedExists = true;
-					break;
-				case XAException.XA_HEURCOM:
-					committedExists = true;
-					mixedExists = rolledbackExists ? true : mixedExists;
-					break;
-				default:
-					// unFinishExists = true;
-					logger.error("Unknown state in recovery-rollingback phase.", xaex);
-				}
-			} catch (RuntimeException rex) {
-				unFinishExists = true;
-				logger.error("Unknown state in recovery-rollingback phase.", rex);
-			}
-		}
-
-		int txStatus = Status.STATUS_ROLLEDBACK;
+		boolean unFinishExists = true;
 		try {
-			if (mixedExists) {
-				this.transactionListenerList.onRollbackFailure(xid);
-				SystemException systemErr = new SystemException();
-				systemErr.initCause(new XAException(XAException.XA_HEURMIX));
-				throw systemErr;
-			} else if (unFinishExists) {
-				if (committedExists) {
-					this.transactionListenerList.onRollbackFailure(xid);
-					SystemException committedErr = new SystemException();
-					committedErr.initCause(new XAException(XAException.XA_HEURCOM));
-					throw committedErr;
-				} else {
-					this.transactionListenerList.onRollbackFailure(xid);
-					throw new SystemException();
-				}
-			} else {
-				if (committedExists) {
-					txStatus = Status.STATUS_COMMITTED;
-					this.transactionListenerList.onRollbackFailure(xid);
+			logger.info("[{}] recovery-rollback-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
-					logger.info("[{}] recovery-rollback: committed successfully",
-							ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+			TransactionStrategy transactionStrategy = this.getTransactionStrategy();
 
-					SystemException committedErr = new SystemException();
-					committedErr.initCause(new XAException(XAException.XA_HEURCOM));
-					throw committedErr;
-				} else {
-					this.transactionListenerList.onRollbackSuccess(xid);
+			transactionStrategy.rollback(xid);
 
-					logger.info("[{}] recovery-rollback: rolled back successfully",
-							ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-				}
-			}
+			unFinishExists = false;
+
+			this.transactionListenerList.onRollbackSuccess(xid);
+
+			logger.info("[{}] recovery-rollback-transaction complete successfully",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+		} catch (HeuristicMixedException ex) {
+			this.transactionListenerList.onRollbackFailure(xid);
+			throw new SystemException();
+		} catch (HeuristicCommitException ex) {
+			this.transactionListenerList.onRollbackFailure(xid);
+			throw new SystemException();
+		} catch (SystemException ex) {
+			this.transactionListenerList.onRollbackFailure(xid);
+			throw ex;
+		} catch (RuntimeException ex) {
+			this.transactionListenerList.onRollbackFailure(xid);
+			throw ex;
 		} finally {
 			if (unFinishExists == false) {
-				TransactionArchive archive = this.getTransactionArchive();
-				TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
-
-				this.transactionStatus = txStatus; // Status.STATUS_ROLLEDBACK;
-				archive.setStatus(this.transactionStatus);
+				this.transactionStatus = Status.STATUS_ROLLEDBACK; // Status.STATUS_ROLLEDBACK;
+				TransactionArchive archive = this.getTransactionArchive();// new TransactionArchive();
 				transactionLogger.deleteTransaction(archive);
 			}
 		}
@@ -1195,29 +1200,8 @@ public class TransactionImpl implements Transaction {
 		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
 
 		TransactionXid xid = this.transactionContext.getXid();
-		try {
-			this.optimizedTerminator.forget(xid);
-			logger.info("[{}] forget optimized terminator successfully",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-		} catch (XAException xaex) {
-			logger.info("[{}] forget optimized terminator failued", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-		}
 
-		try {
-			this.nativeTerminator.forget(xid);
-			logger.info("[{}] forget native terminator successfully",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-		} catch (XAException xaex) {
-			logger.info("[{}] forget native terminator failued", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-		}
-
-		try {
-			this.remoteTerminator.forget(xid);
-			logger.info("[{}] forget remote terminator successfully",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-		} catch (XAException xaex) {
-			logger.info("[{}] forget remote terminator failed", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-		}
+		this.cleanup();
 
 		repository.removeErrorTransaction(xid);
 		repository.removeTransaction(xid);
@@ -1230,32 +1214,8 @@ public class TransactionImpl implements Transaction {
 		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
 
 		TransactionXid xid = this.transactionContext.getXid();
-		try {
-			this.optimizedTerminator.recoveryForget(xid);
-			logger.info("[{}] recovery-forget optimized terminator successfully",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-		} catch (XAException xaex) {
-			logger.info("[{}] recovery-forget optimized terminator failued",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-		}
 
-		try {
-			this.nativeTerminator.recoveryForget(xid);
-			logger.info("[{}] recovery-forget native terminator successfully",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-		} catch (XAException xaex) {
-			logger.info("[{}] recovery-forget native terminator failued",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-		}
-
-		try {
-			this.remoteTerminator.recoveryForget(xid);
-			logger.info("[{}] recovery-forget remote terminator successfully",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-		} catch (XAException xaex) {
-			logger.info("[{}] recovery-forget remote terminator failed",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-		}
+		this.cleanup();
 
 		repository.removeErrorTransaction(xid);
 		repository.removeTransaction(xid);
@@ -1268,10 +1228,22 @@ public class TransactionImpl implements Transaction {
 		transactionArchive.setVote(this.transactionVote);
 		transactionArchive.setXid(this.transactionContext.getXid());
 		transactionArchive.setCoordinator(this.transactionContext.isCoordinator());
-		transactionArchive.getNativeResources().addAll(this.nativeTerminator.getResourceArchives());
-		transactionArchive.getOptmizedResources().addAll(this.optimizedTerminator.getResourceArchives());
-		transactionArchive.getRemoteResources().addAll(this.remoteTerminator.getResourceArchives());
+		transactionArchive.setOptimizedResource(this.participant);
+		transactionArchive.getNativeResources().addAll(this.nativeParticipantList);
+		transactionArchive.getRemoteResources().addAll(this.remoteParticipantList);
 		transactionArchive.setStatus(this.transactionStatus);
+
+		TransactionStrategy transactionStrategy = this.getTransactionStrategy();
+		if (CommonTransactionStrategy.class.isInstance(transactionStrategy)) {
+			transactionArchive.setTransactionStrategyType(TransactionStrategy.TRANSACTION_STRATEGY_COMMON);
+		} else if (SimpleTransactionStrategy.class.isInstance(transactionStrategy)) {
+			transactionArchive.setTransactionStrategyType(TransactionStrategy.TRANSACTION_STRATEGY_SIMPLE);
+		} else if (LastResourceOptimizeStrategy.class.isInstance(transactionStrategy)) {
+			transactionArchive.setTransactionStrategyType(TransactionStrategy.TRANSACTION_STRATEGY_LRO);
+		} else {
+			transactionArchive.setTransactionStrategyType(TransactionStrategy.TRANSACTION_STRATEGY_VACANT);
+		}
+
 		return transactionArchive;
 	}
 
@@ -1300,9 +1272,9 @@ public class TransactionImpl implements Transaction {
 	}
 
 	public void registerTransactionResourceListener(TransactionResourceListener listener) {
-		this.nativeTerminator.registerTransactionResourceListener(listener);
-		this.optimizedTerminator.registerTransactionResourceListener(listener);
-		this.remoteTerminator.registerTransactionResourceListener(listener);
+		// this.nativeTerminator.registerTransactionResourceListener(listener);
+		// this.optimizedTerminator.registerTransactionResourceListener(listener);
+		// this.remoteTerminator.registerTransactionResourceListener(listener);
 	}
 
 	public synchronized void stopTiming() {
@@ -1312,6 +1284,116 @@ public class TransactionImpl implements Transaction {
 	public synchronized void changeTransactionTimeout(int timeout) {
 		long created = this.transactionContext.getCreatedTime();
 		transactionContext.setExpiredTime(created + timeout);
+	}
+
+	public TransactionStrategy getTransactionStrategy() {
+		if (this.transactionStrategy == null) {
+			this.transactionStrategy = this.initGetTransactionStrategy();
+		}
+		return this.transactionStrategy;
+	}
+
+	private TransactionStrategy initGetTransactionStrategy() {
+		int nativeResNum = this.nativeParticipantList.size();
+		int remoteResNum = this.remoteParticipantList.size();
+
+		TransactionStrategy transactionStrategy = null;
+		if (this.participantList.isEmpty()) {
+			transactionStrategy = new VacantTransactionStrategy();
+		} else if (this.participant == null) /* TODO: LRO */ {
+			XATerminatorImpl nativeTerminator = new XATerminatorImpl();
+			nativeTerminator.getResourceArchives().addAll(this.nativeParticipantList);
+
+			XATerminatorImpl remoteTerminator = new XATerminatorImpl();
+			remoteTerminator.getResourceArchives().addAll(this.remoteParticipantList);
+
+			if (nativeResNum == 0) {
+				transactionStrategy = new SimpleTransactionStrategy(remoteTerminator);
+			} else if (remoteResNum == 0) {
+				transactionStrategy = new SimpleTransactionStrategy(nativeTerminator);
+			} else {
+				transactionStrategy = new CommonTransactionStrategy(nativeTerminator, remoteTerminator);
+			}
+
+		} else {
+			XATerminatorOptd terminatorOne = new XATerminatorOptd();
+			terminatorOne.getResourceArchives().add(this.participant);
+
+			XATerminatorImpl terminatorTwo = new XATerminatorImpl();
+			terminatorTwo.getResourceArchives().addAll(this.nativeParticipantList);
+			terminatorTwo.getResourceArchives().addAll(this.remoteParticipantList);
+
+			int resNumber = nativeResNum + remoteResNum;
+			if (resNumber == 0) {
+				transactionStrategy = new SimpleTransactionStrategy(terminatorOne);
+			} else {
+				transactionStrategy = new LastResourceOptimizeStrategy(terminatorOne, terminatorTwo);
+			}
+		}
+
+		return transactionStrategy;
+	}
+
+	public void recoverTransactionStrategy(int transactionStrategyType) {
+		int nativeResNum = this.nativeParticipantList.size();
+		int remoteResNum = this.remoteParticipantList.size();
+
+		XATerminatorImpl nativeTerminator = new XATerminatorImpl();
+		nativeTerminator.getResourceArchives().addAll(this.nativeParticipantList);
+
+		XATerminatorImpl remoteTerminator = new XATerminatorImpl();
+		remoteTerminator.getResourceArchives().addAll(this.remoteParticipantList);
+
+		if (TransactionStrategy.TRANSACTION_STRATEGY_COMMON == transactionStrategyType) {
+			if (this.participant != null) {
+				throw new IllegalStateException();
+			} else if (nativeResNum == 0 || remoteResNum == 0) {
+				throw new IllegalStateException();
+			}
+			this.transactionStrategy = new CommonTransactionStrategy(nativeTerminator, remoteTerminator);
+		} else if (TransactionStrategy.TRANSACTION_STRATEGY_SIMPLE == transactionStrategyType) {
+			if (this.participant == null) {
+				if (nativeResNum > 0 && remoteResNum > 0) {
+					throw new IllegalStateException();
+				} else if (nativeResNum == 0 && remoteResNum == 0) {
+					throw new IllegalStateException();
+				} else if (nativeResNum == 0) {
+					this.transactionStrategy = new SimpleTransactionStrategy(remoteTerminator);
+				} else {
+					this.transactionStrategy = new SimpleTransactionStrategy(nativeTerminator);
+				}
+			} else {
+				int resNumber = nativeResNum + remoteResNum;
+				if (resNumber > 0) {
+					throw new IllegalStateException();
+				}
+				XATerminatorOptd terminatorOne = new XATerminatorOptd();
+				terminatorOne.getResourceArchives().add(this.participant);
+				this.transactionStrategy = new SimpleTransactionStrategy(terminatorOne);
+			}
+		} else if (TransactionStrategy.TRANSACTION_STRATEGY_LRO == transactionStrategyType) {
+			if (this.participant == null) {
+				throw new IllegalStateException();
+			}
+			XATerminatorOptd terminatorOne = new XATerminatorOptd();
+			terminatorOne.getResourceArchives().add(this.participant);
+
+			XATerminatorImpl terminatorTwo = new XATerminatorImpl();
+			terminatorTwo.getResourceArchives().addAll(this.nativeParticipantList);
+			terminatorTwo.getResourceArchives().addAll(this.remoteParticipantList);
+
+			this.transactionStrategy = new LastResourceOptimizeStrategy(terminatorOne, terminatorTwo);
+		} else {
+			if (this.participant != null || nativeResNum > 0 || remoteResNum > 0) {
+				throw new IllegalStateException();
+			}
+			this.transactionStrategy = new VacantTransactionStrategy();
+		}
+
+	}
+
+	public void setTransactionStrategy(TransactionStrategy transactionStrategy) {
+		this.transactionStrategy = transactionStrategy;
 	}
 
 	public Object getTransactionalExtra() {
@@ -1324,14 +1406,6 @@ public class TransactionImpl implements Transaction {
 
 	public TransactionContext getTransactionContext() {
 		return transactionContext;
-	}
-
-	public XATerminator getNativeTerminator() {
-		return nativeTerminator;
-	}
-
-	public XATerminator getRemoteTerminator() {
-		return remoteTerminator;
 	}
 
 	public boolean isTiming() {
@@ -1356,6 +1430,22 @@ public class TransactionImpl implements Transaction {
 
 	public void setTransactionTimeout(int transactionTimeout) {
 		this.transactionTimeout = transactionTimeout;
+	}
+
+	public XAResourceArchive getParticipant() {
+		return participant;
+	}
+
+	public void setParticipant(XAResourceArchive participant) {
+		this.participant = participant;
+	}
+
+	public List<XAResourceArchive> getNativeParticipantList() {
+		return nativeParticipantList;
+	}
+
+	public List<XAResourceArchive> getRemoteParticipantList() {
+		return remoteParticipantList;
 	}
 
 }

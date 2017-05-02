@@ -25,7 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TransactionListenerList extends TransactionListenerAdapter {
-	static final Logger logger = LoggerFactory.getLogger(TransactionListenerList.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(TransactionListenerList.class);
 
 	private final List<TransactionListener> listeners = new ArrayList<TransactionListener>();
 

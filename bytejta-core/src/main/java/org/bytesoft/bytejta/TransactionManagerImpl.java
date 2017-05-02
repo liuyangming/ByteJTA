@@ -47,7 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TransactionManagerImpl implements TransactionManager, TransactionTimer, TransactionBeanFactoryAware {
-	static final Logger logger = LoggerFactory.getLogger(TransactionManagerImpl.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(TransactionManagerImpl.class);
 
 	private TransactionBeanFactory beanFactory;
 	private int timeoutSeconds = 5 * 60;
@@ -195,14 +195,14 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		return this.associatedTxMap.remove(Thread.currentThread());
 	}
 
-	public Transaction suspend() throws SystemException {
+	public Transaction suspend() throws RollbackRequiredException, SystemException {
 		Transaction transaction = this.desociateThread();
 		transaction.suspend();
 		return transaction;
 	}
 
 	public void resume(javax.transaction.Transaction tobj)
-			throws InvalidTransactionException, IllegalStateException, SystemException {
+			throws InvalidTransactionException, IllegalStateException, RollbackRequiredException, SystemException {
 
 		if (TransactionImpl.class.isInstance(tobj) == false) {
 			throw new InvalidTransactionException();

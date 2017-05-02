@@ -31,15 +31,19 @@ public class TransactionArchiveDeserializer implements ArchiveDeserializer {
 	public byte[] serialize(TransactionXid xid, Object obj) {
 		TransactionArchive archive = (TransactionArchive) obj;
 
+		XAResourceArchive optimizedArchive = archive.getOptimizedResource();
+
 		List<XAResourceArchive> nativeArchiveList = archive.getNativeResources();
-		List<XAResourceArchive> optimizedArchiveList = archive.getOptmizedResources();
 		List<XAResourceArchive> remoteArchiveList = archive.getRemoteResources();
 
+		int optimizedArchiveNumber = optimizedArchive == null ? 0 : 1;
+
 		int nativeArchiveNumber = nativeArchiveList.size();
-		int optimizedArchiveNumber = optimizedArchiveList.size();
 		int remoteArchiveNumber = remoteArchiveList.size();
 
-		int length = 3 + 3;
+		int transactionStrategy = archive.getTransactionStrategyType();
+
+		int length = 3 + 3 + 1;
 		byte[][] nativeByteArray = new byte[nativeArchiveNumber][];
 		for (int i = 0; i < nativeArchiveNumber; i++) {
 			XAResourceArchive compensableArchive = nativeArchiveList.get(i);
@@ -55,18 +59,16 @@ public class TransactionArchiveDeserializer implements ArchiveDeserializer {
 			length = length + elementByteArray.length;
 		}
 
-		byte[][] optimizedByteArray = new byte[optimizedArchiveNumber][];
-		for (int i = 0; i < optimizedArchiveNumber; i++) {
-			XAResourceArchive compensableArchive = optimizedArchiveList.get(i);
-
-			byte[] resourceByteArray = this.resourceArchiveDeserializer.serialize(xid, compensableArchive);
+		byte[] optimizedByteArray = new byte[0];
+		if (optimizedArchiveNumber > 0) {
+			byte[] resourceByteArray = this.resourceArchiveDeserializer.serialize(xid, optimizedArchive);
 			byte[] lengthByteArray = ByteUtils.shortToByteArray((short) resourceByteArray.length);
 
 			byte[] elementByteArray = new byte[resourceByteArray.length + 2];
 			System.arraycopy(lengthByteArray, 0, elementByteArray, 0, lengthByteArray.length);
 			System.arraycopy(resourceByteArray, 0, elementByteArray, 2, resourceByteArray.length);
 
-			optimizedByteArray[i] = elementByteArray;
+			optimizedByteArray = elementByteArray;
 			length = length + elementByteArray.length;
 		}
 
@@ -96,16 +98,17 @@ public class TransactionArchiveDeserializer implements ArchiveDeserializer {
 		byteArray[position++] = (byte) optimizedArchiveNumber;
 		byteArray[position++] = (byte) remoteArchiveNumber;
 
+		byteArray[position++] = (byte) transactionStrategy;
+
 		for (int i = 0; i < nativeArchiveNumber; i++) {
 			byte[] elementByteArray = nativeByteArray[i];
 			System.arraycopy(elementByteArray, 0, byteArray, position, elementByteArray.length);
 			position = position + elementByteArray.length;
 		}
 
-		for (int i = 0; i < optimizedArchiveNumber; i++) {
-			byte[] elementByteArray = optimizedByteArray[i];
-			System.arraycopy(elementByteArray, 0, byteArray, position, elementByteArray.length);
-			position = position + elementByteArray.length;
+		if (optimizedArchiveNumber > 0) {
+			System.arraycopy(optimizedByteArray, 0, byteArray, position, optimizedByteArray.length);
+			position = position + optimizedByteArray.length;
 		}
 
 		for (int i = 0; i < remoteArchiveNumber; i++) {
@@ -135,6 +138,10 @@ public class TransactionArchiveDeserializer implements ArchiveDeserializer {
 		int nativeArchiveNumber = buffer.get();
 		int optimizedArchiveNumber = buffer.get();
 		int remoteArchiveNumber = buffer.get();
+
+		int transactionStrategyType = buffer.get();
+		archive.setTransactionStrategyType(transactionStrategyType);
+
 		for (int i = 0; i < nativeArchiveNumber; i++) {
 			int length = buffer.getShort();
 			byte[] resourceByteArray = new byte[length];
@@ -146,7 +153,7 @@ public class TransactionArchiveDeserializer implements ArchiveDeserializer {
 			archive.getNativeResources().add(resourceArchive);
 		}
 
-		for (int i = 0; i < optimizedArchiveNumber; i++) {
+		if (optimizedArchiveNumber > 0) {
 			int length = buffer.getShort();
 			byte[] resourceByteArray = new byte[length];
 			buffer.get(resourceByteArray);
@@ -154,7 +161,7 @@ public class TransactionArchiveDeserializer implements ArchiveDeserializer {
 			XAResourceArchive resourceArchive = //
 					(XAResourceArchive) this.resourceArchiveDeserializer.deserialize(xid, resourceByteArray);
 
-			archive.getOptmizedResources().add(resourceArchive);
+			archive.setOptimizedResource(resourceArchive);
 		}
 
 		for (int i = 0; i < remoteArchiveNumber; i++) {

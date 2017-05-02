@@ -25,7 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TransactionWork implements Work, TransactionBeanFactoryAware {
-	static final Logger logger = LoggerFactory.getLogger(TransactionWork.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(TransactionWork.class);
 
 	private TransactionBeanFactory beanFactory;
 

@@ -45,7 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TransactionCoordinator implements RemoteCoordinator, TransactionBeanFactoryAware, TransactionEndpointAware {
-	static final Logger logger = LoggerFactory.getLogger(TransactionCoordinator.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(TransactionCoordinator.class);
 
 	private String endpoint;
 	private TransactionBeanFactory beanFactory;

@@ -34,7 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TransactionInterceptorImpl implements TransactionInterceptor, TransactionBeanFactoryAware {
-	static final Logger logger = LoggerFactory.getLogger(TransactionInterceptorImpl.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(TransactionInterceptorImpl.class);
 	private TransactionBeanFactory transactionBeanFactory;
 
 	public void beforeSendRequest(TransactionRequest request) throws IllegalStateException {

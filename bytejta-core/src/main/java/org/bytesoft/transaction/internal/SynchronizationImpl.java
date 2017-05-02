@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 
 
 public class SynchronizationImpl implements Synchronization {
-	static final Logger logger = LoggerFactory.getLogger(SynchronizationImpl.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(SynchronizationImpl.class);
 
 	private Synchronization delegate;
 	private boolean beforeRequired;

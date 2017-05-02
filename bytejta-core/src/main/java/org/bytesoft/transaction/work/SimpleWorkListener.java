@@ -26,7 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SimpleWorkListener implements WorkListener {
-	static final Logger logger = LoggerFactory.getLogger(SimpleWorkListener.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(SimpleWorkListener.class);
 
 	private long acceptedTime = -1;
 	private long startedTime = -1;

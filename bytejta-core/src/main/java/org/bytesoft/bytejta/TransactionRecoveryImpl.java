@@ -35,14 +35,13 @@ import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.logging.TransactionLogger;
 import org.bytesoft.transaction.recovery.TransactionRecoveryCallback;
 import org.bytesoft.transaction.recovery.TransactionRecoveryListener;
-import org.bytesoft.transaction.resource.XATerminator;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TransactionRecoveryImpl implements TransactionRecovery, TransactionBeanFactoryAware {
-	static final Logger logger = LoggerFactory.getLogger(TransactionRecoveryImpl.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(TransactionRecoveryImpl.class);
 
 	private TransactionBeanFactory beanFactory;
 	private TransactionRecoveryListener listener;
@@ -154,17 +153,15 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		transaction.setBeanFactory(this.beanFactory);
 		transaction.setTransactionStatus(archive.getStatus());
 
-		XATerminator nativeTerminator = transaction.getNativeTerminator();
 		List<XAResourceArchive> nativeResources = archive.getNativeResources();
-		nativeTerminator.getResourceArchives().addAll(nativeResources);
+		transaction.getNativeParticipantList().addAll(nativeResources);
 
-		XATerminator optimizedTerminator = transaction.getNativeTerminator();
-		List<XAResourceArchive> optimizedResources = archive.getOptmizedResources();
-		optimizedTerminator.getResourceArchives().addAll(optimizedResources);
+		transaction.setParticipant(archive.getOptimizedResource());
 
-		XATerminator remoteTerminator = transaction.getRemoteTerminator();
 		List<XAResourceArchive> remoteResources = archive.getRemoteResources();
-		remoteTerminator.getResourceArchives().addAll(remoteResources);
+		transaction.getRemoteParticipantList().addAll(remoteResources);
+
+		transaction.recoverTransactionStrategy(archive.getTransactionStrategyType());
 
 		if (archive.getVote() == XAResource.XA_RDONLY) {
 			throw new IllegalStateException("Transaction has already been completed!");

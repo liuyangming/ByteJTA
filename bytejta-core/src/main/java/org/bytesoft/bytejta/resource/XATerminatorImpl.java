@@ -19,50 +19,32 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import javax.transaction.RollbackException;
 import javax.transaction.Status;
 import javax.transaction.SystemException;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
-import org.apache.commons.lang3.StringUtils;
 import org.bytesoft.bytejta.supports.jdbc.RecoveredResource;
 import org.bytesoft.bytejta.supports.resource.LocalXAResourceDescriptor;
 import org.bytesoft.common.utils.ByteUtils;
-import org.bytesoft.common.utils.CommonUtils;
-import org.bytesoft.transaction.RollbackRequiredException;
 import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.archive.XAResourceArchive;
 import org.bytesoft.transaction.internal.TransactionException;
-import org.bytesoft.transaction.internal.TransactionResourceListenerList;
 import org.bytesoft.transaction.resource.XATerminator;
-import org.bytesoft.transaction.supports.TransactionResourceListener;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 import org.bytesoft.transaction.supports.serialize.XAResourceDeserializer;
 import org.bytesoft.transaction.xa.TransactionXid;
-import org.bytesoft.transaction.xa.XidFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class XATerminatorImpl implements XATerminator {
-	static final Logger logger = LoggerFactory.getLogger(XATerminatorImpl.class.getSimpleName());
-	private TransactionContext transactionContext;
-	private int transactionTimeout;
+	static final Logger logger = LoggerFactory.getLogger(XATerminatorImpl.class);
+
 	private TransactionBeanFactory beanFactory;
 	private final List<XAResourceArchive> resources = new ArrayList<XAResourceArchive>();
-
-	private final TransactionResourceListenerList resourceListenerList = new TransactionResourceListenerList();
-
-	public XATerminatorImpl(TransactionContext txContext) {
-		this.transactionContext = txContext;
-	}
-
-	public void registerTransactionResourceListener(TransactionResourceListener listener) {
-		this.resourceListenerList.registerTransactionResourceListener(listener);
-	}
 
 	public synchronized int prepare(Xid xid) throws XAException {
 		int globalVote = XAResource.XA_RDONLY;
@@ -81,7 +63,6 @@ public class XATerminatorImpl implements XATerminator {
 					ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), branchVote);
 		}
 		return globalVote;
-
 	}
 
 	public synchronized void commit(Xid xid, boolean onePhase) throws TransactionException, XAException {
@@ -125,14 +106,14 @@ public class XATerminatorImpl implements XATerminator {
 				logger.warn("An unexpected error occurred in one phase commit: code = " + xa.errorCode);
 				break;
 			case XAException.XAER_RMFAIL: {
-				String txid = ByteUtils.byteArrayToString(this.transactionContext.getXid().getGlobalTransactionId());
+				String txid = ByteUtils.byteArrayToString(xid.getGlobalTransactionId());
 				logger.warn("An error occurred in one phase commit: txid = {}", txid);
 				throw xa;
 			}
 			case XAException.XAER_NOTA:
 			case XAException.XAER_INVAL:
 			case XAException.XAER_PROTO: {
-				String txid = ByteUtils.byteArrayToString(this.transactionContext.getXid().getGlobalTransactionId());
+				String txid = ByteUtils.byteArrayToString(xid.getGlobalTransactionId());
 				logger.warn("An error occurred in one phase commit: txid = {}", txid);
 				throw xa;
 			}
@@ -780,12 +761,11 @@ public class XATerminatorImpl implements XATerminator {
 	}
 
 	public int getTransactionTimeout() throws XAException {
-		return this.transactionTimeout;
+		throw new XAException(XAException.XAER_RMFAIL);
 	}
 
 	public boolean setTransactionTimeout(int seconds) throws XAException {
-		this.transactionTimeout = seconds;
-		return true;
+		throw new XAException(XAException.XAER_RMFAIL);
 	}
 
 	public void start(Xid xid, int flags) throws XAException {
@@ -805,7 +785,8 @@ public class XATerminatorImpl implements XATerminator {
 	}
 
 	public void recover(Transaction transaction) throws SystemException {
-		TransactionXid globalXid = this.transactionContext.getXid();
+		TransactionContext transactionContext = transaction.getTransactionContext();
+		TransactionXid globalXid = transactionContext.getXid();
 		int transactionStatus = transaction.getTransactionStatus();
 
 		if (transactionStatus != Status.STATUS_PREPARING && transactionStatus != Status.STATUS_PREPARED
@@ -1012,290 +993,6 @@ public class XATerminatorImpl implements XATerminator {
 				}
 			} // end-if
 		} // end-for
-	}
-
-	public XAResourceDescriptor getXAResource(String identifier) {
-		for (int i = 0; i < this.resources.size(); i++) {
-			XAResourceArchive archive = this.resources.get(i);
-			XAResourceDescriptor descriptor = archive.getDescriptor();
-			if (StringUtils.equals(identifier, descriptor.getIdentifier())) {
-				return descriptor;
-			}
-		}
-		return null;
-	}
-
-	public boolean delistResource(XAResourceDescriptor descriptor, int flag) throws IllegalStateException, SystemException {
-
-		XAResourceArchive archive = this.locateExisted(descriptor);
-		if (archive == null) {
-			throw new SystemException();
-		}
-
-		boolean success = false;
-		try {
-			success = this.delistResource(archive, flag);
-			return success;
-		} finally {
-			if (success) {
-				this.resourceListenerList.onDelistResource(archive.getXid(), descriptor);
-			}
-		}
-	}
-
-	private boolean delistResource(XAResourceArchive archive, int flag) throws SystemException, RollbackRequiredException {
-		try {
-			Xid branchXid = archive.getXid();
-
-			switch (flag) {
-			case XAResource.TMSUCCESS:
-			case XAResource.TMFAIL:
-				archive.end(branchXid, flag);
-				archive.setDelisted(true);
-				break;
-			case XAResource.TMSUSPEND:
-				archive.end(branchXid, flag);
-				archive.setDelisted(true);
-				archive.setSuspended(true);
-				break;
-			default:
-				throw new SystemException();
-			}
-
-			logger.info("[{}] delist: xares= {}, branch= {}, flags= {}",
-					ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
-					ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), flag);
-		} catch (XAException xae) {
-			logger.error("XATerminatorImpl.delistResource(XAResourceArchive, int)", xae);
-
-			// Possible XAException values are XAER_RMERR, XAER_RMFAIL,
-			// XAER_NOTA, XAER_INVAL, XAER_PROTO, or XA_RB*.
-			switch (xae.errorCode) {
-			case XAException.XAER_NOTA:
-				// The specified XID is not known by the resource manager.
-			case XAException.XAER_INVAL:
-				// Invalid arguments were specified.
-			case XAException.XAER_PROTO:
-				// The routine was invoked in an improper context.
-				return false;
-			case XAException.XAER_RMFAIL:
-				// An error occurred that makes the resource manager unavailable.
-			case XAException.XAER_RMERR:
-				// An error occurred in dissociating the transaction branch from the thread of control.
-				SystemException sysex = new SystemException();
-				sysex.initCause(xae);
-				throw sysex;
-			default:
-				// XA_RB*
-				RollbackRequiredException rrex = new RollbackRequiredException();
-				rrex.initCause(xae);
-				throw rrex;
-			}
-		} catch (RuntimeException ex) {
-			SystemException sysex = new SystemException();
-			sysex.initCause(ex);
-			throw sysex;
-		}
-
-		return true;
-	}
-
-	public boolean enlistResource(XAResourceDescriptor descriptor)
-			throws RollbackException, IllegalStateException, SystemException {
-
-		XAResourceArchive archive = this.locateExisted(descriptor);
-		int flags = XAResource.TMNOFLAGS;
-		if (archive == null) {
-			archive = new XAResourceArchive();
-			archive.setDescriptor(descriptor);
-			archive.setIdentified(true);
-			TransactionXid globalXid = this.transactionContext.getXid();
-			XidFactory xidFactory = this.beanFactory.getXidFactory();
-			archive.setXid(xidFactory.createBranchXid(globalXid));
-		} else {
-			flags = XAResource.TMJOIN;
-		}
-
-		boolean success = false;
-		try {
-			success = this.enlistResource(archive, flags);
-			return success;
-		} finally {
-			if (success) {
-				this.resourceListenerList.onEnlistResource(archive.getXid(), descriptor);
-			}
-		}
-	}
-
-	private boolean enlistResource(XAResourceArchive archive, int flag) throws SystemException, RollbackException {
-		try {
-			Xid branchXid = archive.getXid();
-			logger.info("[{}] enlist: xares= {}, branch= {}, flags: {}",
-					ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
-					ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), flag);
-
-			switch (flag) {
-			case XAResource.TMNOFLAGS:
-				long expired = this.transactionContext.getExpiredTime();
-				long current = System.currentTimeMillis();
-				long remains = expired - current;
-				int timeout = (int) (remains / 1000L);
-				archive.setTransactionTimeout(timeout);
-				archive.start(branchXid, flag);
-				this.resources.add(archive);
-				break;
-			case XAResource.TMJOIN:
-				archive.start(branchXid, flag);
-				archive.setDelisted(false);
-				break;
-			case XAResource.TMRESUME:
-				archive.start(branchXid, flag);
-				archive.setDelisted(false);
-				archive.setSuspended(false);
-				break;
-			default:
-				throw new SystemException();
-			}
-		} catch (XAException xae) {
-			logger.error("XATerminatorImpl.enlistResource(XAResourceArchive, int)", xae);
-
-			// Possible exceptions are XA_RB*, XAER_RMERR, XAER_RMFAIL,
-			// XAER_DUPID, XAER_OUTSIDE, XAER_NOTA, XAER_INVAL, or XAER_PROTO.
-			switch (xae.errorCode) {
-			case XAException.XAER_DUPID:
-				// * If neither TMJOIN nor TMRESUME is specified and the transaction
-				// * specified by xid has previously been seen by the resource manager,
-				// * the resource manager throws the XAException exception with XAER_DUPID error code.
-				return false;
-			case XAException.XAER_OUTSIDE:
-				// The resource manager is doing work outside any global transaction
-				// on behalf of the application.
-			case XAException.XAER_NOTA:
-				// Either TMRESUME or TMJOIN was set inflags, and the specified XID is not
-				// known by the resource manager.
-			case XAException.XAER_INVAL:
-				// Invalid arguments were specified.
-			case XAException.XAER_PROTO:
-				// The routine was invoked in an improper context.
-				return false;
-			case XAException.XAER_RMFAIL:
-				// An error occurred that makes the resource manager unavailable
-			case XAException.XAER_RMERR:
-				// An error occurred in associating the transaction branch with the thread of control
-				SystemException sysex = new SystemException();
-				sysex.initCause(xae);
-				throw sysex;
-			default:
-				// XA_RB*
-				throw new RollbackException();
-			}
-		} catch (RuntimeException ex) {
-			throw new RollbackException();
-		}
-
-		return true;
-	}
-
-	private XAResourceArchive locateExisted(XAResourceDescriptor descriptor) {
-		for (int i = 0; i < this.resources.size(); i++) {
-			XAResourceArchive existed = this.resources.get(i);
-			XAResourceDescriptor existedDescriptor = existed.getDescriptor();
-			String identifier = descriptor.getIdentifier();
-			String existedIdentifirer = existedDescriptor.getIdentifier();
-
-			if (CommonUtils.equals(identifier, existedIdentifirer)) {
-				try {
-					if (existedDescriptor.isSameRM(descriptor)) {
-						return existed;
-					}
-				} catch (XAException ex) {
-					continue;
-				} catch (RuntimeException ex) {
-					continue;
-				}
-			} // end-if
-		} // end-while
-		return null;
-
-	}
-
-	public void resumeAllResource() throws RollbackException, SystemException {
-		boolean rollbackRequired = false;
-		boolean errorExists = false;
-		for (int i = 0; i < this.resources.size(); i++) {
-			XAResourceArchive xares = this.resources.get(i);
-			if (xares.isDelisted()) {
-				try {
-					this.enlistResource(xares, XAResource.TMRESUME);
-				} catch (RollbackException rex) {
-					rollbackRequired = true;
-				} catch (SystemException rex) {
-					errorExists = true;
-				} catch (RuntimeException rex) {
-					errorExists = true;
-				}
-			}
-		}
-
-		if (rollbackRequired) {
-			throw new RollbackException();
-		} else if (errorExists) {
-			throw new SystemException(XAException.XAER_RMERR);
-		}
-
-	}
-
-	public void suspendAllResource() throws RollbackException, SystemException {
-		boolean rollbackRequired = false;
-		boolean errorExists = false;
-		for (int i = 0; i < this.resources.size(); i++) {
-			XAResourceArchive xares = this.resources.get(i);
-			if (xares.isDelisted() == false) {
-				try {
-					this.delistResource(xares, XAResource.TMSUSPEND);
-				} catch (RollbackRequiredException ex) {
-					rollbackRequired = true;
-				} catch (SystemException ex) {
-					errorExists = true;
-				} catch (RuntimeException ex) {
-					errorExists = true;
-				}
-			}
-		}
-
-		if (rollbackRequired) {
-			throw new RollbackException();
-		} else if (errorExists) {
-			throw new SystemException(XAException.XAER_RMERR);
-		}
-	}
-
-	public void delistAllResource() throws RollbackException, SystemException {
-		boolean rollbackRequired = false;
-		boolean errorExists = false;
-		for (int i = 0; i < this.resources.size(); i++) {
-			XAResourceArchive xares = this.resources.get(i);
-			if (xares.isDelisted() == false) {
-				try {
-					this.delistResource(xares, XAResource.TMSUCCESS);
-				} catch (RollbackRequiredException ex) {
-					rollbackRequired = true;
-				} catch (SystemException ex) {
-					errorExists = true;
-				} catch (RuntimeException ex) {
-					errorExists = true;
-				} finally {
-					this.resourceListenerList.onDelistResource(xares.getXid(), xares.getDescriptor());
-				}
-			}
-		} // end-for
-
-		if (rollbackRequired) {
-			throw new RollbackException();
-		} else if (errorExists) {
-			throw new SystemException(XAException.XAER_RMERR);
-		}
-
 	}
 
 	public List<XAResourceArchive> getResourceArchives() {

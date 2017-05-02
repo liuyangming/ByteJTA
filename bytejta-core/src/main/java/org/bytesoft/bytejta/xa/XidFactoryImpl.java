@@ -27,7 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class XidFactoryImpl implements XidFactory {
-	static final Logger logger = LoggerFactory.getLogger(XidFactoryImpl.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(XidFactoryImpl.class);
 
 	static final int SIZE_OF_MAC = 6;
 	static final Random random = new Random();

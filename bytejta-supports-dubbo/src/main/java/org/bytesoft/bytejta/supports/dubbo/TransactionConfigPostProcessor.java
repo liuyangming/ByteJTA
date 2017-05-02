@@ -31,7 +31,7 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.GenericBeanDefinition;
 
 public class TransactionConfigPostProcessor implements BeanFactoryPostProcessor {
-	static final Logger logger = LoggerFactory.getLogger(TransactionConfigPostProcessor.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(TransactionConfigPostProcessor.class);
 
 	public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
 		String[] beanNameArray = beanFactory.getBeanDefinitionNames();

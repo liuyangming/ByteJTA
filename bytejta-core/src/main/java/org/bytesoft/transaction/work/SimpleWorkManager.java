@@ -33,7 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SimpleWorkManager implements WorkManager {
-	static final Logger logger = LoggerFactory.getLogger(SimpleWorkManager.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(SimpleWorkManager.class);
 
 	private final ThreadPoolExecutor executor = new ThreadPoolExecutor(5, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS,
 			new LinkedBlockingQueue<Runnable>());

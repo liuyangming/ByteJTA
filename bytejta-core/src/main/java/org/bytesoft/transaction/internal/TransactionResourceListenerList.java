@@ -26,7 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TransactionResourceListenerList implements TransactionResourceListener {
-	static final Logger logger = LoggerFactory.getLogger(TransactionResourceListenerList.class.getSimpleName());
+	static final Logger logger = LoggerFactory.getLogger(TransactionResourceListenerList.class);
 
 	private final List<TransactionResourceListener> listeners = new ArrayList<TransactionResourceListener>();
 
