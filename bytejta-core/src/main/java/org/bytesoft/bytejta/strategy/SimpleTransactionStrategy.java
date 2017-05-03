@@ -20,7 +20,6 @@ import javax.transaction.HeuristicMixedException;
 import javax.transaction.HeuristicRollbackException;
 import javax.transaction.SystemException;
 import javax.transaction.xa.XAException;
-import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
 import org.bytesoft.bytejta.TransactionStrategy;
@@ -43,19 +42,14 @@ public class SimpleTransactionStrategy implements TransactionStrategy {
 		this.terminator = terminator;
 	}
 
-	public void prepare(Xid xid) throws RollbackRequiredException, CommitRequiredException {
+	public int prepare(Xid xid) throws RollbackRequiredException, CommitRequiredException {
 
-		int vote = XAResource.XA_RDONLY;
 		try {
-			vote = this.terminator.prepare(xid);
+			return this.terminator.prepare(xid);
 		} catch (XAException xaex) {
 			throw new RollbackRequiredException();
 		} catch (RuntimeException xaex) {
 			throw new RollbackRequiredException();
-		}
-
-		if (vote == XAResource.XA_OK) {
-			throw new CommitRequiredException();
 		}
 
 	}

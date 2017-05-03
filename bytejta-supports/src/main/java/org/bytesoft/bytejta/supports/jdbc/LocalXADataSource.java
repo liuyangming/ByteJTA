@@ -53,7 +53,7 @@ public class LocalXADataSource /* extends TransactionListenerAdapter */
 			// transactionXid = transaction.getTransactionContext().getXid();
 			// LocalXAConnection xacon = this.connections.get(transactionXid);
 
-			XAResourceDescriptor descriptor = (XAResourceDescriptor) transaction.getLocalXAResource(this.beanName);
+			XAResourceDescriptor descriptor = transaction.getResourceDescriptor(this.beanName);
 			LocalXAResource resource = descriptor == null ? null : (LocalXAResource) descriptor.getDelegate();
 			LocalXAConnection xacon = resource == null ? null : resource.getManagedConnection();
 
@@ -89,7 +89,7 @@ public class LocalXADataSource /* extends TransactionListenerAdapter */
 			// transactionXid = transaction.getTransactionContext().getXid();
 			// LocalXAConnection xacon = this.connections.get(transactionXid);
 
-			XAResourceDescriptor descriptor = (XAResourceDescriptor) transaction.getLocalXAResource(this.beanName);
+			XAResourceDescriptor descriptor = transaction.getResourceDescriptor(this.beanName);
 			LocalXAResource resource = descriptor == null ? null : (LocalXAResource) descriptor.getDelegate();
 			LocalXAConnection xacon = resource == null ? null : resource.getManagedConnection();
 

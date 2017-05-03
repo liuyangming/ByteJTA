@@ -20,12 +20,12 @@ import javax.transaction.HeuristicMixedException;
 import javax.transaction.HeuristicRollbackException;
 import javax.transaction.SystemException;
 import javax.transaction.xa.XAException;
+import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
 import org.bytesoft.bytejta.TransactionStrategy;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
-import org.bytesoft.transaction.internal.TransactionException;
 import org.bytesoft.transaction.resource.XATerminator;
 
 public class LastResourceOptimizeStrategy implements TransactionStrategy {
@@ -43,9 +43,11 @@ public class LastResourceOptimizeStrategy implements TransactionStrategy {
 		this.terminatorTwo = terminatorTwo;
 	}
 
-	public void prepare(Xid xid) throws RollbackRequiredException, CommitRequiredException {
+	public int prepare(Xid xid) throws RollbackRequiredException, CommitRequiredException {
+
+		int vote = XAResource.XA_RDONLY;
 		try {
-			this.terminatorTwo.prepare(xid);
+			vote = this.terminatorTwo.prepare(xid);
 		} catch (Exception ex) {
 			throw new RollbackRequiredException();
 		}
@@ -53,9 +55,27 @@ public class LastResourceOptimizeStrategy implements TransactionStrategy {
 		try {
 			this.terminatorOne.commit(xid, true);
 		} catch (XAException ex) {
+			// error: XA_HEURHAZ, XA_HEURMIX, XA_HEURCOM, XA_HEURRB, XA_RDONLY, XAER_RMERR
+			switch (ex.errorCode) {
+			case XAException.XA_HEURCOM:
+				throw new CommitRequiredException();
+			case XAException.XA_HEURRB:
+				throw new RollbackRequiredException();
+			case XAException.XA_HEURMIX:
+				throw new CommitRequiredException();
+			case XAException.XA_HEURHAZ:
+				throw new CommitRequiredException(); // TODO
+			case XAException.XA_RDONLY:
+				return vote;
+			case XAException.XAER_RMERR:
+			default:
+				throw new RollbackRequiredException();
+			}
+		} catch (RuntimeException rex) {
 			throw new RollbackRequiredException();
 		}
 
+		throw new CommitRequiredException();
 	}
 
 	public void commit(Xid xid)
@@ -63,6 +83,7 @@ public class LastResourceOptimizeStrategy implements TransactionStrategy {
 		try {
 			this.terminatorTwo.commit(xid, false);
 		} catch (XAException ex) {
+			// error: XA_HEURHAZ, XA_HEURMIX, XA_HEURCOM, XA_HEURRB, XA_RDONLY, XAER_RMERR
 			switch (ex.errorCode) {
 			case XAException.XA_HEURCOM:
 				break;
@@ -70,7 +91,14 @@ public class LastResourceOptimizeStrategy implements TransactionStrategy {
 				throw new HeuristicRollbackException();
 			case XAException.XA_HEURMIX:
 				throw new HeuristicMixedException();
+			case XAException.XA_HEURHAZ:
+				throw new SystemException();
+			case XAException.XA_RDONLY:
+				break;
+			case XAException.XAER_RMERR:
+				throw new SystemException();
 			default:
+				// should never happen
 				throw new SystemException();
 			}
 		} catch (RuntimeException ex) {
@@ -81,31 +109,39 @@ public class LastResourceOptimizeStrategy implements TransactionStrategy {
 	public void rollback(Xid xid)
 			throws HeuristicMixedException, HeuristicCommitException, IllegalStateException, SystemException {
 
-		boolean mixedExists = false;
 		boolean committedExists = false;
 		boolean rolledbackExists = false;
 		boolean unFinishExists = false;
+		boolean errorExists = false;
 		try {
 			this.terminatorOne.rollback(xid);
 			rolledbackExists = true;
-			mixedExists = committedExists ? true : mixedExists;
 		} catch (XAException ex) {
+			// error: XA_HEURHAZ, XA_HEURMIX, XA_HEURCOM, XA_HEURRB, XA_RDONLY, XAER_RMERR
 			switch (ex.errorCode) {
 			case XAException.XA_HEURCOM:
 				committedExists = true;
-				mixedExists = rolledbackExists ? true : mixedExists;
 				break;
 			case XAException.XA_HEURRB:
 				rolledbackExists = true;
-				mixedExists = committedExists ? true : mixedExists;
 				break;
 			case XAException.XA_HEURMIX:
-				mixedExists = true;
+				committedExists = true;
+				rolledbackExists = true;
 				break;
+			case XAException.XA_HEURHAZ:
+				unFinishExists = true;
+				break;
+			case XAException.XA_RDONLY:
+				break;
+			case XAException.XAER_RMERR:
+				errorExists = true;
+				break;
+			default:
+				// should never happen
+				errorExists = true;
 			}
 
-			boolean errorFlag = TransactionException.class.isInstance(ex);
-			unFinishExists = errorFlag ? true : unFinishExists;
 		} catch (RuntimeException ex) {
 			unFinishExists = true;
 		}
@@ -113,40 +149,43 @@ public class LastResourceOptimizeStrategy implements TransactionStrategy {
 		try {
 			this.terminatorTwo.rollback(xid);
 			rolledbackExists = true;
-			mixedExists = committedExists ? true : mixedExists;
 		} catch (XAException ex) {
+			// error: XA_HEURHAZ, XA_HEURMIX, XA_HEURCOM, XA_HEURRB, XA_RDONLY, XAER_RMERR
 			switch (ex.errorCode) {
 			case XAException.XA_HEURCOM:
 				committedExists = true;
-				mixedExists = rolledbackExists ? true : mixedExists;
 				break;
 			case XAException.XA_HEURRB:
 				rolledbackExists = true;
-				mixedExists = committedExists ? true : mixedExists;
 				break;
 			case XAException.XA_HEURMIX:
-				mixedExists = true;
+				committedExists = true;
+				rolledbackExists = true;
 				break;
+			case XAException.XA_HEURHAZ:
+				unFinishExists = true;
+				break;
+			case XAException.XA_RDONLY:
+				break;
+			case XAException.XAER_RMERR:
+				errorExists = true;
+				break;
+			default:
+				// should never happen
+				errorExists = true;
 			}
-
-			boolean errorFlag = TransactionException.class.isInstance(ex);
-			unFinishExists = errorFlag ? true : unFinishExists;
 		} catch (RuntimeException ex) {
 			unFinishExists = true;
 		}
 
-		if (mixedExists) {
-			throw new HeuristicMixedException();
-		} else if (committedExists && rolledbackExists) {
+		if (committedExists && rolledbackExists) {
 			throw new HeuristicMixedException();
 		} else if (unFinishExists) {
-			if (committedExists) {
-				throw new HeuristicCommitException();
-			} else {
-				// ignore
-			}
-		} else {
+			throw new SystemException(); // hazard
+		} else if (errorExists) {
 			throw new SystemException();
+		} else if (committedExists) {
+			throw new HeuristicCommitException();
 		}
 
 	}

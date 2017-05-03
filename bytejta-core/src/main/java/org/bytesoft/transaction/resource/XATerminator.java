@@ -17,25 +17,10 @@ package org.bytesoft.transaction.resource;
 
 import java.util.List;
 
-import javax.transaction.SystemException;
-import javax.transaction.xa.XAException;
-import javax.transaction.xa.Xid;
-
-import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.archive.XAResourceArchive;
 
 public interface XATerminator extends javax.transaction.xa.XAResource {
 
-	// public void registerTransactionResourceListener(TransactionResourceListener listener);
-
 	public List<XAResourceArchive> getResourceArchives();
-
-	public void recover(Transaction transaction) throws SystemException;
-
-	public void recoveryCommit(Xid xid) throws XAException;
-
-	public void recoveryRollback(Xid xid) throws XAException;
-
-	public void recoveryForget(Xid xid) throws XAException;
 
 }

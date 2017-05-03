@@ -19,11 +19,11 @@ import javax.transaction.HeuristicMixedException;
 import javax.transaction.HeuristicRollbackException;
 import javax.transaction.RollbackException;
 import javax.transaction.SystemException;
-import javax.transaction.xa.XAResource;
 
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.supports.TransactionListener;
 import org.bytesoft.transaction.supports.TransactionResourceListener;
+import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 
 public interface Transaction extends javax.transaction.Transaction {
 
@@ -51,15 +51,13 @@ public interface Transaction extends javax.transaction.Transaction {
 
 	public void setTransactionalExtra(Object transactionalExtra);
 
-	public XAResource getLocalXAResource(String identifier);
-
-	public XAResource getRemoteCoordinator(String identifier);
+	public XAResourceDescriptor getResourceDescriptor(String identifier);
 
 	public TransactionContext getTransactionContext();
 
 	public TransactionArchive getTransactionArchive();
 
-	public void participantPrepare() throws RollbackRequiredException, CommitRequiredException;
+	public int participantPrepare() throws RollbackRequiredException, CommitRequiredException;
 
 	public void participantCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
 			SecurityException, IllegalStateException, CommitRequiredException, SystemException;

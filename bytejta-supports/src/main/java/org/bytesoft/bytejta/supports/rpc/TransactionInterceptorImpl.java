@@ -17,6 +17,7 @@ package org.bytesoft.bytejta.supports.rpc;
 
 import javax.transaction.RollbackException;
 import javax.transaction.SystemException;
+import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 
 import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
@@ -26,7 +27,6 @@ import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
-import org.bytesoft.transaction.internal.TransactionException;
 import org.bytesoft.transaction.supports.rpc.TransactionInterceptor;
 import org.bytesoft.transaction.supports.rpc.TransactionRequest;
 import org.bytesoft.transaction.supports.rpc.TransactionResponse;
@@ -83,7 +83,7 @@ public class TransactionInterceptorImpl implements TransactionInterceptor, Trans
 		// response.setSourceTransactionCoordinator(coordinator);
 		try {
 			coordinator.end(transactionContext, XAResource.TMSUCCESS);
-		} catch (TransactionException ex) {
+		} catch (XAException ex) {
 			throw new IllegalStateException(ex);
 		}
 
@@ -99,7 +99,7 @@ public class TransactionInterceptorImpl implements TransactionInterceptor, Trans
 		RemoteCoordinator coordinator = this.transactionBeanFactory.getTransactionCoordinator();
 		try {
 			coordinator.start(transactionContext, XAResource.TMNOFLAGS);
-		} catch (TransactionException ex) {
+		} catch (XAException ex) {
 			throw new IllegalStateException(ex);
 		}
 	}

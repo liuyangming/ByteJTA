@@ -37,7 +37,6 @@ import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.aware.TransactionEndpointAware;
-import org.bytesoft.transaction.internal.TransactionException;
 import org.bytesoft.transaction.logging.TransactionLogger;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
@@ -55,12 +54,12 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		return transactionManager.getTransactionQuietly();
 	}
 
-	public Transaction start(TransactionContext transactionContext, int flags) throws TransactionException {
+	public Transaction start(TransactionContext transactionContext, int flags) throws XAException {
 
 		TransactionRepository transactionRepository = this.beanFactory.getTransactionRepository();
 		TransactionManager transactionManager = this.beanFactory.getTransactionManager();
 		if (transactionManager.getTransactionQuietly() != null) {
-			throw new TransactionException(XAException.XAER_PROTO);
+			throw new XAException(XAException.XAER_PROTO);
 		}
 
 		TransactionXid globalXid = (TransactionXid) transactionContext.getXid();
@@ -83,7 +82,7 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		return transaction;
 	}
 
-	public Transaction end(TransactionContext transactionContext, int flags) throws TransactionException {
+	public Transaction end(TransactionContext transactionContext, int flags) throws XAException {
 		TransactionManager transactionManager = this.beanFactory.getTransactionManager();
 		return transactionManager.desociateThread();
 	}
@@ -274,13 +273,12 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		TransactionRepository repository = beanFactory.getTransactionRepository();
 		Transaction transaction = repository.getTransaction(globalXid);
 		try {
-			transaction.participantPrepare();
+			return transaction.participantPrepare();
 		} catch (CommitRequiredException crex) {
 			return XAResource.XA_OK;
 		} catch (RollbackRequiredException rrex) {
 			throw new XAException(XAException.XAER_RMERR);
 		}
-		return XAResource.XA_RDONLY;
 	}
 
 	public Xid[] recover(int flag) throws XAException {

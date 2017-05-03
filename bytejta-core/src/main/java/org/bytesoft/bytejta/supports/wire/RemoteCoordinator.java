@@ -21,15 +21,14 @@ import javax.transaction.xa.Xid;
 
 import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionContext;
-import org.bytesoft.transaction.internal.TransactionException;
 
 public interface RemoteCoordinator extends XAResource {
 
 	public String getIdentifier();
 
-	public Transaction start(TransactionContext transactionContext, int flags) throws TransactionException;
+	public Transaction start(TransactionContext transactionContext, int flags) throws XAException;
 
-	public Transaction end(TransactionContext transactionContext, int flags) throws TransactionException;
+	public Transaction end(TransactionContext transactionContext, int flags) throws XAException;
 
 	public void recoveryForget(Xid xid) throws XAException;
 

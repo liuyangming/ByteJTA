@@ -19,6 +19,7 @@ import javax.transaction.HeuristicCommitException;
 import javax.transaction.HeuristicMixedException;
 import javax.transaction.HeuristicRollbackException;
 import javax.transaction.SystemException;
+import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
 import org.bytesoft.bytejta.TransactionStrategy;
@@ -27,7 +28,8 @@ import org.bytesoft.transaction.RollbackRequiredException;
 
 public class VacantTransactionStrategy implements TransactionStrategy {
 
-	public void prepare(Xid xid) throws RollbackRequiredException, CommitRequiredException {
+	public int prepare(Xid xid) throws RollbackRequiredException, CommitRequiredException {
+		return XAResource.XA_RDONLY;
 	}
 
 	public void commit(Xid xid)

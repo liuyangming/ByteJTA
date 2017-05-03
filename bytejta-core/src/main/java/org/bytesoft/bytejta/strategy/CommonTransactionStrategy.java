@@ -26,7 +26,6 @@ import javax.transaction.xa.Xid;
 import org.bytesoft.bytejta.TransactionStrategy;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
-import org.bytesoft.transaction.internal.TransactionException;
 import org.bytesoft.transaction.resource.XATerminator;
 
 public class CommonTransactionStrategy implements TransactionStrategy {
@@ -44,7 +43,7 @@ public class CommonTransactionStrategy implements TransactionStrategy {
 		this.remoteTerminator = remoteTerminator;
 	}
 
-	public void prepare(Xid xid) throws RollbackRequiredException, CommitRequiredException {
+	public int prepare(Xid xid) throws RollbackRequiredException, CommitRequiredException {
 		int nativeVote = XAResource.XA_RDONLY;
 		try {
 			nativeVote = this.nativeTerminator.prepare(xid);
@@ -60,39 +59,47 @@ public class CommonTransactionStrategy implements TransactionStrategy {
 		}
 
 		if (XAResource.XA_OK == nativeVote || XAResource.XA_OK == remoteVote) {
-			throw new CommitRequiredException();
+			return XAResource.XA_OK;
+		} else {
+			return XAResource.XA_RDONLY;
 		}
 
 	}
 
 	public void commit(Xid xid)
 			throws HeuristicMixedException, HeuristicRollbackException, IllegalStateException, SystemException {
-
-		boolean mixedExists = false;
 		boolean committedExists = false;
 		boolean rolledbackExists = false;
 		boolean unFinishExists = false;
+		boolean errorExists = false;
 		try {
 			this.nativeTerminator.commit(xid, false);
 			committedExists = true;
-			mixedExists = rolledbackExists ? true : mixedExists;
 		} catch (XAException ex) {
+			// error: XA_HEURHAZ, XA_HEURMIX, XA_HEURCOM, XA_HEURRB, XA_RDONLY, XAER_RMERR
 			switch (ex.errorCode) {
 			case XAException.XA_HEURCOM:
 				committedExists = true;
-				mixedExists = rolledbackExists ? true : mixedExists;
 				break;
 			case XAException.XA_HEURRB:
 				rolledbackExists = true;
-				mixedExists = committedExists ? true : mixedExists;
 				break;
 			case XAException.XA_HEURMIX:
-				mixedExists = true;
+				committedExists = true;
+				rolledbackExists = true;
 				break;
+			case XAException.XA_HEURHAZ:
+				unFinishExists = true;
+				break;
+			case XAException.XA_RDONLY:
+				break;
+			case XAException.XAER_RMERR:
+				errorExists = true;
+				break;
+			default:
+				// should never happen
+				errorExists = true;
 			}
-
-			boolean errorFlag = TransactionException.class.isInstance(ex);
-			unFinishExists = errorFlag ? true : unFinishExists;
 		} catch (RuntimeException ex) {
 			unFinishExists = true;
 		}
@@ -100,40 +107,44 @@ public class CommonTransactionStrategy implements TransactionStrategy {
 		try {
 			this.remoteTerminator.commit(xid, false);
 			committedExists = true;
-			mixedExists = rolledbackExists ? true : mixedExists;
 		} catch (XAException ex) {
+			// error: XA_HEURHAZ, XA_HEURMIX, XA_HEURCOM, XA_HEURRB, XA_RDONLY, XAER_RMERR
 			switch (ex.errorCode) {
 			case XAException.XA_HEURCOM:
 				committedExists = true;
-				mixedExists = rolledbackExists ? true : mixedExists;
 				break;
 			case XAException.XA_HEURRB:
 				rolledbackExists = true;
-				mixedExists = committedExists ? true : mixedExists;
 				break;
 			case XAException.XA_HEURMIX:
-				mixedExists = true;
+				committedExists = true;
+				rolledbackExists = true;
 				break;
+			case XAException.XA_HEURHAZ:
+				unFinishExists = true;
+				break;
+			case XAException.XA_RDONLY:
+				break;
+			case XAException.XAER_RMERR:
+				errorExists = true;
+				break;
+			default:
+				// should never happen
+				errorExists = true;
 			}
 
-			boolean errorFlag = TransactionException.class.isInstance(ex);
-			unFinishExists = errorFlag ? true : unFinishExists;
 		} catch (RuntimeException ex) {
 			unFinishExists = true;
 		}
 
-		if (mixedExists) {
-			throw new HeuristicMixedException();
-		} else if (committedExists && rolledbackExists) {
+		if (committedExists && rolledbackExists) {
 			throw new HeuristicMixedException();
 		} else if (unFinishExists) {
-			if (rolledbackExists) {
-				throw new HeuristicRollbackException();
-			} else {
-				// ignore
-			}
-		} else {
+			throw new SystemException(); // hazard
+		} else if (errorExists) {
 			throw new SystemException();
+		} else if (rolledbackExists) {
+			throw new HeuristicRollbackException();
 		}
 
 	}
@@ -141,31 +152,38 @@ public class CommonTransactionStrategy implements TransactionStrategy {
 	public void rollback(Xid xid)
 			throws HeuristicMixedException, HeuristicCommitException, IllegalStateException, SystemException {
 
-		boolean mixedExists = false;
 		boolean committedExists = false;
 		boolean rolledbackExists = false;
 		boolean unFinishExists = false;
+		boolean errorExists = false;
 		try {
 			this.nativeTerminator.rollback(xid);
 			rolledbackExists = true;
-			mixedExists = committedExists ? true : mixedExists;
 		} catch (XAException ex) {
+			// error: XA_HEURHAZ, XA_HEURMIX, XA_HEURCOM, XA_HEURRB, XA_RDONLY, XAER_RMERR
 			switch (ex.errorCode) {
 			case XAException.XA_HEURCOM:
 				committedExists = true;
-				mixedExists = rolledbackExists ? true : mixedExists;
 				break;
 			case XAException.XA_HEURRB:
 				rolledbackExists = true;
-				mixedExists = committedExists ? true : mixedExists;
 				break;
 			case XAException.XA_HEURMIX:
-				mixedExists = true;
+				committedExists = true;
+				rolledbackExists = true;
 				break;
+			case XAException.XA_HEURHAZ:
+				unFinishExists = true;
+				break;
+			case XAException.XA_RDONLY:
+				break;
+			case XAException.XAER_RMERR:
+				errorExists = true;
+				break;
+			default:
+				// should never happen
+				errorExists = true;
 			}
-
-			boolean errorFlag = TransactionException.class.isInstance(ex);
-			unFinishExists = errorFlag ? true : unFinishExists;
 		} catch (RuntimeException ex) {
 			unFinishExists = true;
 		}
@@ -173,40 +191,43 @@ public class CommonTransactionStrategy implements TransactionStrategy {
 		try {
 			this.remoteTerminator.rollback(xid);
 			rolledbackExists = true;
-			mixedExists = committedExists ? true : mixedExists;
 		} catch (XAException ex) {
+			// error: XA_HEURHAZ, XA_HEURMIX, XA_HEURCOM, XA_HEURRB, XA_RDONLY, XAER_RMERR
 			switch (ex.errorCode) {
 			case XAException.XA_HEURCOM:
 				committedExists = true;
-				mixedExists = rolledbackExists ? true : mixedExists;
 				break;
 			case XAException.XA_HEURRB:
 				rolledbackExists = true;
-				mixedExists = committedExists ? true : mixedExists;
 				break;
 			case XAException.XA_HEURMIX:
-				mixedExists = true;
+				committedExists = true;
+				rolledbackExists = true;
 				break;
+			case XAException.XA_HEURHAZ:
+				unFinishExists = true;
+				break;
+			case XAException.XA_RDONLY:
+				break;
+			case XAException.XAER_RMERR:
+				errorExists = true;
+				break;
+			default:
+				// should never happen
+				errorExists = true;
 			}
-
-			boolean errorFlag = TransactionException.class.isInstance(ex);
-			unFinishExists = errorFlag ? true : unFinishExists;
 		} catch (RuntimeException ex) {
 			unFinishExists = true;
 		}
 
-		if (mixedExists) {
-			throw new HeuristicMixedException();
-		} else if (committedExists && rolledbackExists) {
+		if (committedExists && rolledbackExists) {
 			throw new HeuristicMixedException();
 		} else if (unFinishExists) {
-			if (committedExists) {
-				throw new HeuristicCommitException();
-			} else {
-				// ignore
-			}
-		} else {
+			throw new SystemException(); // hazard
+		} else if (errorExists) {
 			throw new SystemException();
+		} else if (committedExists) {
+			throw new HeuristicCommitException();
 		}
 
 	}

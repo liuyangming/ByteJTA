@@ -53,7 +53,6 @@ import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.archive.XAResourceArchive;
 import org.bytesoft.transaction.internal.SynchronizationList;
-import org.bytesoft.transaction.internal.TransactionException;
 import org.bytesoft.transaction.internal.TransactionListenerList;
 import org.bytesoft.transaction.internal.TransactionResourceListenerList;
 import org.bytesoft.transaction.logging.TransactionLogger;
@@ -95,14 +94,9 @@ public class TransactionImpl implements Transaction {
 		this.transactionContext = txContext;
 	}
 
-	public XAResource getLocalXAResource(String identifier) {
-		// return this.remoteTerminator.getXAResource(identifier);
-		return this.participantMap.get(identifier); // TODO
-	}
-
-	public XAResource getRemoteCoordinator(String identifier) {
-		// return this.remoteTerminator.getXAResource(identifier);
-		return this.participantMap.get(identifier); // TODO
+	public XAResourceDescriptor getResourceDescriptor(String identifier) {
+		XAResourceArchive archive = this.participantMap.get(identifier);
+		return archive == null ? null : archive.getDescriptor();
 	}
 
 	public void setBeanFactory(TransactionBeanFactory tbf) {
@@ -113,7 +107,7 @@ public class TransactionImpl implements Transaction {
 		return this.participantList.size() <= 1;
 	}
 
-	public synchronized void participantPrepare() throws RollbackRequiredException, CommitRequiredException {
+	public synchronized int participantPrepare() throws RollbackRequiredException, CommitRequiredException {
 
 		if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
 			throw new RollbackRequiredException();
@@ -163,28 +157,41 @@ public class TransactionImpl implements Transaction {
 		transactionLogger.createTransaction(archive);
 		this.transactionListenerList.onPrepareStart(xid);
 
-		int vote = XAResource.XA_RDONLY;
 		try {
-			this.getTransactionStrategy().prepare(xid);
-		} catch (CommitRequiredException xaex) {
-			vote = XAResource.XA_OK;
+			int vote = this.getTransactionStrategy().prepare(xid);
+
+			this.transactionStatus = Status.STATUS_PREPARED;
+			archive.setStatus(this.transactionStatus);
+			this.transactionVote = vote;
+			archive.setVote(vote);
+
+			this.transactionListenerList.onPrepareSuccess(xid);
+
+			return vote;
+		} catch (CommitRequiredException crex) {
+			this.transactionVote = XAResource.XA_OK;
+			archive.setVote(this.transactionVote);
+
+			this.transactionStatus = Status.STATUS_COMMITTING;
+			archive.setStatus(this.transactionStatus);
+
+			this.transactionListenerList.onPrepareSuccess(xid);
+			throw crex;
 		} catch (RollbackRequiredException rrex) {
 			this.transactionStatus = Status.STATUS_ROLLING_BACK;
+			archive.setStatus(this.transactionStatus);
+
 			this.transactionListenerList.onPrepareFailure(xid);
 			throw rrex;
 		} catch (RuntimeException xaex) {
 			this.transactionStatus = Status.STATUS_ROLLING_BACK;
+			archive.setStatus(this.transactionStatus);
+
 			this.transactionListenerList.onPrepareFailure(xid);
 			throw new RollbackRequiredException();
+		} finally {
+			transactionLogger.updateTransaction(archive);
 		}
-
-		this.transactionStatus = Status.STATUS_PREPARED;
-		archive.setStatus(this.transactionStatus);
-		this.transactionListenerList.onPrepareSuccess(xid);
-
-		this.transactionVote = vote;
-		archive.setVote(vote);
-		transactionLogger.updateTransaction(archive);
 	}
 
 	public synchronized void participantCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
@@ -220,7 +227,6 @@ public class TransactionImpl implements Transaction {
 		try {
 			this.getTransactionStrategy().commit(xid);
 			unFinishExists = false;
-			this.transactionListenerList.onCommitSuccess(xid);
 		} catch (HeuristicMixedException ex) {
 			this.transactionListenerList.onCommitHeuristicMixed(xid);
 			throw ex;
@@ -237,6 +243,7 @@ public class TransactionImpl implements Transaction {
 			if (unFinishExists == false) {
 				this.transactionStatus = Status.STATUS_COMMITTED; // Status.STATUS_COMMITTED;
 				archive.setStatus(this.transactionStatus);
+				this.transactionListenerList.onCommitSuccess(xid);
 				transactionLogger.deleteTransaction(archive);
 
 				logger.info("[{}] commit-transaction complete successfully",
@@ -332,11 +339,6 @@ public class TransactionImpl implements Transaction {
 			this.transactionListenerList.onCommitStart(xid);
 			archive.commit(xid, true);
 			this.transactionListenerList.onCommitSuccess(xid);
-		} catch (TransactionException xaex) {
-			this.transactionListenerList.onCommitFailure(xid);
-			CommitRequiredException ex = new CommitRequiredException();
-			ex.initCause(xaex);
-			throw ex;
 		} catch (XAException xaex) {
 			switch (xaex.errorCode) {
 			case XAException.XA_HEURMIX:
@@ -377,15 +379,17 @@ public class TransactionImpl implements Transaction {
 
 		this.transactionListenerList.onPrepareStart(xid);
 
+		// boolean committed = false;
 		int vote = XAResource.XA_RDONLY;
 		try {
-			transactionStrategy.prepare(xid);
+			vote = transactionStrategy.prepare(xid);
 		} catch (RollbackRequiredException xaex) {
 			this.transactionListenerList.onPrepareFailure(xid);
 			this.rollback();
 			throw new HeuristicRollbackException();
 		} catch (CommitRequiredException xaex) {
 			vote = XAResource.XA_OK;
+			// committed = true;
 		} catch (RuntimeException rex) {
 			this.transactionListenerList.onPrepareFailure(xid);
 			this.rollback();
@@ -399,23 +403,24 @@ public class TransactionImpl implements Transaction {
 			this.transactionVote = XAResource.XA_RDONLY;
 			archive.setVote(XAResource.XA_RDONLY);
 			archive.setStatus(this.transactionStatus);
+			this.transactionListenerList.onCommitStart(xid);
 			this.transactionListenerList.onCommitSuccess(xid);
 			transactionLogger.deleteTransaction(archive);
 		} else {
-			this.transactionStatus = Status.STATUS_PREPARED;// .setStatusPrepared();
+			// this.transactionStatus = Status.STATUS_PREPARED;// .setStatusPrepared();
+
+			this.transactionStatus = Status.STATUS_COMMITTING;// .setStatusCommiting();
 			this.transactionVote = XAResource.XA_OK;
-			archive.setVote(XAResource.XA_OK);
+			archive.setVote(this.transactionVote);
 			archive.setStatus(this.transactionStatus);
 			transactionLogger.updateTransaction(archive);
 
-			this.transactionStatus = Status.STATUS_COMMITTING;// .setStatusCommiting();
 			this.transactionListenerList.onCommitStart(xid);
 
 			boolean unFinishExists = true;
 			try {
 				transactionStrategy.commit(xid);
-				unFinishExists = true;
-				this.transactionListenerList.onCommitSuccess(xid);
+				unFinishExists = false;
 			} catch (HeuristicMixedException ex) {
 				this.transactionListenerList.onCommitHeuristicMixed(xid);
 				throw ex;
@@ -432,6 +437,7 @@ public class TransactionImpl implements Transaction {
 				if (unFinishExists == false) {
 					this.transactionStatus = Status.STATUS_COMMITTED; // Status.STATUS_COMMITTED;
 					archive.setStatus(this.transactionStatus);
+					this.transactionListenerList.onCommitSuccess(xid);
 					transactionLogger.deleteTransaction(archive);
 				}
 			}
@@ -1120,8 +1126,6 @@ public class TransactionImpl implements Transaction {
 			TransactionStrategy transactionStrategy = this.getTransactionStrategy();
 			transactionStrategy.commit(xid);
 			unFinishExists = false;
-
-			this.transactionListenerList.onCommitSuccess(xid);
 		} catch (HeuristicMixedException ex) {
 			this.transactionListenerList.onCommitHeuristicMixed(xid);
 			throw new SystemException();
@@ -1139,6 +1143,7 @@ public class TransactionImpl implements Transaction {
 				this.transactionStatus = Status.STATUS_COMMITTED; // Status.STATUS_COMMITTED;
 				TransactionArchive archive = this.getTransactionArchive();
 				archive.setStatus(this.transactionStatus);
+				this.transactionListenerList.onCommitSuccess(xid);
 				transactionLogger.deleteTransaction(archive);
 			}
 		}
@@ -1272,9 +1277,7 @@ public class TransactionImpl implements Transaction {
 	}
 
 	public void registerTransactionResourceListener(TransactionResourceListener listener) {
-		// this.nativeTerminator.registerTransactionResourceListener(listener);
-		// this.optimizedTerminator.registerTransactionResourceListener(listener);
-		// this.remoteTerminator.registerTransactionResourceListener(listener);
+		this.resourceListenerList.registerTransactionResourceListener(listener);
 	}
 
 	public synchronized void stopTiming() {

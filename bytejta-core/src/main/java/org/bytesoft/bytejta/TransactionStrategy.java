@@ -31,7 +31,7 @@ public interface TransactionStrategy /* extends TransactionBeanFactoryAware */ {
 	public int TRANSACTION_STRATEGY_COMMON = 2;
 	public int TRANSACTION_STRATEGY_LRO = 3;
 
-	public void prepare(Xid xid) throws RollbackRequiredException, CommitRequiredException;
+	public int prepare(Xid xid) throws RollbackRequiredException, CommitRequiredException;
 
 	public void commit(Xid xid)
 			throws HeuristicMixedException, HeuristicRollbackException, IllegalStateException, SystemException;
