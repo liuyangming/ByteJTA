@@ -38,6 +38,7 @@ import org.bytesoft.bytejta.strategy.CommonTransactionStrategy;
 import org.bytesoft.bytejta.strategy.LastResourceOptimizeStrategy;
 import org.bytesoft.bytejta.strategy.SimpleTransactionStrategy;
 import org.bytesoft.bytejta.strategy.VacantTransactionStrategy;
+import org.bytesoft.bytejta.supports.jdbc.LocalXAResource;
 import org.bytesoft.bytejta.supports.resource.CommonResourceDescriptor;
 import org.bytesoft.bytejta.supports.resource.LocalXAResourceDescriptor;
 import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
@@ -194,8 +195,27 @@ public class TransactionImpl implements Transaction {
 		}
 	}
 
-	public synchronized void participantCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
-			SecurityException, IllegalStateException, CommitRequiredException, SystemException {
+	public synchronized void recoveryCommit() throws CommitRequiredException, SystemException {
+		TransactionXid xid = this.transactionContext.getXid();
+		try {
+			this.participantCommit(false);
+		} catch (RollbackException ex) {
+			logger.info("[{}] recover: branch={}, status= rolledback",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+					ByteUtils.byteArrayToString(xid.getBranchQualifier()));
+		} catch (HeuristicMixedException ex) {
+			logger.error("[{}] recover: branch={}, status= mixed, message= {}",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+					ByteUtils.byteArrayToString(xid.getBranchQualifier()), ex.getMessage(), ex);
+		} catch (HeuristicRollbackException ex) {
+			logger.info("[{}] recover: branch={}, status= rolledback",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+					ByteUtils.byteArrayToString(xid.getBranchQualifier()));
+		}
+	}
+
+	public synchronized void participantCommit(boolean opc) throws RollbackException, HeuristicMixedException,
+			HeuristicRollbackException, SecurityException, IllegalStateException, CommitRequiredException, SystemException {
 
 		if (this.transactionStatus == Status.STATUS_ACTIVE) {
 			throw new IllegalStateException();
@@ -213,6 +233,8 @@ public class TransactionImpl implements Transaction {
 		} else if (this.transactionStatus == Status.STATUS_COMMITTED) {
 			return;
 		} /* else preparing, prepared, committing {} */
+
+		this.recoverIfNecessary(); // Execute recoveryInit if transaction is recovered from tx-log.
 
 		TransactionXid xid = this.transactionContext.getXid();
 		TransactionArchive archive = this.getTransactionArchive();
@@ -719,28 +741,48 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	private void checkBeforeRollback() throws IllegalStateException, HeuristicRollbackException {
-
-		if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
-			throw new HeuristicRollbackException();
-		} else if (this.transactionStatus == Status.STATUS_COMMITTED) {
-			throw new IllegalStateException();
-		}
-
-	}
-
 	public synchronized void rollback() throws IllegalStateException, RollbackRequiredException, SystemException {
 
-		try {
-			this.checkBeforeRollback();
-		} catch (HeuristicRollbackException rrex) {
-			logger.debug("Current transaction has already been rolled back.");
+		if (this.transactionStatus == Status.STATUS_UNKNOWN) {
+			throw new IllegalStateException();
+		} else if (this.transactionStatus == Status.STATUS_NO_TRANSACTION) {
+			throw new IllegalStateException();
+		} else if (this.transactionStatus == Status.STATUS_COMMITTED) {
+			throw new IllegalStateException();
+		} else if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
 			return;
 		}
 
 		// stop-timing
 		beanFactory.getTransactionTimer().stopTiming(this);
 
+		this.invokeRollback();
+	}
+
+	public synchronized void recoveryRollback() throws RollbackRequiredException, SystemException {
+		this.recoverIfNecessary(); // Execute recoveryInit if transaction is recovered from tx-log.
+
+		this.invokeRollback();
+	}
+
+	public synchronized void participantRollback() throws IllegalStateException, RollbackRequiredException, SystemException {
+
+		if (this.transactionStatus == Status.STATUS_UNKNOWN) {
+			throw new IllegalStateException();
+		} else if (this.transactionStatus == Status.STATUS_NO_TRANSACTION) {
+			throw new IllegalStateException();
+		} else if (this.transactionStatus == Status.STATUS_COMMITTED) {
+			throw new IllegalStateException();
+		} else if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
+			return;
+		}
+
+		this.recoverIfNecessary(); // Execute recoveryInit if transaction is recovered from tx-log.
+
+		this.invokeRollback();
+	}
+
+	private void invokeRollback() throws SystemException {
 		// before-completion
 		this.synchronizationList.beforeCompletion();
 
@@ -757,7 +799,7 @@ public class TransactionImpl implements Transaction {
 			this.transactionStatus = Status.STATUS_ROLLING_BACK;
 			TransactionArchive archive = this.getTransactionArchive();
 			archive.setStatus(this.transactionStatus);
-			// transactionLogger.createTransaction(archive); // TODO
+			transactionLogger.updateTransaction(archive); // don't create!
 
 			this.transactionListenerList.onRollbackStart(xid);
 
@@ -937,284 +979,142 @@ public class TransactionImpl implements Transaction {
 		} // end-for
 	}
 
-	public synchronized void recoveryInit() throws SystemException {
-		TransactionXid globalXid = this.transactionContext.getXid();
-		if (transactionStatus != Status.STATUS_PREPARING && transactionStatus != Status.STATUS_PREPARED
-				&& transactionStatus != Status.STATUS_COMMITTING && transactionStatus != Status.STATUS_ROLLING_BACK) {
-			return;
+	public void recoverIfNecessary() throws SystemException {
+		if (this.transactionContext.isRecoveried()) {
+			this.recover();
 		}
+	}
 
+	public synchronized void recover() throws SystemException {
+		if (transactionStatus == Status.STATUS_PREPARING) {
+			this.recover4PreparingStatus();
+		} else if (transactionStatus != Status.STATUS_COMMITTING) {
+			this.recover4CommittingStatus();
+		} else if (transactionStatus != Status.STATUS_ROLLING_BACK) {
+			this.recover4RollingBackStatus();
+		}
+	}
+
+	public void recover4PreparingStatus() throws SystemException {
+		boolean unPrepareExists = false;
 		for (int i = 0; i < this.participantList.size(); i++) {
 			XAResourceArchive archive = this.participantList.get(i);
+
+			boolean prepareFlag = archive.getVote() != XAResourceArchive.DEFAULT_VOTE;
+			boolean preparedVal = archive.isReadonly() || prepareFlag;
+
 			if (archive.isRecovered()) {
+				unPrepareExists = preparedVal ? unPrepareExists : true;
 				continue;
-			} else if (archive.isReadonly()) {
+			} else if (preparedVal) {
+				continue;
+			}
+
+			boolean xidExists = this.recover(archive);
+			unPrepareExists = xidExists ? unPrepareExists : true;
+		}
+
+		if (unPrepareExists == false) {
+			this.transactionStatus = Status.STATUS_PREPARED;
+		}
+
+	}
+
+	public void recover4CommittingStatus() throws SystemException {
+		boolean unCommitExists = false;
+		for (int i = 0; i < this.participantList.size(); i++) {
+			XAResourceArchive archive = this.participantList.get(i);
+
+			if (archive.isRecovered()) {
+				unCommitExists = archive.isCommitted() ? unCommitExists : true;
 				continue;
 			} else if (archive.isCommitted()) {
+				continue;
+			}
+
+			boolean xidExists = this.recover(archive);
+			unCommitExists = xidExists ? unCommitExists : true;
+		}
+
+		if (unCommitExists == false) {
+			this.transactionStatus = Status.STATUS_COMMITTED;
+		}
+
+	}
+
+	public void recover4RollingBackStatus() throws SystemException {
+		boolean unRollbackExists = false;
+		for (int i = 0; i < this.participantList.size(); i++) {
+			XAResourceArchive archive = this.participantList.get(i);
+
+			if (archive.isRecovered()) {
+				unRollbackExists = archive.isRolledback() ? unRollbackExists : true;
 				continue;
 			} else if (archive.isRolledback()) {
 				continue;
 			}
 
-			boolean xidRecovered = false;
-			if (archive.isIdentified()) {
-				Xid thisXid = archive.getXid();
-				byte[] thisGlobalTransactionId = thisXid.getGlobalTransactionId();
-				byte[] thisBranchQualifier = thisXid.getBranchQualifier();
-				try {
-					Xid[] array = archive.recover(XAResource.TMSTARTRSCAN | XAResource.TMENDRSCAN);
-					for (int j = 0; array != null && j < array.length; j++) {
-						Xid thatXid = array[j];
-						byte[] thatGlobalTransactionId = thatXid.getGlobalTransactionId();
-						byte[] thatBranchQualifier = thatXid.getBranchQualifier();
-						if (thisXid.getFormatId() == thatXid.getFormatId()
-								&& Arrays.equals(thisGlobalTransactionId, thatGlobalTransactionId)
-								&& Arrays.equals(thisBranchQualifier, thatBranchQualifier)) {
-							xidRecovered = true;
-							break;
-						}
-					}
-				} catch (Exception ex) {
-					logger.error("[{}] recover-transaction failed. branch= {}",
+			boolean xidExists = this.recover(archive);
+			unRollbackExists = xidExists ? true : unRollbackExists;
+		}
+
+		if (unRollbackExists == false) {
+			this.transactionStatus = Status.STATUS_ROLLEDBACK;
+		}
+
+	}
+
+	private boolean recover(XAResourceArchive archive) throws SystemException {
+		TransactionXid globalXid = this.transactionContext.getXid();
+
+		boolean xidRecovered = false;
+
+		XAResourceDescriptor descriptor = archive.getDescriptor();
+		XAResource delegate = descriptor.getDelegate();
+		if (LocalXAResource.class.isInstance(delegate)) {
+			try {
+				((LocalXAResource) delegate).recoverable(archive.getXid());
+				xidRecovered = true;
+			} catch (XAException ex) {
+				switch (ex.errorCode) {
+				case XAException.XAER_NOTA:
+					break;
+				default:
+					logger.error("[{}] recover-resource failed. branch= {}",
 							ByteUtils.byteArrayToString(globalXid.getGlobalTransactionId()),
 							ByteUtils.byteArrayToString(globalXid.getBranchQualifier()));
-					continue;
+					throw new SystemException();
 				}
 			}
-
-			if (transactionStatus == Status.STATUS_PREPARING) {
-				this.recoverForPreparingTransaction(archive, xidRecovered);
-			} else if (transactionStatus == Status.STATUS_PREPARED) {
-				try {
-					this.recoverForPreparedTransaction(archive, xidRecovered);
-				} catch (IllegalStateException ex) {
-					transactionStatus = Status.STATUS_PREPARING;
+		} else if (archive.isIdentified()) {
+			Xid thisXid = archive.getXid();
+			byte[] thisGlobalTransactionId = thisXid.getGlobalTransactionId();
+			byte[] thisBranchQualifier = thisXid.getBranchQualifier();
+			try {
+				Xid[] array = archive.recover(XAResource.TMSTARTRSCAN | XAResource.TMENDRSCAN);
+				for (int j = 0; xidRecovered == false && array != null && j < array.length; j++) {
+					Xid thatXid = array[j];
+					byte[] thatGlobalTransactionId = thatXid.getGlobalTransactionId();
+					byte[] thatBranchQualifier = thatXid.getBranchQualifier();
+					boolean formatIdEquals = thisXid.getFormatId() == thatXid.getFormatId();
+					boolean transactionIdEquals = Arrays.equals(thisGlobalTransactionId, thatGlobalTransactionId);
+					boolean qualifierEquals = Arrays.equals(thisBranchQualifier, thatBranchQualifier);
+					xidRecovered = formatIdEquals && transactionIdEquals && qualifierEquals;
 				}
-			} else if (transactionStatus == Status.STATUS_COMMITTING) {
-				this.recoverForCommittingTransaction(archive, xidRecovered);
-			} else if (transactionStatus == Status.STATUS_ROLLING_BACK) {
-				this.recoverForRollingBackTransaction(archive, xidRecovered);
-			}
-
-			archive.setRecovered(true);
-		}
-
-	}
-
-	protected void recoverForPreparingTransaction(XAResourceArchive archive, boolean xidRecovered) {
-		TransactionXid xid = (TransactionXid) archive.getXid();
-		boolean branchPrepared = archive.getVote() != -1; // default value
-
-		if (branchPrepared && xidRecovered) {
-			// ignore
-		} else if (branchPrepared && xidRecovered == false) {
-			if (archive.isIdentified()) {
-				logger.error("[{}] recover failed: branch= {}, status= preparing, branchPrepared= true, xidRecovered= false",
-						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-						ByteUtils.byteArrayToString(xid.getBranchQualifier()));
-			} else {
-				// TODO
-			}
-		} else if (branchPrepared == false && xidRecovered) {
-			archive.setVote(XAResource.XA_OK);
-		} else if (branchPrepared == false && xidRecovered == false) {
-			// rollback required
-		}
-	}
-
-	protected void recoverForPreparedTransaction(XAResourceArchive archive, boolean xidRecovered) throws IllegalStateException {
-		TransactionXid xid = (TransactionXid) archive.getXid();
-		boolean branchPrepared = archive.getVote() != XAResourceArchive.DEFAULT_VOTE; // default value
-		if (branchPrepared == false) {
-			logger.error("[{}] recover failed: branch= {}, status= prepared, branchPrepared= false",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-					ByteUtils.byteArrayToString(xid.getBranchQualifier()));
-			throw new IllegalStateException();
-		} else if (xidRecovered == false) {
-			if (archive.isIdentified()) {
-				logger.error("[{}] recover failed: branch= {}, status= prepared, branchPrepared= true, xidRecovered= false",
-						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-						ByteUtils.byteArrayToString(xid.getBranchQualifier()));
-			} else {
-				archive.setVote(XAResourceArchive.DEFAULT_VOTE); // vote of unidentified resource will be reset
-				logger.error("[{}] recover failed: branch= {}, status= prepared, branchPrepared= true, identified= false",
-						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-						ByteUtils.byteArrayToString(xid.getBranchQualifier()));
-				// rollback required
-				throw new IllegalStateException();
-			}
-		}
-	}
-
-	protected void recoverForCommittingTransaction(XAResourceArchive archive, boolean xidRecovered) {
-		TransactionXid xid = (TransactionXid) archive.getXid();
-		// boolean branchCompleted = archive.isCompleted();
-		boolean branchCommitted = archive.isCommitted();
-		if (branchCommitted && xidRecovered) {
-			logger.warn("[{}] recover failed: branch= {}, status= committing, branchCommitted= true, xidRecovered= true",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-					ByteUtils.byteArrayToString(xid.getBranchQualifier()));
-			archive.forgetQuietly(xid); // Branch has already been committed.
-		} else if (branchCommitted && xidRecovered == false) {
-			// ignore
-		} else if (branchCommitted == false && xidRecovered) {
-			// ignore
-		} else if (branchCommitted == false && xidRecovered == false) {
-			if (archive.isIdentified()) {
-				logger.warn("[{}] recover failed: branch= {}, status= committing, branchCommitted= false, xidRecovered= false",
-						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-						ByteUtils.byteArrayToString(xid.getBranchQualifier()));
-				archive.setCommitted(true);
-				archive.setCompleted(true);
-			} else {
-				// TODO upgrade
-				archive.setHeuristic(true);
-				archive.setCommitted(true);
-				archive.setRolledback(true);
-				archive.setCompleted(true);
-			}
-		}
-	}
-
-	protected void recoverForRollingBackTransaction(XAResourceArchive archive, boolean xidRecovered) {
-		TransactionXid xid = (TransactionXid) archive.getXid();
-		// boolean branchCompleted = archive.isCompleted();
-		boolean branchRolledback = archive.isRolledback();
-		if (branchRolledback && xidRecovered) {
-			logger.warn("[{}] recover failed: branch= {}, status= rollingback, branchRolledback= true, xidRecovered= true",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-					ByteUtils.byteArrayToString(xid.getBranchQualifier()));
-			archive.forgetQuietly(xid); // Branch has already been committed.
-		} else if (branchRolledback && xidRecovered == false) {
-			// ignore
-		} else if (branchRolledback == false && xidRecovered) {
-			// ignore
-		} else if (branchRolledback == false && xidRecovered == false) {
-			if (archive.isIdentified()) {
-				logger.warn(
-						"[{}] recover failed: branch= {}, status= rollingback, branchRolledback= false, xidRecovered= false",
-						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-						ByteUtils.byteArrayToString(xid.getBranchQualifier()));
-				archive.setRolledback(true);
-				archive.setCompleted(true);
-			} else {
-				// TODO upgrade
-				archive.setHeuristic(true);
-				archive.setCommitted(true);
-				archive.setRolledback(true);
-				archive.setCompleted(true);
-			}
-		}
-	}
-
-	public synchronized void recoveryCommit() throws CommitRequiredException, SystemException {
-
-		if (this.transactionContext.isRecoveried()) {
-			this.recoveryInit();
-		}
-
-		TransactionXid xid = this.transactionContext.getXid();
-
-		this.transactionStatus = Status.STATUS_COMMITTING;// .setStatusCommiting();
-
-		this.transactionListenerList.onCommitStart(xid);
-
-		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
-
-		boolean unFinishExists = true;
-		try {
-			TransactionStrategy transactionStrategy = this.getTransactionStrategy();
-			transactionStrategy.commit(xid);
-			unFinishExists = false;
-		} catch (HeuristicMixedException ex) {
-			this.transactionListenerList.onCommitHeuristicMixed(xid);
-			throw new SystemException();
-		} catch (HeuristicRollbackException ex) {
-			this.transactionListenerList.onCommitHeuristicRolledback(xid);
-			throw new SystemException();
-		} catch (SystemException ex) {
-			this.transactionListenerList.onCommitFailure(xid);
-			throw new CommitRequiredException();
-		} catch (RuntimeException ex) {
-			this.transactionListenerList.onCommitFailure(xid);
-			throw new CommitRequiredException();
-		} finally {
-			if (unFinishExists == false) {
-				this.transactionStatus = Status.STATUS_COMMITTED; // Status.STATUS_COMMITTED;
-				TransactionArchive archive = this.getTransactionArchive();
-				archive.setStatus(this.transactionStatus);
-				this.transactionListenerList.onCommitSuccess(xid);
-				transactionLogger.deleteTransaction(archive);
+			} catch (Exception ex) {
+				logger.error("[{}] recover-resource failed. branch= {}",
+						ByteUtils.byteArrayToString(globalXid.getGlobalTransactionId()),
+						ByteUtils.byteArrayToString(globalXid.getBranchQualifier()));
+				throw new SystemException();
 			}
 		}
 
-	}
+		archive.setRecovered(true);
 
-	public synchronized void recoveryRollback() throws RollbackRequiredException, SystemException {
-
-		if (this.transactionContext.isRecoveried()) {
-			this.recoveryInit();
-		}
-
-		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
-
-		TransactionXid xid = this.transactionContext.getXid();
-
-		this.transactionStatus = Status.STATUS_ROLLING_BACK;
-
-		this.transactionListenerList.onRollbackStart(xid);
-
-		boolean unFinishExists = true;
-		try {
-			logger.info("[{}] recovery-rollback-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-
-			TransactionStrategy transactionStrategy = this.getTransactionStrategy();
-
-			transactionStrategy.rollback(xid);
-
-			unFinishExists = false;
-
-			this.transactionListenerList.onRollbackSuccess(xid);
-
-			logger.info("[{}] recovery-rollback-transaction complete successfully",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-		} catch (HeuristicMixedException ex) {
-			this.transactionListenerList.onRollbackFailure(xid);
-			throw new SystemException();
-		} catch (HeuristicCommitException ex) {
-			this.transactionListenerList.onRollbackFailure(xid);
-			throw new SystemException();
-		} catch (SystemException ex) {
-			this.transactionListenerList.onRollbackFailure(xid);
-			throw ex;
-		} catch (RuntimeException ex) {
-			this.transactionListenerList.onRollbackFailure(xid);
-			throw ex;
-		} finally {
-			if (unFinishExists == false) {
-				this.transactionStatus = Status.STATUS_ROLLEDBACK; // Status.STATUS_ROLLEDBACK;
-				TransactionArchive archive = this.getTransactionArchive();// new TransactionArchive();
-				transactionLogger.deleteTransaction(archive);
-			}
-		}
-
+		return xidRecovered;
 	}
 
 	public synchronized void forget() throws SystemException {
-		TransactionRepository repository = beanFactory.getTransactionRepository();
-		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
-
-		TransactionXid xid = this.transactionContext.getXid();
-
-		this.cleanup();
-
-		repository.removeErrorTransaction(xid);
-		repository.removeTransaction(xid);
-
-		transactionLogger.deleteTransaction(this.getTransactionArchive());
-	}
-
-	public synchronized void recoveryForget() throws SystemException {
 		TransactionRepository repository = beanFactory.getTransactionRepository();
 		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
 

@@ -57,7 +57,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 			TransactionXid xid = transactionContext.getXid();
 			try {
 				this.recoverTransaction(transaction);
-				transaction.recoveryForget();
+				transaction.forget();
 			} catch (CommitRequiredException ex) {
 				logger.debug("[{}] recover: branch={}, message= commit-required",
 						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
@@ -85,28 +85,33 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 			throws CommitRequiredException, RollbackRequiredException, SystemException {
 
 		TransactionContext transactionContext = transaction.getTransactionContext();
-		if (transactionContext.isCoordinator()) {
+		boolean coordinator = transactionContext.isCoordinator();
+		if (coordinator) {
+			transaction.recover();
 			this.recoverCoordinator(transaction);
-		} // end-if (coordinator)
+		} else {
+			transaction.recover();
+		}
 
 	}
 
 	private synchronized void recoverCoordinator(Transaction transaction)
 			throws CommitRequiredException, RollbackRequiredException, SystemException {
 
+		TransactionImpl transactionImpl = (TransactionImpl) transaction;
 		switch (transaction.getTransactionStatus()) {
 		case Status.STATUS_ACTIVE:
 		case Status.STATUS_MARKED_ROLLBACK:
 		case Status.STATUS_PREPARING:
 		case Status.STATUS_ROLLING_BACK:
 		case Status.STATUS_UNKNOWN:
-			transaction.recoveryRollback();
-			transaction.recoveryForget();
+			transactionImpl.recoveryRollback();
+			transactionImpl.forget();
 			break;
 		case Status.STATUS_PREPARED:
 		case Status.STATUS_COMMITTING:
-			transaction.recoveryCommit();
-			transaction.recoveryForget();
+			transactionImpl.recoveryCommit();
+			transactionImpl.forget();
 			break;
 		case Status.STATUS_COMMITTED:
 		case Status.STATUS_ROLLEDBACK:

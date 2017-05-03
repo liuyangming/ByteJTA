@@ -17,7 +17,6 @@ package org.bytesoft.bytejta.supports.wire;
 
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
-import javax.transaction.xa.Xid;
 
 import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionContext;
@@ -29,11 +28,5 @@ public interface RemoteCoordinator extends XAResource {
 	public Transaction start(TransactionContext transactionContext, int flags) throws XAException;
 
 	public Transaction end(TransactionContext transactionContext, int flags) throws XAException;
-
-	public void recoveryForget(Xid xid) throws XAException;
-
-	public void recoveryCommit(Xid xid, boolean onePhase) throws XAException;
-
-	public void recoveryRollback(Xid xid) throws XAException;
 
 }

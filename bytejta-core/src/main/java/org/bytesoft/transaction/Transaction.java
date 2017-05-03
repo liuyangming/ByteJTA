@@ -59,15 +59,13 @@ public interface Transaction extends javax.transaction.Transaction {
 
 	public int participantPrepare() throws RollbackRequiredException, CommitRequiredException;
 
-	public void participantCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
+	public void participantCommit(boolean opc) throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
 			SecurityException, IllegalStateException, CommitRequiredException, SystemException;
+
+	public void participantRollback() throws IllegalStateException, RollbackRequiredException, SystemException;
 
 	public void forget() throws SystemException;
 
-	public void recoveryForget() throws SystemException;
-
-	public void recoveryRollback() throws RollbackRequiredException, SystemException;
-
-	public void recoveryCommit() throws CommitRequiredException, SystemException;
+	public void recover() throws SystemException;
 
 }

@@ -66,25 +66,11 @@ public class LocalXAResourceDescriptor implements XAResourceDescriptor {
 		delegate.commit(arg0, arg1);
 	}
 
-	public void recoveryCommit(Xid arg0) throws XAException {
-		if (this.delegate == null) {
-			return;
-		}
-		delegate.commit(arg0, true);
-	}
-
 	public void end(Xid arg0, int arg1) throws XAException {
 		if (this.delegate == null) {
 			return;
 		}
 		delegate.end(arg0, arg1);
-	}
-
-	public void recoveryForget(Xid arg0) throws XAException {
-		if (this.delegate == null) {
-			return;
-		}
-		delegate.forget(arg0);
 	}
 
 	public void forget(Xid arg0) throws XAException {
@@ -130,13 +116,6 @@ public class LocalXAResourceDescriptor implements XAResourceDescriptor {
 	}
 
 	public void rollback(Xid arg0) throws XAException {
-		if (this.delegate == null) {
-			return;
-		}
-		delegate.rollback(arg0);
-	}
-
-	public void recoveryRollback(Xid arg0) throws XAException {
 		if (this.delegate == null) {
 			return;
 		}
