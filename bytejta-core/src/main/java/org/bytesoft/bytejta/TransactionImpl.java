@@ -215,7 +215,7 @@ public class TransactionImpl implements Transaction {
 	public synchronized void participantCommit(boolean opc) throws RollbackException, HeuristicMixedException,
 			HeuristicRollbackException, SecurityException, IllegalStateException, CommitRequiredException, SystemException {
 
-		if (this.transactionStatus == Status.STATUS_ACTIVE) {
+		if (this.transactionStatus == Status.STATUS_ACTIVE && opc == false) {
 			throw new IllegalStateException();
 		} else if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
 			this.rollback();
