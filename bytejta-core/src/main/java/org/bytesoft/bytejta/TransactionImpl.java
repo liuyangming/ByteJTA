@@ -198,11 +198,9 @@ public class TransactionImpl implements Transaction {
 	public synchronized void recoveryCommit() throws CommitRequiredException, SystemException {
 		TransactionXid xid = this.transactionContext.getXid();
 		try {
-			this.participantCommit(false);
-		} catch (RollbackException ex) {
-			logger.info("[{}] recover: branch={}, status= rolledback",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-					ByteUtils.byteArrayToString(xid.getBranchQualifier()));
+			this.recoverIfNecessary();
+
+			this.invokeCommit();
 		} catch (HeuristicMixedException ex) {
 			logger.error("[{}] recover: branch={}, status= mixed, message= {}",
 					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
@@ -236,6 +234,30 @@ public class TransactionImpl implements Transaction {
 
 		this.recoverIfNecessary(); // Execute recoveryInit if transaction is recovered from tx-log.
 
+		try {
+			this.synchronizationList.beforeCompletion();
+
+			try {
+				this.delistAllResource();
+			} catch (RollbackRequiredException rrex) {
+				this.participantRollback();
+				throw new HeuristicRollbackException();
+			} catch (SystemException ex) {
+				this.participantRollback();
+				throw new HeuristicRollbackException();
+			} catch (RuntimeException rex) {
+				this.participantRollback();
+				throw new HeuristicRollbackException();
+			}
+
+			this.invokeCommit();
+		} finally {
+			this.synchronizationList.afterCompletion(this.transactionStatus);
+		}
+
+	}
+
+	private void invokeCommit() throws HeuristicMixedException, HeuristicRollbackException, SystemException {
 		TransactionXid xid = this.transactionContext.getXid();
 		TransactionArchive archive = this.getTransactionArchive();
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
@@ -272,7 +294,6 @@ public class TransactionImpl implements Transaction {
 						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 			}
 		}
-
 	}
 
 	private synchronized void checkBeforeCommit()
@@ -753,10 +774,18 @@ public class TransactionImpl implements Transaction {
 			return;
 		}
 
-		// stop-timing
 		beanFactory.getTransactionTimer().stopTiming(this);
 
-		this.invokeRollback();
+		try {
+			this.synchronizationList.beforeCompletion();
+
+			this.delistAllResourceQuietly();
+
+			this.invokeRollback();
+		} finally {
+			this.synchronizationList.afterCompletion(this.transactionStatus);
+		}
+
 	}
 
 	public synchronized void recoveryRollback() throws RollbackRequiredException, SystemException {
@@ -779,16 +808,19 @@ public class TransactionImpl implements Transaction {
 
 		this.recoverIfNecessary(); // Execute recoveryInit if transaction is recovered from tx-log.
 
-		this.invokeRollback();
+		try {
+			this.synchronizationList.beforeCompletion();
+
+			this.delistAllResourceQuietly();
+
+			this.invokeRollback();
+		} finally {
+			this.synchronizationList.afterCompletion(this.transactionStatus);
+		}
+
 	}
 
 	private void invokeRollback() throws SystemException {
-		// before-completion
-		this.synchronizationList.beforeCompletion();
-
-		// delist all resources
-		this.delistAllResourceQuietly();
-
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		TransactionXid xid = this.transactionContext.getXid();
 
@@ -829,7 +861,6 @@ public class TransactionImpl implements Transaction {
 				TransactionArchive archive = this.getTransactionArchive();// new TransactionArchive();
 				transactionLogger.deleteTransaction(archive);
 			}
-			this.synchronizationList.afterCompletion(this.transactionStatus);
 		}
 	}
 
@@ -1205,9 +1236,11 @@ public class TransactionImpl implements Transaction {
 			transactionStrategy = new VacantTransactionStrategy();
 		} else if (this.participant == null) /* TODO: LRO */ {
 			XATerminatorImpl nativeTerminator = new XATerminatorImpl();
+			nativeTerminator.setBeanFactory(this.beanFactory);
 			nativeTerminator.getResourceArchives().addAll(this.nativeParticipantList);
 
 			XATerminatorImpl remoteTerminator = new XATerminatorImpl();
+			remoteTerminator.setBeanFactory(this.beanFactory);
 			remoteTerminator.getResourceArchives().addAll(this.remoteParticipantList);
 
 			if (nativeResNum == 0) {
@@ -1220,9 +1253,11 @@ public class TransactionImpl implements Transaction {
 
 		} else {
 			XATerminatorOptd terminatorOne = new XATerminatorOptd();
+			terminatorOne.setBeanFactory(this.beanFactory);
 			terminatorOne.getResourceArchives().add(this.participant);
 
 			XATerminatorImpl terminatorTwo = new XATerminatorImpl();
+			terminatorTwo.setBeanFactory(this.beanFactory);
 			terminatorTwo.getResourceArchives().addAll(this.nativeParticipantList);
 			terminatorTwo.getResourceArchives().addAll(this.remoteParticipantList);
 
@@ -1242,9 +1277,11 @@ public class TransactionImpl implements Transaction {
 		int remoteResNum = this.remoteParticipantList.size();
 
 		XATerminatorImpl nativeTerminator = new XATerminatorImpl();
+		nativeTerminator.setBeanFactory(this.beanFactory);
 		nativeTerminator.getResourceArchives().addAll(this.nativeParticipantList);
 
 		XATerminatorImpl remoteTerminator = new XATerminatorImpl();
+		remoteTerminator.setBeanFactory(this.beanFactory);
 		remoteTerminator.getResourceArchives().addAll(this.remoteParticipantList);
 
 		if (TransactionStrategy.TRANSACTION_STRATEGY_COMMON == transactionStrategyType) {
@@ -1271,6 +1308,7 @@ public class TransactionImpl implements Transaction {
 					throw new IllegalStateException();
 				}
 				XATerminatorOptd terminatorOne = new XATerminatorOptd();
+				terminatorOne.setBeanFactory(this.beanFactory);
 				terminatorOne.getResourceArchives().add(this.participant);
 				this.transactionStrategy = new SimpleTransactionStrategy(terminatorOne);
 			}
@@ -1279,9 +1317,11 @@ public class TransactionImpl implements Transaction {
 				throw new IllegalStateException();
 			}
 			XATerminatorOptd terminatorOne = new XATerminatorOptd();
+			terminatorOne.setBeanFactory(this.beanFactory);
 			terminatorOne.getResourceArchives().add(this.participant);
 
 			XATerminatorImpl terminatorTwo = new XATerminatorImpl();
+			terminatorTwo.setBeanFactory(this.beanFactory);
 			terminatorTwo.getResourceArchives().addAll(this.nativeParticipantList);
 			terminatorTwo.getResourceArchives().addAll(this.remoteParticipantList);
 

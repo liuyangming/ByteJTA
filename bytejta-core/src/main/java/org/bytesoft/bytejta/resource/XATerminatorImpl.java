@@ -325,7 +325,7 @@ public class XATerminatorImpl implements XATerminator {
 			XAResourceArchive archive = this.resources.get(i);
 			try {
 				this.invokeRollback(archive);
-				committedExists = true;
+				rolledbackExists = true;
 				archive.setRolledback(true);
 				archive.setCompleted(true);
 				logger.info("[{}] rollback: xares= {}, branch= {}",

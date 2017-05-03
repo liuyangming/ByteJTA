@@ -28,11 +28,9 @@ import javax.transaction.NotSupportedException;
 import javax.transaction.RollbackException;
 import javax.transaction.Status;
 import javax.transaction.SystemException;
-import javax.transaction.xa.XAException;
 
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.common.utils.ByteUtils;
-import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
 import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionBeanFactory;
@@ -102,42 +100,7 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 			throw new IllegalStateException();
 		}
 
-		TransactionContext transactionContext = transaction.getTransactionContext();
-		TransactionXid xid = transactionContext.getXid();
-		RemoteCoordinator coordinator = this.beanFactory.getTransactionCoordinator();
-		try {
-			coordinator.commit(xid, false);
-		} catch (XAException xaex) {
-			Throwable cause = xaex.getCause();
-			if (cause == null) {
-				SystemException ex = new SystemException();
-				ex.initCause(xaex);
-				throw ex;
-			} else if (SecurityException.class.isInstance(cause)) {
-				throw (SecurityException) cause;
-			} else if (IllegalStateException.class.isInstance(cause)) {
-				throw (IllegalStateException) cause;
-			} else if (CommitRequiredException.class.isInstance(cause)) {
-				throw (CommitRequiredException) cause;
-			} else if (RollbackException.class.isInstance(cause)) {
-				throw (RollbackException) cause;
-			} else if (HeuristicMixedException.class.isInstance(cause)) {
-				throw (HeuristicMixedException) cause;
-			} else if (HeuristicRollbackException.class.isInstance(cause)) {
-				throw (HeuristicRollbackException) cause;
-			} else if (SystemException.class.isInstance(cause)) {
-				throw (SystemException) cause;
-			} else {
-				SystemException ex = new SystemException();
-				ex.initCause(xaex);
-				throw ex;
-			}
-		} catch (RuntimeException rrex) {
-			SystemException ex = new SystemException();
-			ex.initCause(rrex);
-			throw ex;
-		}
-
+		transaction.commit();
 	}
 
 	public void rollback() throws IllegalStateException, SecurityException, SystemException {
@@ -154,37 +117,7 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 			throw new SystemException();
 		}
 
-		TransactionContext transactionContext = transaction.getTransactionContext();
-		TransactionXid xid = transactionContext.getXid();
-		RemoteCoordinator coordinator = this.beanFactory.getTransactionCoordinator();
-		try {
-			coordinator.rollback(xid);
-		} catch (XAException xaex) {
-			Throwable cause = xaex.getCause();
-			if (cause == null) {
-				SystemException ex = new SystemException();
-				ex.initCause(xaex);
-				throw ex;
-			} else if (RollbackRequiredException.class.isInstance(cause)) {
-				throw (RollbackRequiredException) cause;
-			} else if (SystemException.class.isInstance(cause)) {
-				throw (SystemException) cause;
-			} else if (RuntimeException.class.isInstance(cause)) {
-				RuntimeException rex = (RuntimeException) cause;
-				SystemException ex = new SystemException();
-				ex.initCause(rex);
-				throw ex;
-			} else {
-				SystemException ex = new SystemException();
-				ex.initCause(xaex);
-				throw ex;
-			}
-		} catch (RuntimeException rrex) {
-			SystemException ex = new SystemException();
-			ex.initCause(rrex);
-			throw ex;
-		}
-
+		transaction.rollback();
 	}
 
 	public void associateThread(Transaction transaction) {
