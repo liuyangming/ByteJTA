@@ -25,6 +25,7 @@ import javax.sql.XAConnection;
 import javax.transaction.xa.XAResource;
 
 import org.bytesoft.bytejta.supports.resource.CommonResourceDescriptor;
+import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 
 public class XAConnectionImpl implements XAConnection, ConnectionEventListener {
 	private String identifier;
@@ -58,6 +59,9 @@ public class XAConnectionImpl implements XAConnection, ConnectionEventListener {
 
 	public XAResource getXAResource() throws SQLException {
 		XAResource xares = this.delegate.getXAResource();
+		if (XAResourceDescriptor.class.isInstance(xares)) {
+			return xares;
+		}
 		CommonResourceDescriptor descriptor = new CommonResourceDescriptor();
 		descriptor.setDelegate(xares);
 		descriptor.setIdentifier(this.identifier);

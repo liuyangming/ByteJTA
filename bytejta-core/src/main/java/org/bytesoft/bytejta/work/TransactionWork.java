@@ -17,6 +17,7 @@ package org.bytesoft.bytejta.work;
 
 import javax.resource.spi.work.Work;
 
+import org.bytesoft.bytejta.TransactionCoordinator;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionRecovery;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
@@ -40,9 +41,14 @@ public class TransactionWork implements Work, TransactionBeanFactoryAware {
 		TransactionRecovery transactionRecovery = beanFactory.getTransactionRecovery();
 		try {
 			transactionRecovery.startRecovery();
+			transactionRecovery.timingRecover();
 		} catch (RuntimeException rex) {
 			logger.error("TransactionRecovery init failed!", rex);
 		}
+
+		TransactionCoordinator transactionCoordinator = //
+				(TransactionCoordinator) this.beanFactory.getTransactionCoordinator();
+		transactionCoordinator.markAvailable();
 
 		long nextExecutionTime = 0;
 		long nextRecoveryTime = System.currentTimeMillis() + this.recoveryInterval;

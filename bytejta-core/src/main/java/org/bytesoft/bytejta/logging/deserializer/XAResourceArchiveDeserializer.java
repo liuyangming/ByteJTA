@@ -107,22 +107,37 @@ public class XAResourceArchiveDeserializer implements ArchiveDeserializer, Trans
 		XAResourceDeserializer deserializer = this.beanFactory.getResourceDeserializer();
 		if (resourceType == 0x01) {
 			archive.setIdentified(true);
-			CommonResourceDescriptor resourceDescriptor = new CommonResourceDescriptor();
 			XAResource resource = deserializer.deserialize(identifier);
-			resourceDescriptor.setDelegate(resource);
-			descriptor = resourceDescriptor;
+			if (XAResourceDescriptor.class.isInstance(resource)) {
+				descriptor = (XAResourceDescriptor) resource;
+			} else {
+				CommonResourceDescriptor resourceDescriptor = new CommonResourceDescriptor();
+				resourceDescriptor.setDelegate(resource);
+				resourceDescriptor.setIdentifier(identifier);
+				descriptor = resourceDescriptor;
+			}
 		} else if (resourceType == 0x02) {
 			archive.setIdentified(true);
-			RemoteResourceDescriptor resourceDescriptor = new RemoteResourceDescriptor();
 			XAResource resource = deserializer.deserialize(identifier);
-			resourceDescriptor.setDelegate((RemoteCoordinator) resource);
-			descriptor = resourceDescriptor;
+			if (XAResourceDescriptor.class.isInstance(resource)) {
+				descriptor = (XAResourceDescriptor) resource;
+			} else {
+				RemoteResourceDescriptor resourceDescriptor = new RemoteResourceDescriptor();
+				resourceDescriptor.setDelegate((RemoteCoordinator) resource);
+				resourceDescriptor.setIdentifier(identifier);
+				descriptor = resourceDescriptor;
+			}
 		} else if (resourceType == 0x03) {
 			archive.setIdentified(true);
 			XAResource resource = deserializer.deserialize(identifier);
-			LocalXAResourceDescriptor resourceDescriptor = new LocalXAResourceDescriptor();
-			resourceDescriptor.setDelegate(resource);
-			descriptor = resourceDescriptor;
+			if (XAResourceDescriptor.class.isInstance(resource)) {
+				descriptor = (XAResourceDescriptor) resource;
+			} else {
+				LocalXAResourceDescriptor resourceDescriptor = new LocalXAResourceDescriptor();
+				resourceDescriptor.setDelegate(resource);
+				resourceDescriptor.setIdentifier(identifier);
+				descriptor = resourceDescriptor;
+			}
 		} else {
 			UnidentifiedResourceDescriptor resourceDescriptor = new UnidentifiedResourceDescriptor();
 			descriptor = resourceDescriptor;

@@ -1089,7 +1089,6 @@ public class TransactionImpl implements Transaction {
 			}
 
 			boolean xidExists = this.recover(archive);
-			// unPrepareExists = xidExists ? unPrepareExists : true;
 			unPrepareExists = xidExists ? false : true;
 		}
 
@@ -1127,7 +1126,6 @@ public class TransactionImpl implements Transaction {
 			}
 
 			boolean xidExists = this.recover(archive);
-			// unCommitExists = xidExists ? true : unCommitExists;
 			if (localFlag) {
 				rollbackExists = xidExists ? rollbackExists : true;
 			} else {
@@ -1156,10 +1154,6 @@ public class TransactionImpl implements Transaction {
 		boolean unRollbackExists = false;
 		for (int i = 0; i < this.participantList.size(); i++) {
 			XAResourceArchive archive = this.participantList.get(i);
-
-			// XAResourceDescriptor descriptor = archive.getDescriptor();
-			// XAResource delegate = descriptor.getDelegate();
-			// boolean localFlag = LocalXAResource.class.isInstance(delegate);
 
 			if (archive.isRecovered()) {
 				unRollbackExists = archive.isRolledback() ? unRollbackExists : true;
@@ -1221,7 +1215,7 @@ public class TransactionImpl implements Transaction {
 			} catch (Exception ex) {
 				logger.error("[{}] recover-resource failed. branch= {}",
 						ByteUtils.byteArrayToString(globalXid.getGlobalTransactionId()),
-						ByteUtils.byteArrayToString(globalXid.getBranchQualifier()));
+						ByteUtils.byteArrayToString(globalXid.getBranchQualifier()), ex);
 				throw new SystemException();
 			}
 		}
@@ -1463,6 +1457,14 @@ public class TransactionImpl implements Transaction {
 
 	public XAResourceArchive getParticipant() {
 		return participant;
+	}
+
+	public Map<String, XAResourceArchive> getParticipantMap() {
+		return participantMap;
+	}
+
+	public List<XAResourceArchive> getParticipantList() {
+		return participantList;
 	}
 
 	public void setParticipant(XAResourceArchive participant) {

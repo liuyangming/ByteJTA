@@ -15,11 +15,15 @@
  */
 package org.bytesoft.bytejta;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import javax.transaction.HeuristicMixedException;
 import javax.transaction.HeuristicRollbackException;
 import javax.transaction.RollbackException;
+import javax.transaction.Status;
 import javax.transaction.SystemException;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
@@ -48,6 +52,9 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 
 	private String endpoint;
 	private TransactionBeanFactory beanFactory;
+
+	private transient boolean inited = false;
+	private final Lock lock = new ReentrantLock();
 
 	public Transaction getTransactionQuietly() {
 		TransactionManager transactionManager = this.beanFactory.getTransactionManager();
@@ -135,6 +142,8 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 	}
 
 	public void commit(Xid xid, boolean onePhase) throws XAException {
+		this.checkAvailableIfNecessary();
+
 		XidFactory xidFactory = this.beanFactory.getXidFactory();
 		TransactionXid branchXid = (TransactionXid) xid;
 		TransactionXid globalXid = xidFactory.createGlobalXid(branchXid.getGlobalTransactionId());
@@ -208,6 +217,8 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 	}
 
 	public void forget(Xid xid) throws XAException {
+		this.checkAvailableIfNecessary();
+
 		XidFactory xidFactory = this.beanFactory.getXidFactory();
 		TransactionXid branchXid = (TransactionXid) xid;
 		TransactionXid globalXid = xidFactory.createGlobalXid(branchXid.getGlobalTransactionId());
@@ -239,6 +250,8 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 	}
 
 	public int prepare(Xid xid) throws XAException {
+		this.checkAvailableIfNecessary();
+
 		XidFactory xidFactory = this.beanFactory.getXidFactory();
 		TransactionXid branchXid = (TransactionXid) xid;
 		TransactionXid globalXid = xidFactory.createGlobalXid(branchXid.getGlobalTransactionId());
@@ -254,19 +267,47 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 	}
 
 	public Xid[] recover(int flag) throws XAException {
+		this.checkAvailableIfNecessary();
+
 		TransactionRepository repository = beanFactory.getTransactionRepository();
-		List<Transaction> transactionList = repository.getErrorTransactionList();
-		TransactionXid[] xidArray = new TransactionXid[transactionList.size()];
-		for (int i = 0; i < transactionList.size(); i++) {
-			Transaction transaction = transactionList.get(i);
-			TransactionContext transactionContext = transaction.getTransactionContext();
-			TransactionXid xid = transactionContext.getXid();
-			xidArray[i] = xid;
+		List<Transaction> activeTransactionList = repository.getActiveTransactionList();
+		List<Transaction> errorTransactionList = repository.getErrorTransactionList();
+
+		List<Transaction> transactions = new ArrayList<Transaction>();
+		for (int i = 0; i < activeTransactionList.size(); i++) {
+			Transaction transaction = activeTransactionList.get(i);
+			int transactionStatus = transaction.getTransactionStatus();
+			if (transactionStatus == Status.STATUS_PREPARED || transactionStatus == Status.STATUS_COMMITTING
+					|| transactionStatus == Status.STATUS_ROLLING_BACK || transactionStatus == Status.STATUS_COMMITTED
+					|| transactionStatus == Status.STATUS_ROLLEDBACK) {
+				transactions.add(transaction);
+			}
 		}
+
+		for (int i = 0; i < errorTransactionList.size(); i++) {
+			Transaction transaction = errorTransactionList.get(i);
+			int transactionStatus = transaction.getTransactionStatus();
+			if (transactionStatus == Status.STATUS_PREPARED || transactionStatus == Status.STATUS_COMMITTING
+					|| transactionStatus == Status.STATUS_ROLLING_BACK || transactionStatus == Status.STATUS_COMMITTED
+					|| transactionStatus == Status.STATUS_ROLLEDBACK) {
+				transactions.add(transaction);
+			} else if (transaction.getTransactionContext().isRecoveried()) {
+				transactions.add(transaction);
+			}
+		}
+
+		TransactionXid[] xidArray = new TransactionXid[transactions.size()];
+		for (int i = 0; i < transactions.size(); i++) {
+			Transaction transaction = transactions.get(i);
+			xidArray[i] = transaction.getTransactionContext().getXid();
+		}
+
 		return xidArray;
 	}
 
 	public void rollback(Xid xid) throws XAException {
+		this.checkAvailableIfNecessary();
+
 		XidFactory xidFactory = this.beanFactory.getXidFactory();
 		TransactionXid branchXid = (TransactionXid) xid;
 		TransactionXid globalXid = xidFactory.createGlobalXid(branchXid.getGlobalTransactionId());
@@ -310,6 +351,40 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 			}
 		}
 	}
+
+	public void markAvailable() {
+		try {
+			this.lock.lock();
+			this.inited = true;
+		} finally {
+			this.lock.unlock();
+		}
+	}
+
+	private void checkAvailableIfNecessary() throws XAException {
+		if (this.inited == false) {
+			this.checkAvailable();
+		}
+	}
+
+	private void checkAvailable() throws XAException {
+		try {
+			this.lock.lock();
+			if (this.inited == false) {
+				throw new XAException(XAException.XAER_RMFAIL);
+			}
+		} finally {
+			this.lock.unlock();
+		}
+	}
+
+	// private void waitForMillis(long millis) {
+	// try {
+	// this.condition.await(millis, TimeUnit.MILLISECONDS);
+	// } catch (InterruptedException ex) {
+	// logger.debug(ex.getMessage());
+	// }
+	// }
 
 	public boolean setTransactionTimeout(int seconds) throws XAException {
 		return false;

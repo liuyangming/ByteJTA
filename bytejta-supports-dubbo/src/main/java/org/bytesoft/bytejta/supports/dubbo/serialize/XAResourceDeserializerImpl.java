@@ -80,9 +80,8 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 					dubboCoordinator.setInvocationContext(invocationContext);
 					dubboCoordinator.setRemoteCoordinator(consumeCoordinator);
 
-					coordinator = (RemoteCoordinator) Proxy.newProxyInstance(
-							DubboRemoteCoordinator.class.getClassLoader(), new Class[] { RemoteCoordinator.class },
-							dubboCoordinator);
+					coordinator = (RemoteCoordinator) Proxy.newProxyInstance(DubboRemoteCoordinator.class.getClassLoader(),
+							new Class[] { RemoteCoordinator.class }, dubboCoordinator);
 					registry.putTransactionManagerStub(identifier, coordinator);
 				}
 
@@ -116,7 +115,7 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 				xaConnection = xaDataSource.getXAConnection();
 				return xaConnection.getXAResource();
 			} finally {
-				this.closeQuietly(xaConnection);
+				// this.closeQuietly(xaConnection);
 			}
 		} else if (XAConnectionFactory.class.isInstance(bean)) {
 			XAConnectionFactory connectionFactory = (XAConnectionFactory) bean;
@@ -127,8 +126,8 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 				xaSession = xaConnection.createXASession();
 				return xaSession.getXAResource();
 			} finally {
-				this.closeQuietly(xaSession);
-				this.closeQuietly(xaConnection);
+				// this.closeQuietly(xaSession);
+				// this.closeQuietly(xaConnection);
 			}
 		} else if (ManagedConnectionFactory.class.isInstance(bean)) {
 			ManagedConnectionFactory connectionFactory = (ManagedConnectionFactory) bean;
@@ -137,7 +136,7 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 				managedConnection = connectionFactory.createManagedConnection(null, null);
 				return managedConnection.getXAResource();
 			} finally {
-				this.closeQuietly(managedConnection);
+				// this.closeQuietly(managedConnection);
 			}
 		} else {
 			return null;

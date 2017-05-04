@@ -21,7 +21,7 @@ import java.lang.reflect.Method;
 import javax.resource.spi.ManagedConnection;
 import javax.transaction.xa.XAResource;
 
-import org.bytesoft.bytejta.supports.resource.CommonResourceDescriptor;
+import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 
 public class ManagedConnectionHandler implements InvocationHandler {
 
@@ -37,6 +37,9 @@ public class ManagedConnectionHandler implements InvocationHandler {
 		Class<?> returningClass = method.getReturnType();
 
 		Object resultObject = method.invoke(this.delegate, args);
+		if (resultObject != null && XAResourceDescriptor.class.isInstance(resultObject)) {
+			return resultObject;
+		}
 
 		CommonResourceDescriptor descriptor = new CommonResourceDescriptor();
 		descriptor.setIdentifier(this.identifier);

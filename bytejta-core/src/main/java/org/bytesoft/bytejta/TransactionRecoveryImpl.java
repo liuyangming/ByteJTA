@@ -16,11 +16,13 @@
 package org.bytesoft.bytejta;
 
 import java.util.List;
+import java.util.Map;
 
 import javax.transaction.Status;
 import javax.transaction.SystemException;
 import javax.transaction.xa.XAResource;
 
+import org.apache.commons.lang3.StringUtils;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
@@ -35,6 +37,7 @@ import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.logging.TransactionLogger;
 import org.bytesoft.transaction.recovery.TransactionRecoveryCallback;
 import org.bytesoft.transaction.recovery.TransactionRecoveryListener;
+import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
 import org.slf4j.Logger;
@@ -91,6 +94,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 			this.recoverCoordinator(transaction);
 		} else {
 			transaction.recover();
+			this.recoverParticipant(transaction);
 		}
 
 	}
@@ -115,10 +119,32 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 			break;
 		case Status.STATUS_COMMITTED:
 		case Status.STATUS_ROLLEDBACK:
+			transactionImpl.forget();
+			break;
 		default:
 			logger.debug("Current transaction has already been completed.");
 		}
+	}
 
+	private synchronized void recoverParticipant(Transaction transaction)
+			throws CommitRequiredException, RollbackRequiredException, SystemException {
+
+		TransactionImpl transactionImpl = (TransactionImpl) transaction;
+		switch (transaction.getTransactionStatus()) {
+		case Status.STATUS_PREPARED:
+		case Status.STATUS_COMMITTING:
+		case Status.STATUS_COMMITTED:
+		case Status.STATUS_ROLLEDBACK:
+			break;
+		case Status.STATUS_ACTIVE:
+		case Status.STATUS_MARKED_ROLLBACK:
+		case Status.STATUS_PREPARING:
+		case Status.STATUS_UNKNOWN:
+		case Status.STATUS_ROLLING_BACK:
+		default:
+			transactionImpl.recoveryRollback();
+			transactionImpl.forget();
+		}
 	}
 
 	public synchronized void startRecovery() {
@@ -165,6 +191,21 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 
 		List<XAResourceArchive> remoteResources = archive.getRemoteResources();
 		transaction.getRemoteParticipantList().addAll(remoteResources);
+
+		List<XAResourceArchive> participants = transaction.getParticipantList();
+		Map<String, XAResourceArchive> participantMap = transaction.getParticipantMap();
+		if (archive.getOptimizedResource() != null) {
+			participants.add(archive.getOptimizedResource());
+		}
+		participants.addAll(nativeResources);
+		participants.addAll(remoteResources);
+
+		for (int i = 0; i < participants.size(); i++) {
+			XAResourceArchive element = participants.get(i);
+			XAResourceDescriptor descriptor = element.getDescriptor();
+			String identifier = StringUtils.trimToEmpty(descriptor.getIdentifier());
+			participantMap.put(identifier, element);
+		}
 
 		transaction.recoverTransactionStrategy(archive.getTransactionStrategyType());
 

@@ -20,6 +20,14 @@
 
 	<bean class="org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry" factory-method="getInstance" />
 
+	<bean id="bytejtaXAResourceDeserializer" class="org.bytesoft.bytejta.logging.deserializer.XAResourceArchiveDeserializer" />
+	<bean id="bytejtaTransactionDeserializer" class="org.bytesoft.bytejta.logging.deserializer.TransactionArchiveDeserializer">
+		<property name="resourceArchiveDeserializer" ref="bytejtaXAResourceDeserializer" />
+	</bean>
+	<bean id="bytejtaArchiveDeserializer" class="org.bytesoft.bytejta.logging.ArchiveDeserializerImpl">
+		<property name="transactionArchiveDeserializer" ref="bytejtaTransactionDeserializer" />
+		<property name="xaResourceArchiveDeserializer" ref="bytejtaXAResourceDeserializer" />
+	</bean>
 	<bean id="bytejtaResourceDeserializer" class="org.bytesoft.bytejta.supports.dubbo.serialize.XAResourceDeserializerImpl" />
 
 	<bean id="bytejtaBeanFactory" class="org.bytesoft.bytejta.TransactionBeanFactoryImpl">
@@ -31,6 +39,8 @@
 		<property name="transactionInterceptor" ref="bytejtaTransactionInterceptor" />
 		<property name="transactionRecovery" ref="bytejtaTransactionRecovery" />
 		<property name="transactionCoordinator" ref="bytejtaTransactionCoordinator" />
+		<property name="archiveDeserializer" ref="bytejtaArchiveDeserializer" />
+		<property name="resourceDeserializer" ref="bytejtaResourceDeserializer" />
 	</bean>
 
 </beans>

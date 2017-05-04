@@ -105,7 +105,7 @@ public class TransactionConfigPostProcessor implements BeanFactoryPostProcessor 
 		mpv.addPropertyValue("loadbalance", "transaction");
 		mpv.addPropertyValue("group", "org.bytesoft.bytejta");
 		mpv.addPropertyValue("retries", "0");
-		mpv.addPropertyValue("timeout", String.valueOf(1000L * 6));
+		mpv.addPropertyValue("timeout", "5000");
 
 		String skeletonBeanId = String.format("skeleton@%s", RemoteCoordinator.class.getName());
 		registry.registerBeanDefinition(skeletonBeanId, beanDef);
@@ -117,13 +117,13 @@ public class TransactionConfigPostProcessor implements BeanFactoryPostProcessor 
 
 		// <dubbo:reference id="yyy"
 		// interface="org.bytesoft.bytejta.supports.wire.RemoteCoordinator"
-		// timeout="3000" group="org.bytesoft.bytejta" loadbalance="transaction" cluster="failfast" />
+		// timeout="6000" group="org.bytesoft.bytejta" loadbalance="transaction" cluster="failfast" />
 		GenericBeanDefinition beanDef = new GenericBeanDefinition();
 		beanDef.setBeanClass(com.alibaba.dubbo.config.spring.ReferenceBean.class);
 
 		MutablePropertyValues mpv = beanDef.getPropertyValues();
 		mpv.addPropertyValue("interface", RemoteCoordinator.class.getName());
-		mpv.addPropertyValue("timeout", "3000");
+		mpv.addPropertyValue("timeout", "6000");
 		mpv.addPropertyValue("cluster", "failfast");
 		mpv.addPropertyValue("loadbalance", "transaction");
 		mpv.addPropertyValue("group", "org.bytesoft.bytejta");
