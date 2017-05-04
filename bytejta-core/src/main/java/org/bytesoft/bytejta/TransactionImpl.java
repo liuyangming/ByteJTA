@@ -200,7 +200,7 @@ public class TransactionImpl implements Transaction {
 		try {
 			this.recoverIfNecessary();
 
-			this.invokeCommit();
+			this.invokeParticipantCommit();
 		} catch (HeuristicMixedException ex) {
 			logger.error("[{}] recover: branch={}, status= mixed, message= {}",
 					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
@@ -212,10 +212,69 @@ public class TransactionImpl implements Transaction {
 		}
 	}
 
+	/* opc: true, compensable-transaction; false, remote-coordinator */
 	public synchronized void participantCommit(boolean opc) throws RollbackException, HeuristicMixedException,
 			HeuristicRollbackException, SecurityException, IllegalStateException, CommitRequiredException, SystemException {
+		if (opc) {
+			this.participantOnePhaseCommit();
+		} else {
+			this.participantTwoPhaseCommit();
+		}
+	}
 
-		if (this.transactionStatus == Status.STATUS_ACTIVE && opc == false) {
+	private void participantOnePhaseCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
+			SecurityException, IllegalStateException, CommitRequiredException, SystemException {
+
+		if (this.participant == null && this.participantList.isEmpty() == false) {
+			this.participantRollback();
+			throw new HeuristicRollbackException();
+		} else if (this.participantList.size() > 1) {
+			this.participantRollback();
+			throw new HeuristicRollbackException();
+		} else if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
+			this.rollback();
+			throw new HeuristicRollbackException();
+		} else if (this.transactionStatus == Status.STATUS_ROLLING_BACK) {
+			throw new HeuristicMixedException();
+		} else if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
+			throw new HeuristicRollbackException();
+		} else if (this.transactionStatus == Status.STATUS_UNKNOWN) {
+			throw new IllegalStateException();
+		} else if (this.transactionStatus == Status.STATUS_NO_TRANSACTION) {
+			throw new IllegalStateException();
+		} else if (this.transactionStatus == Status.STATUS_COMMITTED) {
+			return;
+		} /* else active, preparing, prepared, committing {} */
+
+		this.recoverIfNecessary(); // Execute recoveryInit if transaction is recovered from tx-log.
+
+		try {
+			this.synchronizationList.beforeCompletion();
+
+			try {
+				this.delistAllResource();
+			} catch (RollbackRequiredException rrex) {
+				this.participantRollback();
+				throw new HeuristicRollbackException();
+			} catch (SystemException ex) {
+				this.participantRollback();
+				throw new HeuristicRollbackException();
+			} catch (RuntimeException rex) {
+				this.participantRollback();
+				throw new HeuristicRollbackException();
+			}
+
+			this.invokeParticipantCommit();
+		} finally {
+			this.synchronizationList.afterCompletion(this.transactionStatus);
+		}
+
+	}
+
+	private void participantTwoPhaseCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
+			SecurityException, IllegalStateException, CommitRequiredException, SystemException {
+
+		if (this.transactionStatus == Status.STATUS_ACTIVE) {
 			throw new IllegalStateException();
 		} else if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
 			this.rollback();
@@ -250,14 +309,14 @@ public class TransactionImpl implements Transaction {
 				throw new HeuristicRollbackException();
 			}
 
-			this.invokeCommit();
+			this.invokeParticipantCommit();
 		} finally {
 			this.synchronizationList.afterCompletion(this.transactionStatus);
 		}
 
 	}
 
-	private void invokeCommit() throws HeuristicMixedException, HeuristicRollbackException, SystemException {
+	private void invokeParticipantCommit() throws HeuristicMixedException, HeuristicRollbackException, SystemException {
 		TransactionXid xid = this.transactionContext.getXid();
 		TransactionArchive archive = this.getTransactionArchive();
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
@@ -296,36 +355,22 @@ public class TransactionImpl implements Transaction {
 		}
 	}
 
-	private synchronized void checkBeforeCommit()
-			throws RollbackException, IllegalStateException, RollbackRequiredException, HeuristicCommitException {
+	public synchronized void commit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
+			SecurityException, IllegalStateException, CommitRequiredException, SystemException {
 
 		if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
 			throw new RollbackException();
 		} else if (this.transactionStatus == Status.STATUS_ROLLING_BACK) {
-			throw new RollbackRequiredException();
-		} else if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
-			throw new RollbackRequiredException();
-		} else if (this.transactionStatus == Status.STATUS_ACTIVE) {
-			// throw new CommitRequiredException(); // ignore
-		} else if (this.transactionStatus == Status.STATUS_COMMITTED) {
-			throw new HeuristicCommitException();
-		} else {
-			throw new IllegalStateException();
-		}
-
-	}
-
-	public synchronized void commit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
-			SecurityException, IllegalStateException, CommitRequiredException, SystemException {
-
-		try {
-			this.checkBeforeCommit();
-		} catch (HeuristicCommitException hcex) {
-			logger.debug("Current transaction has already been committed.");
-			return;
-		} catch (RollbackRequiredException rrex) {
 			this.rollback();
 			throw new HeuristicRollbackException();
+		} else if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
+			this.rollback();
+			throw new HeuristicRollbackException();
+		} else if (this.transactionStatus == Status.STATUS_COMMITTED) {
+			logger.debug("Current transaction has already been committed.");
+			return;
+		} else if (this.transactionStatus != Status.STATUS_ACTIVE) {
+			throw new IllegalStateException();
 		}
 
 		// stop-timing
@@ -781,7 +826,7 @@ public class TransactionImpl implements Transaction {
 
 			this.delistAllResourceQuietly();
 
-			this.invokeRollback();
+			this.invokeParticipantRollback();
 		} finally {
 			this.synchronizationList.afterCompletion(this.transactionStatus);
 		}
@@ -791,7 +836,7 @@ public class TransactionImpl implements Transaction {
 	public synchronized void recoveryRollback() throws RollbackRequiredException, SystemException {
 		this.recoverIfNecessary(); // Execute recoveryInit if transaction is recovered from tx-log.
 
-		this.invokeRollback();
+		this.invokeParticipantRollback();
 	}
 
 	public synchronized void participantRollback() throws IllegalStateException, RollbackRequiredException, SystemException {
@@ -813,14 +858,14 @@ public class TransactionImpl implements Transaction {
 
 			this.delistAllResourceQuietly();
 
-			this.invokeRollback();
+			this.invokeParticipantRollback();
 		} finally {
 			this.synchronizationList.afterCompletion(this.transactionStatus);
 		}
 
 	}
 
-	private void invokeRollback() throws SystemException {
+	private void invokeParticipantRollback() throws SystemException {
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		TransactionXid xid = this.transactionContext.getXid();
 
@@ -1027,6 +1072,8 @@ public class TransactionImpl implements Transaction {
 	}
 
 	public void recover4PreparingStatus() throws SystemException {
+		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
+
 		boolean unPrepareExists = false;
 		for (int i = 0; i < this.participantList.size(); i++) {
 			XAResourceArchive archive = this.participantList.get(i);
@@ -1042,19 +1089,35 @@ public class TransactionImpl implements Transaction {
 			}
 
 			boolean xidExists = this.recover(archive);
-			unPrepareExists = xidExists ? unPrepareExists : true;
+			// unPrepareExists = xidExists ? unPrepareExists : true;
+			unPrepareExists = xidExists ? false : true;
 		}
 
 		if (unPrepareExists == false) {
 			this.transactionStatus = Status.STATUS_PREPARED;
+
+			TransactionArchive archive = this.getTransactionArchive();
+			transactionLogger.updateTransaction(archive);
 		}
 
 	}
 
 	public void recover4CommittingStatus() throws SystemException {
+		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
+
+		boolean rollbackExists = false;
 		boolean unCommitExists = false;
 		for (int i = 0; i < this.participantList.size(); i++) {
 			XAResourceArchive archive = this.participantList.get(i);
+
+			XAResourceDescriptor descriptor = archive.getDescriptor();
+			XAResource delegate = descriptor.getDelegate();
+			boolean localFlag = LocalXAResource.class.isInstance(delegate);
+
+			if (localFlag //
+					&& LastResourceOptimizeStrategy.class.isInstance(this.transactionStrategy)) {
+				throw new SystemException();
+			}
 
 			if (archive.isRecovered()) {
 				unCommitExists = archive.isCommitted() ? unCommitExists : true;
@@ -1064,19 +1127,39 @@ public class TransactionImpl implements Transaction {
 			}
 
 			boolean xidExists = this.recover(archive);
-			unCommitExists = xidExists ? unCommitExists : true;
+			// unCommitExists = xidExists ? true : unCommitExists;
+			if (localFlag) {
+				rollbackExists = xidExists ? rollbackExists : true;
+			} else {
+				unCommitExists = xidExists ? true : unCommitExists;
+			}
+
 		}
 
-		if (unCommitExists == false) {
+		if (rollbackExists) {
+			this.transactionStatus = Status.STATUS_ROLLING_BACK;
+
+			TransactionArchive archive = this.getTransactionArchive();
+			transactionLogger.updateTransaction(archive);
+		} else if (unCommitExists == false) {
 			this.transactionStatus = Status.STATUS_COMMITTED;
+
+			TransactionArchive archive = this.getTransactionArchive();
+			transactionLogger.updateTransaction(archive);
 		}
 
 	}
 
 	public void recover4RollingBackStatus() throws SystemException {
+		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
+
 		boolean unRollbackExists = false;
 		for (int i = 0; i < this.participantList.size(); i++) {
 			XAResourceArchive archive = this.participantList.get(i);
+
+			// XAResourceDescriptor descriptor = archive.getDescriptor();
+			// XAResource delegate = descriptor.getDelegate();
+			// boolean localFlag = LocalXAResource.class.isInstance(delegate);
 
 			if (archive.isRecovered()) {
 				unRollbackExists = archive.isRolledback() ? unRollbackExists : true;
@@ -1091,6 +1174,9 @@ public class TransactionImpl implements Transaction {
 
 		if (unRollbackExists == false) {
 			this.transactionStatus = Status.STATUS_ROLLEDBACK;
+
+			TransactionArchive archive = this.getTransactionArchive();
+			transactionLogger.updateTransaction(archive);
 		}
 
 	}
