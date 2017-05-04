@@ -110,33 +110,40 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 			return xares;
 		} else if (XADataSource.class.isInstance(bean)) {
 			XADataSource xaDataSource = (XADataSource) bean;
-			XAConnection xaConnection = null;
+			XAConnection xaConnection = xaDataSource.getXAConnection();
+			java.sql.Connection connection = null;
 			try {
-				xaConnection = xaDataSource.getXAConnection();
+				connection = xaConnection.getConnection();
+				return xaConnection.getXAResource();
+			} catch (Exception ex) {
+				logger.warn(ex.getMessage());
 				return xaConnection.getXAResource();
 			} finally {
-				// this.closeQuietly(xaConnection);
+				this.closeQuietly(connection);
 			}
 		} else if (XAConnectionFactory.class.isInstance(bean)) {
 			XAConnectionFactory connectionFactory = (XAConnectionFactory) bean;
-			javax.jms.XAConnection xaConnection = null;
-			XASession xaSession = null;
+			javax.jms.XAConnection xaConnection = connectionFactory.createXAConnection();
+			XASession xaSession = xaConnection.createXASession();
+			javax.jms.Session session = null;
 			try {
-				xaConnection = connectionFactory.createXAConnection();
-				xaSession = xaConnection.createXASession();
+				session = xaSession.getSession();
 				return xaSession.getXAResource();
 			} finally {
-				// this.closeQuietly(xaSession);
-				// this.closeQuietly(xaConnection);
+				this.closeQuietly(session);
 			}
 		} else if (ManagedConnectionFactory.class.isInstance(bean)) {
 			ManagedConnectionFactory connectionFactory = (ManagedConnectionFactory) bean;
-			ManagedConnection managedConnection = null;
+			ManagedConnection managedConnection = connectionFactory.createManagedConnection(null, null);
+			javax.resource.cci.Connection connection = null;
 			try {
-				managedConnection = connectionFactory.createManagedConnection(null, null);
+				connection = (javax.resource.cci.Connection) managedConnection.getConnection(null, null);
+				return managedConnection.getXAResource();
+			} catch (Exception ex) {
+				logger.warn(ex.getMessage());
 				return managedConnection.getXAResource();
 			} finally {
-				// this.closeQuietly(managedConnection);
+				this.closeQuietly(connection);
 			}
 		} else {
 			return null;
@@ -144,7 +151,7 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 
 	}
 
-	protected void closeQuietly(XAConnection closeable) {
+	protected void closeQuietly(javax.resource.cci.Connection closeable) {
 		if (closeable != null) {
 			try {
 				closeable.close();
@@ -154,7 +161,7 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 		}
 	}
 
-	protected void closeQuietly(javax.jms.XAConnection closeable) {
+	protected void closeQuietly(java.sql.Connection closeable) {
 		if (closeable != null) {
 			try {
 				closeable.close();
@@ -164,20 +171,10 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 		}
 	}
 
-	protected void closeQuietly(javax.jms.XASession closeable) {
+	protected void closeQuietly(javax.jms.Session closeable) {
 		if (closeable != null) {
 			try {
 				closeable.close();
-			} catch (Exception ex) {
-				logger.debug(ex.getMessage());
-			}
-		}
-	}
-
-	protected void closeQuietly(ManagedConnection closeable) {
-		if (closeable != null) {
-			try {
-				closeable.destroy();
 			} catch (Exception ex) {
 				logger.debug(ex.getMessage());
 			}
