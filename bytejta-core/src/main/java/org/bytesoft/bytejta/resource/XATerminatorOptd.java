@@ -306,13 +306,6 @@ public class XATerminatorOptd implements XATerminator {
 				throw new XAException(XAException.XA_HEURHAZ);
 			case XAException.XAER_NOTA:
 				// The specified XID is not known by the resource manager.
-				/*
-				 * if (archive.isReadonly()) { throw new XAException(XAException.XA_RDONLY); } else if (archive.getVote() ==
-				 * XAResourceArchive.DEFAULT_VOTE) { break; // rolled back } else if (archive.getVote() == XAResource.XA_RDONLY)
-				 * { throw new XAException(XAException.XA_RDONLY); } else if (archive.getVote() == XAResource.XA_OK) { throw new
-				 * XAException(XAException.XAER_RMERR); } else { throw new XAException(XAException.XAER_RMERR); }
-				 */
-
 				if (archive.isReadonly()) {
 					archive.setReadonly(true);
 					archive.setCompleted(true);
