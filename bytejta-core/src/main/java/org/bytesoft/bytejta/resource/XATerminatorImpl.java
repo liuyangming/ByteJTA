@@ -147,7 +147,7 @@ public class XATerminatorImpl implements XATerminator {
 				committedExists = true;
 				archive.setCommitted(true);
 				archive.setCompleted(true);
-				logger.info("[%s] commit: xares= {}, branch= {}, onePhaseCommit= {}",
+				logger.info("[{}] commit: xares= {}, branch= {}, onePhaseCommit= {}",
 						ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
 						ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), false);
 			} catch (XAException xaex) {

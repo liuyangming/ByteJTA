@@ -96,7 +96,7 @@ public class XATerminatorOptd implements XATerminator {
 			archive.setCommitted(true);
 			archive.setCompleted(true);
 
-			logger.info("[%s] commit: xares= {}, branch= {}, opc= {}",
+			logger.info("[{}] commit: xares= {}, branch= {}, opc= {}",
 					ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
 					ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()), false);
 		} catch (XAException xaex) {
@@ -166,7 +166,7 @@ public class XATerminatorOptd implements XATerminator {
 			archive.setCommitted(true);
 			archive.setCompleted(true);
 
-			logger.info("[%s] commit: xares= {}, branch= {}, opc= {}",
+			logger.info("[{}] commit: xares= {}, branch= {}, opc= {}",
 					ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
 					ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()), false);
 		} catch (XAException xaex) {
