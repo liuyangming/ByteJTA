@@ -23,11 +23,13 @@ import java.util.Map;
 
 import javax.transaction.xa.Xid;
 
+import org.apache.commons.lang3.StringUtils;
 import org.bytesoft.bytejta.logging.store.VirtualLoggingSystemImpl;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.archive.XAResourceArchive;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
+import org.bytesoft.transaction.aware.TransactionEndpointAware;
 import org.bytesoft.transaction.logging.ArchiveDeserializer;
 import org.bytesoft.transaction.logging.LoggingFlushable;
 import org.bytesoft.transaction.logging.TransactionLogger;
@@ -41,10 +43,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SampleTransactionLogger extends VirtualLoggingSystemImpl
-		implements TransactionLogger, LoggingFlushable, TransactionBeanFactoryAware {
+		implements TransactionLogger, LoggingFlushable, TransactionBeanFactoryAware, TransactionEndpointAware {
 	static final Logger logger = LoggerFactory.getLogger(SampleTransactionLogger.class);
 
 	private TransactionBeanFactory beanFactory;
+	private String endpoint;
 
 	public void createTransaction(TransactionArchive archive) {
 		ArchiveDeserializer deserializer = this.beanFactory.getArchiveDeserializer();
@@ -184,7 +187,8 @@ public class SampleTransactionLogger extends VirtualLoggingSystemImpl
 	}
 
 	public File getDefaultDirectory() {
-		File directory = new File("bytejta");
+		String address = StringUtils.trimToEmpty(this.endpoint);
+		File directory = new File(String.format("bytejta/%s", address.replaceAll("\\:|\\.", "_")));
 		if (directory.exists() == false) {
 			try {
 				directory.mkdirs();
@@ -201,6 +205,10 @@ public class SampleTransactionLogger extends VirtualLoggingSystemImpl
 
 	public String getLoggingIdentifier() {
 		return "org.bytesoft.bytejta.logging.sample";
+	}
+
+	public void setEndpoint(String identifier) {
+		this.endpoint = identifier;
 	}
 
 	public TransactionBeanFactory getBeanFactory() {
