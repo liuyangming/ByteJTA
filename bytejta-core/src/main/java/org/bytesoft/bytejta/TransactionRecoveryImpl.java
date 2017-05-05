@@ -102,24 +102,23 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 	private synchronized void recoverCoordinator(Transaction transaction)
 			throws CommitRequiredException, RollbackRequiredException, SystemException {
 
-		TransactionImpl transactionImpl = (TransactionImpl) transaction;
 		switch (transaction.getTransactionStatus()) {
 		case Status.STATUS_ACTIVE:
 		case Status.STATUS_MARKED_ROLLBACK:
 		case Status.STATUS_PREPARING:
 		case Status.STATUS_ROLLING_BACK:
 		case Status.STATUS_UNKNOWN:
-			transactionImpl.recoveryRollback();
-			transactionImpl.forget();
+			transaction.recoveryRollback();
+			transaction.forget();
 			break;
 		case Status.STATUS_PREPARED:
 		case Status.STATUS_COMMITTING:
-			transactionImpl.recoveryCommit();
-			transactionImpl.forget();
+			transaction.recoveryCommit();
+			transaction.forget();
 			break;
 		case Status.STATUS_COMMITTED:
 		case Status.STATUS_ROLLEDBACK:
-			transactionImpl.forget();
+			transaction.forget();
 			break;
 		default:
 			logger.debug("Current transaction has already been completed.");

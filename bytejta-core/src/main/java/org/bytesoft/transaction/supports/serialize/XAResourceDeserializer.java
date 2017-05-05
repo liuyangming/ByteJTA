@@ -15,10 +15,10 @@
  */
 package org.bytesoft.transaction.supports.serialize;
 
-import javax.transaction.xa.XAResource;
+import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 
 public interface XAResourceDeserializer {
 
-	public XAResource deserialize(String identifier);
+	public XAResourceDescriptor deserialize(String identifier);
 
 }

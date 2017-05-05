@@ -34,8 +34,12 @@ import org.bytesoft.bytejta.supports.dubbo.InvocationContext;
 import org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry;
 import org.bytesoft.bytejta.supports.jdbc.DataSourceHolder;
 import org.bytesoft.bytejta.supports.jdbc.RecoveredResource;
+import org.bytesoft.bytejta.supports.resource.CommonResourceDescriptor;
+import org.bytesoft.bytejta.supports.resource.LocalXAResourceDescriptor;
+import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinatorRegistry;
+import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 import org.bytesoft.transaction.supports.serialize.XAResourceDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,12 +53,12 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 	private static Pattern pattern = Pattern.compile("^[^:]+\\s*:\\s*\\d+$");
 	private ApplicationContext applicationContext;
 
-	private Map<String, XAResource> cachedResourceMap = new ConcurrentHashMap<String, XAResource>();
+	private Map<String, XAResourceDescriptor> cachedResourceMap = new ConcurrentHashMap<String, XAResourceDescriptor>();
 
-	public XAResource deserialize(String identifier) {
+	public XAResourceDescriptor deserialize(String identifier) {
 		try {
 			Object bean = this.applicationContext.getBean(identifier);
-			XAResource cachedResource = this.cachedResourceMap.get(identifier);
+			XAResourceDescriptor cachedResource = this.cachedResourceMap.get(identifier);
 			if (cachedResource == null) {
 				cachedResource = this.deserializeResource(identifier, bean);
 				if (cachedResource != null) {
@@ -85,7 +89,11 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 					registry.putTransactionManagerStub(identifier, coordinator);
 				}
 
-				return registry.getTransactionManagerStub(identifier);
+				RemoteResourceDescriptor descriptor = new RemoteResourceDescriptor();
+				descriptor.setIdentifier(identifier);
+				descriptor.setDelegate(registry.getTransactionManagerStub(identifier));
+
+				return descriptor;
 			} else {
 				logger.error("can not find a matching xa-resource(identifier= {})!", identifier);
 				return null;
@@ -97,27 +105,52 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 
 	}
 
-	private XAResource deserializeResource(String identifier, Object bean) throws Exception {
+	private XAResourceDescriptor deserializeResource(String identifier, Object bean) throws Exception {
 		if (DataSourceHolder.class.isInstance(bean)) {
 			DataSourceHolder holder = (DataSourceHolder) bean;
 			RecoveredResource xares = new RecoveredResource();
 			xares.setDataSource(holder.getDataSource());
-			return xares;
+
+			LocalXAResourceDescriptor descriptor = new LocalXAResourceDescriptor();
+			descriptor.setDelegate(xares);
+			descriptor.setIdentifier(identifier);
+
+			return descriptor;
 		} else if (javax.sql.DataSource.class.isInstance(bean)) {
 			javax.sql.DataSource dataSource = (javax.sql.DataSource) bean;
 			RecoveredResource xares = new RecoveredResource();
 			xares.setDataSource(dataSource);
-			return xares;
+
+			LocalXAResourceDescriptor descriptor = new LocalXAResourceDescriptor();
+			descriptor.setDelegate(xares);
+			descriptor.setIdentifier(identifier);
+
+			return descriptor;
 		} else if (XADataSource.class.isInstance(bean)) {
 			XADataSource xaDataSource = (XADataSource) bean;
 			XAConnection xaConnection = xaDataSource.getXAConnection();
 			java.sql.Connection connection = null;
 			try {
 				connection = xaConnection.getConnection();
-				return xaConnection.getXAResource();
+				XAResource xares = xaConnection.getXAResource();
+
+				CommonResourceDescriptor descriptor = new CommonResourceDescriptor();
+				descriptor.setDelegate(xares);
+				descriptor.setIdentifier(identifier);
+				descriptor.setManaged(xaConnection);
+
+				return descriptor;
 			} catch (Exception ex) {
 				logger.warn(ex.getMessage());
-				return xaConnection.getXAResource();
+
+				XAResource xares = xaConnection.getXAResource();
+
+				CommonResourceDescriptor descriptor = new CommonResourceDescriptor();
+				descriptor.setDelegate(xares);
+				descriptor.setIdentifier(identifier);
+				descriptor.setManaged(xaConnection);
+
+				return descriptor;
 			} finally {
 				this.closeQuietly(connection);
 			}
@@ -128,7 +161,25 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 			javax.jms.Session session = null;
 			try {
 				session = xaSession.getSession();
-				return xaSession.getXAResource();
+				XAResource xares = xaSession.getXAResource();
+
+				CommonResourceDescriptor descriptor = new CommonResourceDescriptor();
+				descriptor.setDelegate(xares);
+				descriptor.setIdentifier(identifier);
+				descriptor.setManaged(xaConnection);
+
+				return descriptor;
+			} catch (Exception ex) {
+				logger.warn(ex.getMessage());
+
+				XAResource xares = xaSession.getXAResource();
+
+				CommonResourceDescriptor descriptor = new CommonResourceDescriptor();
+				descriptor.setDelegate(xares);
+				descriptor.setIdentifier(identifier);
+				descriptor.setManaged(xaConnection);
+
+				return descriptor;
 			} finally {
 				this.closeQuietly(session);
 			}
@@ -138,10 +189,25 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 			javax.resource.cci.Connection connection = null;
 			try {
 				connection = (javax.resource.cci.Connection) managedConnection.getConnection(null, null);
-				return managedConnection.getXAResource();
+				XAResource xares = managedConnection.getXAResource();
+
+				CommonResourceDescriptor descriptor = new CommonResourceDescriptor();
+				descriptor.setDelegate(xares);
+				descriptor.setIdentifier(identifier);
+				descriptor.setManaged(managedConnection);
+
+				return descriptor;
 			} catch (Exception ex) {
 				logger.warn(ex.getMessage());
-				return managedConnection.getXAResource();
+
+				XAResource xares = managedConnection.getXAResource();
+
+				CommonResourceDescriptor descriptor = new CommonResourceDescriptor();
+				descriptor.setDelegate(xares);
+				descriptor.setIdentifier(identifier);
+				descriptor.setManaged(managedConnection);
+
+				return descriptor;
 			} finally {
 				this.closeQuietly(connection);
 			}

@@ -20,11 +20,18 @@ import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CommonResourceDescriptor implements XAResourceDescriptor {
+	static Logger logger = LoggerFactory.getLogger(CommonResourceDescriptor.class);
 
 	private XAResource delegate;
 	private String identifier;
+
+	private transient Xid recoverXid;
+	private transient Object managed;
+	// private transient boolean recved;
 
 	public boolean isTransactionCommitted(Xid xid) throws IllegalStateException {
 		throw new IllegalStateException();
@@ -32,7 +39,6 @@ public class CommonResourceDescriptor implements XAResourceDescriptor {
 
 	public String toString() {
 		return String.format("common-resource[id= %s]", this.identifier);
-		// return String.format("common-resource[id= %s, delegate= %s]", this.identifier, this.delegate);
 	}
 
 	public void setTransactionTimeoutQuietly(int timeout) {
@@ -47,13 +53,64 @@ public class CommonResourceDescriptor implements XAResourceDescriptor {
 		delegate.commit(arg0, arg1);
 	}
 
-
 	public void end(Xid arg0, int arg1) throws XAException {
 		delegate.end(arg0, arg1);
 	}
 
 	public void forget(Xid arg0) throws XAException {
-		delegate.forget(arg0);
+		try {
+			delegate.forget(arg0);
+		} finally {
+			this.closeIfNecessary();
+		}
+	}
+
+	private void closeIfNecessary() {
+		if (this.recoverXid != null && this.managed != null) {
+			if (javax.sql.XAConnection.class.isInstance(this.managed)) {
+				this.closeQuietly((javax.sql.XAConnection) this.managed);
+			} else if (javax.jms.XAConnection.class.isInstance(this.managed)) {
+				this.closeQuietly((javax.jms.XAConnection) this.managed);
+			} else if (javax.resource.spi.ManagedConnection.class.isInstance(this.managed)) {
+				this.closeQuietly((javax.resource.spi.ManagedConnection) this.managed);
+			}
+		}
+	}
+
+	private void closeQuietly(javax.jms.XAConnection closeable) {
+		if (closeable != null) {
+			try {
+				closeable.close();
+			} catch (Exception ex) {
+				logger.debug(ex.getMessage());
+			}
+		}
+	}
+
+	private void closeQuietly(javax.sql.XAConnection closeable) {
+		if (closeable != null) {
+			try {
+				closeable.close();
+			} catch (Exception ex) {
+				logger.debug(ex.getMessage());
+			}
+		}
+	}
+
+	private void closeQuietly(javax.resource.spi.ManagedConnection closeable) {
+		if (closeable != null) {
+			try {
+				closeable.cleanup();
+			} catch (Exception ex) {
+				logger.debug(ex.getMessage());
+			}
+
+			try {
+				closeable.destroy();
+			} catch (Exception ex) {
+				logger.debug(ex.getMessage());
+			}
+		}
 	}
 
 	public int getTransactionTimeout() throws XAException {
@@ -69,7 +126,18 @@ public class CommonResourceDescriptor implements XAResourceDescriptor {
 	}
 
 	public Xid[] recover(int arg0) throws XAException {
-		return delegate.recover(arg0);
+		Xid[] xidArray = delegate.recover(arg0);
+		// for (int i = 0; this.recoverXid != null && i < xidArray.length; i++) {
+		// Xid xid = xidArray[i];
+		// boolean formatIdEquals = xid.getFormatId() == this.recoverXid.getFormatId();
+		// boolean globalTransactionIdEquals = Arrays.equals(xid.getGlobalTransactionId(),
+		// this.recoverXid.getGlobalTransactionId());
+		// boolean branchQualifierEquals = Arrays.equals(xid.getBranchQualifier(), this.recoverXid.getBranchQualifier());
+		// if (formatIdEquals && globalTransactionIdEquals && branchQualifierEquals) {
+		// this.recved = true;
+		// }
+		// }
+		return xidArray;
 	}
 
 	public void rollback(Xid arg0) throws XAException {
@@ -98,6 +166,22 @@ public class CommonResourceDescriptor implements XAResourceDescriptor {
 
 	public void setIdentifier(String identifier) {
 		this.identifier = identifier;
+	}
+
+	public Xid getRecoverXid() {
+		return recoverXid;
+	}
+
+	public void setRecoverXid(Xid recoverXid) {
+		this.recoverXid = recoverXid;
+	}
+
+	public Object getManaged() {
+		return managed;
+	}
+
+	public void setManaged(Object managed) {
+		this.managed = managed;
 	}
 
 }

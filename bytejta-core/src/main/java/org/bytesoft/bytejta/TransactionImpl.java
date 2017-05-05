@@ -198,21 +198,23 @@ public class TransactionImpl implements Transaction {
 	public synchronized void recoveryCommit() throws CommitRequiredException, SystemException {
 		TransactionXid xid = this.transactionContext.getXid();
 		try {
-			this.recoverIfNecessary();
+			this.recoverIfNecessary(); // Recover if transaction is recovered from tx-log.
 
 			this.invokeParticipantCommit();
 		} catch (HeuristicMixedException ex) {
 			logger.error("[{}] recover: branch={}, status= mixed, message= {}",
 					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
 					ByteUtils.byteArrayToString(xid.getBranchQualifier()), ex.getMessage(), ex);
+			throw new SystemException(ex.getMessage());
 		} catch (HeuristicRollbackException ex) {
-			logger.info("[{}] recover: branch={}, status= rolledback",
+			logger.error("[{}] recover: branch={}, status= rolledback",
 					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
 					ByteUtils.byteArrayToString(xid.getBranchQualifier()));
+			throw new SystemException(ex.getMessage());
 		}
 	}
 
-	/* opc: true, compensable-transaction; false, remote-coordinator */
+	/* opc: true, compensable-transaction & remote-coordinator; false, remote-coordinator */
 	public synchronized void participantCommit(boolean opc) throws RollbackException, HeuristicMixedException,
 			HeuristicRollbackException, SecurityException, IllegalStateException, CommitRequiredException, SystemException {
 		if (opc) {
@@ -358,20 +360,23 @@ public class TransactionImpl implements Transaction {
 	public synchronized void commit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
 			SecurityException, IllegalStateException, CommitRequiredException, SystemException {
 
-		if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
-			throw new RollbackException();
-		} else if (this.transactionStatus == Status.STATUS_ROLLING_BACK) {
-			this.rollback();
-			throw new HeuristicRollbackException();
+		if (this.transactionStatus == Status.STATUS_ACTIVE) {
+			this.fireCommit();
 		} else if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
-			this.rollback();
+			this.fireRollback();
 			throw new HeuristicRollbackException();
-		} else if (this.transactionStatus == Status.STATUS_COMMITTED) {
+		} else if (this.transactionStatus == Status.STATUS_ROLLEDBACK) /* should never happen */ {
+			throw new RollbackException();
+		} else if (this.transactionStatus == Status.STATUS_COMMITTED) /* should never happen */ {
 			logger.debug("Current transaction has already been committed.");
-			return;
-		} else if (this.transactionStatus != Status.STATUS_ACTIVE) {
+		} else {
 			throw new IllegalStateException();
 		}
+
+	}
+
+	private void fireCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException, SecurityException,
+			IllegalStateException, CommitRequiredException, SystemException {
 
 		// stop-timing
 		beanFactory.getTransactionTimer().stopTiming(this);
@@ -808,17 +813,20 @@ public class TransactionImpl implements Transaction {
 	}
 
 	public synchronized void rollback() throws IllegalStateException, RollbackRequiredException, SystemException {
-
 		if (this.transactionStatus == Status.STATUS_UNKNOWN) {
 			throw new IllegalStateException();
 		} else if (this.transactionStatus == Status.STATUS_NO_TRANSACTION) {
 			throw new IllegalStateException();
-		} else if (this.transactionStatus == Status.STATUS_COMMITTED) {
+		} else if (this.transactionStatus == Status.STATUS_COMMITTED) /* should never happen */ {
 			throw new IllegalStateException();
-		} else if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
-			return;
+		} else if (this.transactionStatus == Status.STATUS_ROLLEDBACK) /* should never happen */ {
+			logger.debug("Current transaction has already been rolled back.");
+		} else {
+			this.fireRollback();
 		}
+	}
 
+	private void fireRollback() throws IllegalStateException, RollbackRequiredException, SystemException {
 		beanFactory.getTransactionTimer().stopTiming(this);
 
 		try {
@@ -834,7 +842,7 @@ public class TransactionImpl implements Transaction {
 	}
 
 	public synchronized void recoveryRollback() throws RollbackRequiredException, SystemException {
-		this.recoverIfNecessary(); // Execute recoveryInit if transaction is recovered from tx-log.
+		this.recoverIfNecessary(); // Recover if transaction is recovered from tx-log.
 
 		this.invokeParticipantRollback();
 	}

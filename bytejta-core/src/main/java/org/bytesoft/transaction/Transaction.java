@@ -68,4 +68,8 @@ public interface Transaction extends javax.transaction.Transaction {
 
 	public void recover() throws SystemException;
 
+	public void recoveryCommit() throws CommitRequiredException, SystemException;
+
+	public void recoveryRollback() throws RollbackRequiredException, SystemException;
+
 }
