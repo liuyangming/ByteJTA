@@ -43,6 +43,7 @@ import org.bytesoft.bytejta.supports.resource.CommonResourceDescriptor;
 import org.bytesoft.bytejta.supports.resource.LocalXAResourceDescriptor;
 import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
 import org.bytesoft.bytejta.supports.resource.UnidentifiedResourceDescriptor;
+import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.CommitRequiredException;
@@ -234,7 +235,7 @@ public class TransactionImpl implements Transaction {
 			this.participantRollback();
 			throw new HeuristicRollbackException();
 		} else if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
-			this.rollback();
+			this.participantRollback();
 			throw new HeuristicRollbackException();
 		} else if (this.transactionStatus == Status.STATUS_ROLLING_BACK) {
 			throw new HeuristicMixedException();
@@ -279,7 +280,7 @@ public class TransactionImpl implements Transaction {
 		if (this.transactionStatus == Status.STATUS_ACTIVE) {
 			throw new IllegalStateException();
 		} else if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
-			this.rollback();
+			this.participantRollback();
 			throw new HeuristicRollbackException();
 		} else if (this.transactionStatus == Status.STATUS_ROLLING_BACK) {
 			throw new HeuristicMixedException();
@@ -388,13 +389,13 @@ public class TransactionImpl implements Transaction {
 		try {
 			this.delistAllResource();
 		} catch (RollbackRequiredException rrex) {
-			this.rollback();
+			this.fireRollback();
 			throw new HeuristicRollbackException();
 		} catch (SystemException ex) {
-			this.rollback();
+			this.fireRollback();
 			throw new HeuristicRollbackException();
 		} catch (RuntimeException rex) {
-			this.rollback();
+			this.fireRollback();
 			throw new HeuristicRollbackException();
 		}
 
@@ -478,14 +479,14 @@ public class TransactionImpl implements Transaction {
 			vote = transactionStrategy.prepare(xid);
 		} catch (RollbackRequiredException xaex) {
 			this.transactionListenerList.onPrepareFailure(xid);
-			this.rollback();
+			this.fireRollback();
 			throw new HeuristicRollbackException();
 		} catch (CommitRequiredException xaex) {
 			vote = XAResource.XA_OK;
 			// committed = true;
 		} catch (RuntimeException rex) {
 			this.transactionListenerList.onPrepareFailure(xid);
-			this.rollback();
+			this.fireRollback();
 			throw new HeuristicRollbackException();
 		}
 
@@ -1072,9 +1073,9 @@ public class TransactionImpl implements Transaction {
 	public synchronized void recover() throws SystemException {
 		if (transactionStatus == Status.STATUS_PREPARING) {
 			this.recover4PreparingStatus();
-		} else if (transactionStatus != Status.STATUS_COMMITTING) {
+		} else if (transactionStatus == Status.STATUS_COMMITTING) {
 			this.recover4CommittingStatus();
-		} else if (transactionStatus != Status.STATUS_ROLLING_BACK) {
+		} else if (transactionStatus == Status.STATUS_ROLLING_BACK) {
 			this.recover4RollingBackStatus();
 		}
 	}
@@ -1190,7 +1191,9 @@ public class TransactionImpl implements Transaction {
 
 		XAResourceDescriptor descriptor = archive.getDescriptor();
 		XAResource delegate = descriptor.getDelegate();
-		if (LocalXAResource.class.isInstance(delegate)) {
+		boolean nativeFlag = LocalXAResource.class.isInstance(delegate);
+		boolean remoteFlag = RemoteCoordinator.class.isInstance(delegate);
+		if (nativeFlag) {
 			try {
 				((LocalXAResource) delegate).recoverable(archive.getXid());
 				xidRecovered = true;
@@ -1218,7 +1221,7 @@ public class TransactionImpl implements Transaction {
 					boolean formatIdEquals = thisXid.getFormatId() == thatXid.getFormatId();
 					boolean transactionIdEquals = Arrays.equals(thisGlobalTransactionId, thatGlobalTransactionId);
 					boolean qualifierEquals = Arrays.equals(thisBranchQualifier, thatBranchQualifier);
-					xidRecovered = formatIdEquals && transactionIdEquals && qualifierEquals;
+					xidRecovered = formatIdEquals && transactionIdEquals && (remoteFlag || qualifierEquals);
 				}
 			} catch (Exception ex) {
 				logger.error("[{}] recover-resource failed. branch= {}",

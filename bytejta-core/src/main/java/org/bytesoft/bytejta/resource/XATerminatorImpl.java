@@ -44,28 +44,25 @@ public class XATerminatorImpl implements XATerminator {
 			XAResourceArchive archive = this.resources.get(i);
 
 			boolean prepared = archive.getVote() != XAResourceArchive.DEFAULT_VOTE;
-
-			int branchVote = XAResourceArchive.DEFAULT_VOTE;
 			if (prepared) {
-				branchVote = archive.getVote();
+				globalVote = archive.getVote() == XAResource.XA_RDONLY ? globalVote : XAResource.XA_OK;
 			} else {
-				branchVote = archive.prepare(archive.getXid());
+				int branchVote = archive.prepare(archive.getXid());
+				archive.setVote(branchVote);
+
+				if (branchVote == XAResource.XA_RDONLY) {
+					archive.setReadonly(true);
+					archive.setCompleted(true);
+				} else {
+					globalVote = XAResource.XA_OK;
+				}
+
+				transactionLogger.updateResource(archive);
 			}
-
-			archive.setVote(branchVote);
-
-			if (branchVote == XAResource.XA_RDONLY) {
-				archive.setReadonly(true);
-				archive.setCompleted(true);
-			} else {
-				globalVote = XAResource.XA_OK;
-			}
-
-			transactionLogger.updateResource(archive);
 
 			logger.info("[{}] prepare: xares= {}, branch= {}, vote= {}",
 					ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
-					ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()), branchVote);
+					ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()), archive.getVote());
 		}
 
 		return globalVote;
@@ -92,8 +89,22 @@ public class XATerminatorImpl implements XATerminator {
 		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
 
 		XAResourceArchive archive = this.resources.get(0);
+
+		if (archive.isCommitted() && archive.isRolledback()) {
+			throw new XAException(XAException.XA_HEURMIX);
+		} else if (archive.isCommitted()) {
+			return;
+		} else if (archive.isReadonly()) {
+			throw new XAException(XAException.XA_RDONLY);
+		} else if (archive.isRolledback()) {
+			throw new XAException(XAException.XA_HEURRB);
+		}
+
 		try {
 			this.invokeOnePhaseCommit(archive);
+
+			archive.setCommitted(true);
+			archive.setCompleted(true);
 
 			logger.info("[{}] commit: xares= {}, branch= {}, opc= {}",
 					ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
@@ -140,6 +151,20 @@ public class XATerminatorImpl implements XATerminator {
 
 		for (int i = this.resources.size() - 1; i >= 0; i--) {
 			XAResourceArchive archive = this.resources.get(i);
+
+			if (archive.isCommitted() && archive.isRolledback()) {
+				committedExists = true;
+				rolledbackExists = true;
+				continue;
+			} else if (archive.isCommitted()) {
+				committedExists = true;
+				continue;
+			} else if (archive.isReadonly()) {
+				continue;
+			} else if (archive.isRolledback()) {
+				rolledbackExists = true;
+				continue;
+			}
 
 			Xid branchXid = archive.getXid();
 			try {
@@ -208,16 +233,6 @@ public class XATerminatorImpl implements XATerminator {
 	}
 
 	private void invokeOnePhaseCommit(XAResourceArchive archive) throws XAException {
-		if (archive.isCommitted() && archive.isRolledback()) {
-			throw new XAException(XAException.XA_HEURMIX);
-		} else if (archive.isCommitted()) {
-			return;
-		} else if (archive.isReadonly()) {
-			throw new XAException(XAException.XA_RDONLY);
-		} else if (archive.isRolledback()) {
-			throw new XAException(XAException.XA_HEURRB);
-		}
-
 		try {
 			archive.commit(archive.getXid(), true);
 		} catch (XAException xaex) {
@@ -253,16 +268,6 @@ public class XATerminatorImpl implements XATerminator {
 	}
 
 	private void invokeTwoPhaseCommit(XAResourceArchive archive) throws XAException {
-		if (archive.isCommitted() && archive.isRolledback()) {
-			throw new XAException(XAException.XA_HEURMIX);
-		} else if (archive.isCommitted()) {
-			return;
-		} else if (archive.isReadonly()) {
-			throw new XAException(XAException.XA_RDONLY);
-		} else if (archive.isRolledback()) {
-			throw new XAException(XAException.XA_HEURRB);
-		}
-
 		try {
 			archive.commit(archive.getXid(), false);
 		} catch (XAException xaex) {
@@ -317,12 +322,29 @@ public class XATerminatorImpl implements XATerminator {
 
 	/** error: XA_HEURHAZ, XA_HEURMIX, XA_HEURCOM, XA_HEURRB, XA_RDONLY, XAER_RMERR */
 	public synchronized void rollback(Xid xid) throws XAException {
+		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
+
 		boolean committedExists = false;
 		boolean rolledbackExists = false;
 		boolean unFinishExists = false;
 		boolean errorExists = false;
 		for (int i = 0; i < this.resources.size(); i++) {
 			XAResourceArchive archive = this.resources.get(i);
+
+			if (archive.isCommitted() && archive.isRolledback()) {
+				committedExists = true;
+				rolledbackExists = true;
+				continue;
+			} else if (archive.isRolledback()) {
+				rolledbackExists = true;
+				continue;
+			} else if (archive.isReadonly()) {
+				continue;
+			} else if (archive.isCommitted()) {
+				committedExists = true;
+				continue;
+			}
+
 			try {
 				this.invokeRollback(archive);
 				rolledbackExists = true;
@@ -368,6 +390,8 @@ public class XATerminatorImpl implements XATerminator {
 				default:
 					errorExists = true;
 				}
+			} finally {
+				transactionLogger.updateResource(archive);
 			}
 		}
 
@@ -386,16 +410,6 @@ public class XATerminatorImpl implements XATerminator {
 	}
 
 	private void invokeRollback(XAResourceArchive archive) throws XAException {
-		if (archive.isCommitted() && archive.isRolledback()) {
-			throw new XAException(XAException.XA_HEURMIX);
-		} else if (archive.isRolledback()) {
-			return;
-		} else if (archive.isReadonly()) {
-			throw new XAException(XAException.XA_RDONLY);
-		} else if (archive.isCommitted()) {
-			throw new XAException(XAException.XA_HEURCOM);
-		}
-
 		try {
 			archive.rollback(archive.getXid());
 		} catch (XAException xaex) {
@@ -431,8 +445,12 @@ public class XATerminatorImpl implements XATerminator {
 				// The specified XID is not known by the resource manager.
 				if (archive.isReadonly()) {
 					throw new XAException(XAException.XA_RDONLY);
-				} else if (archive.getVote() != XAResourceArchive.DEFAULT_VOTE) {
+				} else if (archive.getVote() == XAResourceArchive.DEFAULT_VOTE) {
+					break; // rolled back
+				} else if (archive.getVote() == XAResource.XA_RDONLY) {
 					throw new XAException(XAException.XA_RDONLY);
+				} else if (archive.getVote() == XAResource.XA_OK) {
+					throw new XAException(XAException.XAER_RMERR);
 				} else {
 					throw new XAException(XAException.XAER_RMERR);
 				}

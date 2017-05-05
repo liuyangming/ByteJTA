@@ -21,12 +21,14 @@ import org.bytesoft.transaction.xa.TransactionXid;
 
 public interface TransactionRepository {
 
+	// active-transaction & error-transaction
 	public void putTransaction(TransactionXid xid, Transaction transaction);
 
 	public Transaction getTransaction(TransactionXid xid);
 
 	public Transaction removeTransaction(TransactionXid xid);
 
+	// error-transaction
 	public void putErrorTransaction(TransactionXid xid, Transaction transaction);
 
 	public Transaction getErrorTransaction(TransactionXid xid);

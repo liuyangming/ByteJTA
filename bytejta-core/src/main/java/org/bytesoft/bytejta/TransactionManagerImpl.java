@@ -220,7 +220,7 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		TransactionXid globalXid = transactionContext.getXid();
 		TransactionRepository transactionRepository = this.beanFactory.getTransactionRepository();
 
-		boolean removeRequired = transactionContext.isCoordinator();
+		boolean removeRequired = true;
 		try {
 			transaction.rollback();
 		} catch (Exception ex) {
@@ -228,6 +228,7 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 			transactionRepository.putErrorTransaction(globalXid, transaction);
 		} finally {
 			if (removeRequired) {
+				transactionRepository.removeErrorTransaction(globalXid);
 				transactionRepository.removeTransaction(globalXid);
 			}
 		}

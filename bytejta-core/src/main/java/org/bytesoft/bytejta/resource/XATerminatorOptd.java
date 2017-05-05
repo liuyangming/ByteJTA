@@ -46,27 +46,28 @@ public class XATerminatorOptd implements XATerminator {
 
 		boolean prepared = archive.getVote() != XAResourceArchive.DEFAULT_VOTE;
 
-		int branchVote = XAResourceArchive.DEFAULT_VOTE;
+		int globalVote = XAResource.XA_RDONLY;
 		if (prepared) {
-			branchVote = archive.getVote();
+			globalVote = archive.getVote();
 		} else {
-			branchVote = archive.prepare(archive.getXid());
+			globalVote = archive.prepare(archive.getXid());
+			archive.setVote(globalVote);
+
+			if (globalVote == XAResource.XA_RDONLY) {
+				archive.setReadonly(true);
+				archive.setCompleted(true);
+			} else {
+				globalVote = XAResource.XA_OK;
+			}
+
+			transactionLogger.updateResource(archive);
 		}
-
-		this.archive.setVote(branchVote);
-
-		if (branchVote == XAResource.XA_RDONLY) {
-			this.archive.setReadonly(true);
-			this.archive.setCompleted(true);
-		}
-
-		transactionLogger.updateResource(this.archive);
 
 		logger.info("[{}] prepare: xares= {}, branch= {}, vote= {}",
 				ByteUtils.byteArrayToString(this.archive.getXid().getGlobalTransactionId()), archive,
-				ByteUtils.byteArrayToString(this.archive.getXid().getBranchQualifier()), branchVote);
+				ByteUtils.byteArrayToString(this.archive.getXid().getBranchQualifier()), globalVote);
 
-		return branchVote;
+		return globalVote;
 	}
 
 	/** error: XA_HEURHAZ, XA_HEURMIX, XA_HEURCOM, XA_HEURRB, XA_RDONLY, XAER_RMERR */
@@ -84,7 +85,7 @@ public class XATerminatorOptd implements XATerminator {
 		} else if (archive.isCommitted()) {
 			return;
 		} else if (archive.isReadonly()) {
-			throw new XAException(XAException.XAER_NOTA);
+			throw new XAException(XAException.XA_RDONLY); // XAException.XAER_NOTA
 		} else if (archive.isRolledback()) {
 			throw new XAException(XAException.XA_HEURRB);
 		}
@@ -155,7 +156,7 @@ public class XATerminatorOptd implements XATerminator {
 		} else if (archive.isCommitted()) {
 			return;
 		} else if (archive.isReadonly()) {
-			throw new XAException(XAException.XAER_NOTA);
+			throw new XAException(XAException.XA_RDONLY); // XAException.XAER_NOTA
 		} else if (archive.isRolledback()) {
 			throw new XAException(XAException.XA_HEURRB);
 		}
@@ -305,14 +306,27 @@ public class XATerminatorOptd implements XATerminator {
 				throw new XAException(XAException.XA_HEURHAZ);
 			case XAException.XAER_NOTA:
 				// The specified XID is not known by the resource manager.
+				/*
+				 * if (archive.isReadonly()) { throw new XAException(XAException.XA_RDONLY); } else if (archive.getVote() ==
+				 * XAResourceArchive.DEFAULT_VOTE) { break; // rolled back } else if (archive.getVote() == XAResource.XA_RDONLY)
+				 * { throw new XAException(XAException.XA_RDONLY); } else if (archive.getVote() == XAResource.XA_OK) { throw new
+				 * XAException(XAException.XAER_RMERR); } else { throw new XAException(XAException.XAER_RMERR); }
+				 */
+
 				if (archive.isReadonly()) {
 					archive.setReadonly(true);
 					archive.setCompleted(true);
 					throw new XAException(XAException.XA_RDONLY);
-				} else if (archive.getVote() != XAResourceArchive.DEFAULT_VOTE) {
+				} else if (archive.getVote() == XAResourceArchive.DEFAULT_VOTE) {
+					archive.setRolledback(true);
+					archive.setCompleted(true);
+					break; // rolled back
+				} else if (archive.getVote() == XAResource.XA_RDONLY) {
 					archive.setReadonly(true);
 					archive.setCompleted(true);
 					throw new XAException(XAException.XA_RDONLY);
+				} else if (archive.getVote() == XAResource.XA_OK) {
+					throw new XAException(XAException.XAER_RMERR);
 				} else {
 					throw new XAException(XAException.XAER_RMERR);
 				}
