@@ -17,6 +17,7 @@ package org.bytesoft.bytejta;
 
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.transaction.TransactionBeanFactory;
+import org.bytesoft.transaction.TransactionLock;
 import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.TransactionRecovery;
 import org.bytesoft.transaction.TransactionRepository;
@@ -36,6 +37,7 @@ public class TransactionBeanFactoryImpl implements TransactionBeanFactory {
 	private TransactionInterceptor transactionInterceptor;
 	private TransactionRecovery transactionRecovery;
 	private RemoteCoordinator transactionCoordinator;
+	private TransactionLock transactionLock;
 
 	private ArchiveDeserializer archiveDeserializer;
 	private XAResourceDeserializer resourceDeserializer;
@@ -78,6 +80,14 @@ public class TransactionBeanFactoryImpl implements TransactionBeanFactory {
 
 	public void setTransactionInterceptor(TransactionInterceptor transactionInterceptor) {
 		this.transactionInterceptor = transactionInterceptor;
+	}
+
+	public TransactionLock getTransactionLock() {
+		return transactionLock;
+	}
+
+	public void setTransactionLock(TransactionLock transactionLock) {
+		this.transactionLock = transactionLock;
 	}
 
 	public TransactionRecovery getTransactionRecovery() {

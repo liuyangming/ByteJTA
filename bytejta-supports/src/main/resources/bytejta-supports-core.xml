@@ -30,4 +30,6 @@
 
 	<bean id="bytejtaTransactionLogger" class="org.bytesoft.bytejta.logging.SampleTransactionLogger" init-method="construct" />
 
+	<bean id="bytejtaTransactionLock" class="org.bytesoft.bytejta.VacantTransactionLock" />
+
 </beans>

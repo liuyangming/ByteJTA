@@ -25,6 +25,8 @@ import org.bytesoft.transaction.xa.XidFactory;
 
 public interface TransactionBeanFactory {
 
+	public TransactionLock getTransactionLock();
+
 	public TransactionManager getTransactionManager();
 
 	public XidFactory getXidFactory();

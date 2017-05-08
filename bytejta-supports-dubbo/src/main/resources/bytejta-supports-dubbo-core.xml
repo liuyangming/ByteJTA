@@ -39,6 +39,7 @@
 		<property name="transactionInterceptor" ref="bytejtaTransactionInterceptor" />
 		<property name="transactionRecovery" ref="bytejtaTransactionRecovery" />
 		<property name="transactionCoordinator" ref="bytejtaTransactionCoordinator" />
+		<property name="transactionLock" ref="bytejtaTransactionLock" />
 		<property name="archiveDeserializer" ref="bytejtaArchiveDeserializer" />
 		<property name="resourceDeserializer" ref="bytejtaResourceDeserializer" />
 	</bean>
