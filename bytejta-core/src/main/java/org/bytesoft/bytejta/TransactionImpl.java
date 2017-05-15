@@ -403,7 +403,9 @@ public class TransactionImpl implements Transaction {
 			TransactionXid xid = this.transactionContext.getXid();
 			logger.info("[{}] commit-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
-			if (this.participantList.size() <= 1) {
+			if (this.participantList.size() == 0) {
+				this.skipOnePhaseCommit();
+			} else if (this.participantList.size() == 1) {
 				this.fireOnePhaseCommit();
 			} else {
 				this.fireTwoPhaseCommit();
@@ -414,6 +416,13 @@ public class TransactionImpl implements Transaction {
 		} finally {
 			this.synchronizationList.afterCompletion(this.transactionStatus);
 		}
+	}
+
+	public synchronized void skipOnePhaseCommit()
+			throws HeuristicRollbackException, HeuristicMixedException, CommitRequiredException, SystemException {
+		TransactionXid xid = this.transactionContext.getXid();
+		this.transactionListenerList.onCommitStart(xid);
+		this.transactionListenerList.onCommitSuccess(xid);
 	}
 
 	public synchronized void fireOnePhaseCommit()
