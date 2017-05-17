@@ -1245,6 +1245,19 @@ public class TransactionImpl implements Transaction {
 		return xidRecovered;
 	}
 
+	public synchronized void forgetQuietly() {
+		TransactionXid xid = this.transactionContext.getXid();
+		try {
+			this.forget();
+		} catch (SystemException ex) {
+			logger.error("Error occurred while forgetting transaction: {}",
+					ByteUtils.byteArrayToInt(xid.getGlobalTransactionId()), ex);
+		} catch (RuntimeException ex) {
+			logger.error("Error occurred while forgetting transaction: {}",
+					ByteUtils.byteArrayToInt(xid.getGlobalTransactionId()), ex);
+		}
+	}
+
 	public synchronized void forget() throws SystemException {
 		TransactionRepository repository = beanFactory.getTransactionRepository();
 		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();

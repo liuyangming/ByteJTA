@@ -83,7 +83,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		logger.debug("[transaction-recovery] total= {}, success= {}", total, value);
 	}
 
-	public synchronized void recoverTransaction(Transaction transaction)
+	public void recoverTransaction(Transaction transaction)
 			throws CommitRequiredException, RollbackRequiredException, SystemException {
 
 		TransactionContext transactionContext = transaction.getTransactionContext();
@@ -98,7 +98,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 
 	}
 
-	private synchronized void recoverCoordinator(Transaction transaction)
+	private void recoverCoordinator(Transaction transaction)
 			throws CommitRequiredException, RollbackRequiredException, SystemException {
 
 		switch (transaction.getTransactionStatus()) {
@@ -108,29 +108,30 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		case Status.STATUS_ROLLING_BACK:
 		case Status.STATUS_UNKNOWN:
 			transaction.recoveryRollback();
-			transaction.forget();
+			transaction.forgetQuietly();
 			break;
 		case Status.STATUS_PREPARED:
 		case Status.STATUS_COMMITTING:
 			transaction.recoveryCommit();
-			transaction.forget();
+			transaction.forgetQuietly();
 			break;
 		case Status.STATUS_COMMITTED:
 		case Status.STATUS_ROLLEDBACK:
-			transaction.forget();
+			transaction.forgetQuietly();
 			break;
 		default:
 			logger.debug("Current transaction has already been completed.");
 		}
 	}
 
-	private synchronized void recoverParticipant(Transaction transaction)
+	private void recoverParticipant(Transaction transaction)
 			throws CommitRequiredException, RollbackRequiredException, SystemException {
 
 		TransactionImpl transactionImpl = (TransactionImpl) transaction;
 		switch (transaction.getTransactionStatus()) {
 		case Status.STATUS_PREPARED:
 		case Status.STATUS_COMMITTING:
+			break;
 		case Status.STATUS_COMMITTED:
 		case Status.STATUS_ROLLEDBACK:
 			break;
@@ -141,7 +142,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		case Status.STATUS_ROLLING_BACK:
 		default:
 			transactionImpl.recoveryRollback();
-			transactionImpl.forget();
+			transactionImpl.forgetQuietly();
 		}
 	}
 

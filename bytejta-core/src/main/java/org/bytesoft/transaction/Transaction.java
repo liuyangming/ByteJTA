@@ -66,6 +66,8 @@ public interface Transaction extends javax.transaction.Transaction {
 
 	public void forget() throws SystemException;
 
+	public void forgetQuietly();
+
 	public void recover() throws SystemException;
 
 	public void recoveryCommit() throws CommitRequiredException, SystemException;
