@@ -168,6 +168,9 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 			}
 		});
 
+		TransactionCoordinator transactionCoordinator = //
+				(TransactionCoordinator) this.beanFactory.getTransactionCoordinator();
+		transactionCoordinator.markParticipantReady();
 	}
 
 	private TransactionImpl reconstructTransaction(TransactionArchive archive) throws IllegalStateException {

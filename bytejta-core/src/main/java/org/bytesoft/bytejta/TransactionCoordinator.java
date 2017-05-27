@@ -53,7 +53,7 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 	private String endpoint;
 	private TransactionBeanFactory beanFactory;
 
-	private transient boolean inited = false;
+	private transient boolean ready = false;
 	private final Lock lock = new ReentrantLock();
 
 	public Transaction getTransactionQuietly() {
@@ -142,7 +142,7 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 	}
 
 	public void commit(Xid xid, boolean onePhase) throws XAException {
-		this.checkAvailableIfNecessary();
+		this.checkParticipantReadyIfNecessary();
 
 		XidFactory xidFactory = this.beanFactory.getXidFactory();
 		TransactionXid branchXid = (TransactionXid) xid;
@@ -217,7 +217,7 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 	}
 
 	public void forget(Xid xid) throws XAException {
-		this.checkAvailableIfNecessary();
+		this.checkParticipantReadyIfNecessary();
 
 		XidFactory xidFactory = this.beanFactory.getXidFactory();
 		TransactionXid branchXid = (TransactionXid) xid;
@@ -250,7 +250,7 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 	}
 
 	public int prepare(Xid xid) throws XAException {
-		this.checkAvailableIfNecessary();
+		this.checkParticipantReadyIfNecessary();
 
 		XidFactory xidFactory = this.beanFactory.getXidFactory();
 		TransactionXid branchXid = (TransactionXid) xid;
@@ -271,7 +271,7 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 	}
 
 	public Xid[] recover(int flag) throws XAException {
-		this.checkAvailableIfNecessary();
+		this.checkParticipantReadyIfNecessary();
 
 		TransactionRepository repository = beanFactory.getTransactionRepository();
 		List<Transaction> allTransactionList = repository.getActiveTransactionList();
@@ -299,7 +299,7 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 	}
 
 	public void rollback(Xid xid) throws XAException {
-		this.checkAvailableIfNecessary();
+		this.checkParticipantReadyIfNecessary();
 
 		XidFactory xidFactory = this.beanFactory.getXidFactory();
 		TransactionXid branchXid = (TransactionXid) xid;
@@ -345,39 +345,31 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		}
 	}
 
-	public void markAvailable() {
+	public void markParticipantReady() {
 		try {
 			this.lock.lock();
-			this.inited = true;
+			this.ready = true;
 		} finally {
 			this.lock.unlock();
 		}
 	}
 
-	private void checkAvailableIfNecessary() throws XAException {
-		if (this.inited == false) {
-			this.checkAvailable();
+	private void checkParticipantReadyIfNecessary() throws XAException {
+		if (this.ready == false) {
+			this.checkParticipantReady();
 		}
 	}
 
-	private void checkAvailable() throws XAException {
+	private void checkParticipantReady() throws XAException {
 		try {
 			this.lock.lock();
-			if (this.inited == false) {
+			if (this.ready == false) {
 				throw new XAException(XAException.XAER_RMFAIL);
 			}
 		} finally {
 			this.lock.unlock();
 		}
 	}
-
-	// private void waitForMillis(long millis) {
-	// try {
-	// this.condition.await(millis, TimeUnit.MILLISECONDS);
-	// } catch (InterruptedException ex) {
-	// logger.debug(ex.getMessage());
-	// }
-	// }
 
 	public boolean setTransactionTimeout(int seconds) throws XAException {
 		return false;

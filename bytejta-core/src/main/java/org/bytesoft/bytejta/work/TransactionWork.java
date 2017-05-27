@@ -46,10 +46,6 @@ public class TransactionWork implements Work, TransactionBeanFactoryAware {
 			logger.error("TransactionRecovery init failed!", rex);
 		}
 
-		TransactionCoordinator transactionCoordinator = //
-				(TransactionCoordinator) this.beanFactory.getTransactionCoordinator();
-		transactionCoordinator.markAvailable();
-
 		long nextExecutionTime = 0;
 		long nextRecoveryTime = System.currentTimeMillis() + this.recoveryInterval;
 		while (this.currentActive()) {
