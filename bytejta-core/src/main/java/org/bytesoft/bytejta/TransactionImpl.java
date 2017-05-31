@@ -159,6 +159,11 @@ public class TransactionImpl implements Transaction {
 		transactionLogger.createTransaction(archive);
 		this.transactionListenerList.onPrepareStart(xid);
 
+		if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
+			// this.transactionListenerList.onPrepareSuccess(xid);
+			throw new RollbackRequiredException();
+		}
+
 		try {
 			int vote = this.getTransactionStrategy().prepare(xid);
 
