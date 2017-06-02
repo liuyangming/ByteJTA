@@ -100,7 +100,27 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 			throw new IllegalStateException();
 		}
 
-		transaction.commit();
+		try {
+			transaction.commit();
+			transaction.forgetQuietly(); // forget transaction
+		} catch (IllegalStateException ex) {
+			throw ex;
+		} catch (SecurityException ex) {
+			throw ex;
+		} catch (RollbackException rex) {
+			transaction.forgetQuietly(); // forget transaction
+			throw rex;
+		} catch (HeuristicMixedException hmex) {
+			transaction.forgetQuietly(); // forget transaction
+			throw hmex;
+		} catch (HeuristicRollbackException hrex) {
+			transaction.forgetQuietly(); // forget transaction
+			throw hrex;
+		} catch (SystemException ex) {
+			throw ex;
+		} catch (RuntimeException rex) {
+			throw rex;
+		}
 	}
 
 	public void rollback() throws IllegalStateException, SecurityException, SystemException {
@@ -118,6 +138,8 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		}
 
 		transaction.rollback();
+		transaction.forgetQuietly();
+
 	}
 
 	public void associateThread(Transaction transaction) {
@@ -228,8 +250,9 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 			transactionRepository.putErrorTransaction(globalXid, transaction);
 		} finally {
 			if (removeRequired) {
-				transactionRepository.removeErrorTransaction(globalXid);
-				transactionRepository.removeTransaction(globalXid);
+				// transactionRepository.removeErrorTransaction(globalXid);
+				// transactionRepository.removeTransaction(globalXid);
+				transaction.forgetQuietly();
 			}
 		}
 

@@ -355,7 +355,7 @@ public class TransactionImpl implements Transaction {
 				this.transactionStatus = Status.STATUS_COMMITTED; // Status.STATUS_COMMITTED;
 				archive.setStatus(this.transactionStatus);
 				this.transactionListenerList.onCommitSuccess(xid);
-				transactionLogger.deleteTransaction(archive);
+				transactionLogger.updateTransaction(archive);
 
 				logger.info("[{}] commit-transaction complete successfully",
 						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
@@ -513,7 +513,7 @@ public class TransactionImpl implements Transaction {
 			archive.setStatus(this.transactionStatus);
 			this.transactionListenerList.onCommitStart(xid);
 			this.transactionListenerList.onCommitSuccess(xid);
-			transactionLogger.deleteTransaction(archive);
+			transactionLogger.updateTransaction(archive);
 		} else {
 			// this.transactionStatus = Status.STATUS_PREPARED;// .setStatusPrepared();
 
@@ -546,7 +546,7 @@ public class TransactionImpl implements Transaction {
 					this.transactionStatus = Status.STATUS_COMMITTED; // Status.STATUS_COMMITTED;
 					archive.setStatus(this.transactionStatus);
 					this.transactionListenerList.onCommitSuccess(xid);
-					transactionLogger.deleteTransaction(archive);
+					transactionLogger.updateTransaction(archive);
 				}
 			}
 		} // end-else-if (vote == XAResource.XA_RDONLY)
@@ -927,7 +927,7 @@ public class TransactionImpl implements Transaction {
 			if (unFinishExists == false) {
 				this.transactionStatus = Status.STATUS_ROLLEDBACK; // Status.STATUS_ROLLEDBACK;
 				TransactionArchive archive = this.getTransactionArchive();// new TransactionArchive();
-				transactionLogger.deleteTransaction(archive);
+				transactionLogger.updateTransaction(archive);
 			}
 		}
 	}

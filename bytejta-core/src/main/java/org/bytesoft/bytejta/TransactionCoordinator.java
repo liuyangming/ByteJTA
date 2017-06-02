@@ -38,10 +38,8 @@ import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.TransactionRepository;
-import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.aware.TransactionEndpointAware;
-import org.bytesoft.transaction.logging.TransactionLogger;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
 import org.slf4j.Logger;
@@ -210,8 +208,9 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 			throw xaex;
 		} finally {
 			if (transactionDone) {
-				repository.removeErrorTransaction(globalXid);
-				repository.removeTransaction(globalXid);
+				// repository.removeErrorTransaction(globalXid);
+				// repository.removeTransaction(globalXid);
+				transaction.forgetQuietly(); // forget
 			}
 		}
 	}
@@ -219,22 +218,24 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 	public void forget(Xid xid) throws XAException {
 		this.checkParticipantReadyIfNecessary();
 
+		if (xid == null) {
+			throw new XAException(XAException.XAER_INVAL);
+		}
+
 		XidFactory xidFactory = this.beanFactory.getXidFactory();
 		TransactionXid branchXid = (TransactionXid) xid;
 		TransactionXid globalXid = xidFactory.createGlobalXid(branchXid.getGlobalTransactionId());
 		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
 		Transaction transaction = transactionRepository.getErrorTransaction(globalXid);
 		if (transaction == null) {
-			return;
+			throw new XAException(XAException.XAER_NOTA);
 		}
 
-		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		try {
-			TransactionArchive archive = transaction.getTransactionArchive();
-			transactionLogger.deleteTransaction(archive);
-
-			transactionRepository.removeErrorTransaction(globalXid);
-			transactionRepository.removeTransaction(globalXid);
+			transaction.forget();
+		} catch (SystemException ex) {
+			logger.error("Error occurred while forgeting remote coordinator.", ex);
+			throw new XAException(XAException.XAER_RMERR);
 		} catch (RuntimeException rex) {
 			logger.error("Error occurred while forgeting remote coordinator.", rex);
 			throw new XAException(XAException.XAER_RMERR);
@@ -339,8 +340,9 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 			throw xaex;
 		} finally {
 			if (transactionDone) {
-				repository.removeErrorTransaction(globalXid);
-				repository.removeTransaction(globalXid);
+				// repository.removeErrorTransaction(globalXid);
+				// repository.removeTransaction(globalXid);
+				transaction.forgetQuietly(); // forget
 			}
 		}
 	}
