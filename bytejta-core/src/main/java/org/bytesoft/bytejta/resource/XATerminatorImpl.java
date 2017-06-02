@@ -361,7 +361,7 @@ public class XATerminatorImpl implements XATerminator {
 					break;
 				case XAException.XA_HEURMIX:
 					committedExists = true;
-					committedExists = true;
+					rolledbackExists = true;
 					archive.setCommitted(true);
 					archive.setRolledback(true);
 					archive.setHeuristic(true);
@@ -374,7 +374,7 @@ public class XATerminatorImpl implements XATerminator {
 					archive.setCompleted(true);
 					break;
 				case XAException.XA_HEURRB:
-					committedExists = true;
+					rolledbackExists = true;
 					archive.setRolledback(true);
 					archive.setHeuristic(true);
 					archive.setCompleted(true);
