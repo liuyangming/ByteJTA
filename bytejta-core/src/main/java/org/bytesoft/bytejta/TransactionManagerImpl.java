@@ -100,25 +100,39 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 			throw new IllegalStateException();
 		}
 
+		TransactionRepository transactionRepository = this.beanFactory.getTransactionRepository();
+		TransactionContext transactionContext = transaction.getTransactionContext();
+		TransactionXid transactionXid = transactionContext.getXid();
 		try {
 			transaction.commit();
 			transaction.forgetQuietly(); // forget transaction
 		} catch (IllegalStateException ex) {
+			logger.error("Error occurred while committing transaction.", ex);
+			transactionRepository.putErrorTransaction(transactionXid, transaction);
 			throw ex;
 		} catch (SecurityException ex) {
+			logger.error("Error occurred while committing transaction.", ex);
+			transactionRepository.putErrorTransaction(transactionXid, transaction);
 			throw ex;
 		} catch (RollbackException rex) {
+			logger.error("Error occurred while committing transaction.", rex);
 			transaction.forgetQuietly(); // forget transaction
 			throw rex;
 		} catch (HeuristicMixedException hmex) {
+			logger.error("Error occurred while committing transaction.", hmex);
 			transaction.forgetQuietly(); // forget transaction
 			throw hmex;
 		} catch (HeuristicRollbackException hrex) {
+			logger.error("Error occurred while committing transaction.", hrex);
 			transaction.forgetQuietly(); // forget transaction
 			throw hrex;
 		} catch (SystemException ex) {
+			logger.error("Error occurred while committing transaction.", ex);
+			transactionRepository.putErrorTransaction(transactionXid, transaction);
 			throw ex;
 		} catch (RuntimeException rex) {
+			logger.error("Error occurred while committing transaction.", rex);
+			transactionRepository.putErrorTransaction(transactionXid, transaction);
 			throw rex;
 		}
 	}
@@ -137,9 +151,29 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 			throw new SystemException();
 		}
 
-		transaction.rollback();
-		transaction.forgetQuietly();
-
+		TransactionRepository transactionRepository = this.beanFactory.getTransactionRepository();
+		TransactionContext transactionContext = transaction.getTransactionContext();
+		TransactionXid transactionXid = transactionContext.getXid();
+		try {
+			transaction.rollback();
+			transaction.forgetQuietly();
+		} catch (IllegalStateException ex) {
+			logger.error("Error occurred while rolling back transaction.", ex);
+			transactionRepository.putErrorTransaction(transactionXid, transaction);
+			throw ex;
+		} catch (SecurityException ex) {
+			logger.error("Error occurred while rolling back transaction.", ex);
+			transactionRepository.putErrorTransaction(transactionXid, transaction);
+			throw ex;
+		} catch (SystemException ex) {
+			logger.error("Error occurred while rolling back transaction.", ex);
+			transactionRepository.putErrorTransaction(transactionXid, transaction);
+			throw ex;
+		} catch (RuntimeException ex) {
+			logger.error("Error occurred while rolling back transaction.", ex);
+			transactionRepository.putErrorTransaction(transactionXid, transaction);
+			throw ex;
+		}
 	}
 
 	public void associateThread(Transaction transaction) {
@@ -242,18 +276,11 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		TransactionXid globalXid = transactionContext.getXid();
 		TransactionRepository transactionRepository = this.beanFactory.getTransactionRepository();
 
-		boolean removeRequired = true;
 		try {
 			transaction.rollback();
+			transaction.forgetQuietly(); // forget transaction
 		} catch (Exception ex) {
-			removeRequired = false;
 			transactionRepository.putErrorTransaction(globalXid, transaction);
-		} finally {
-			if (removeRequired) {
-				// transactionRepository.removeErrorTransaction(globalXid);
-				// transactionRepository.removeTransaction(globalXid);
-				transaction.forgetQuietly();
-			}
 		}
 
 	}

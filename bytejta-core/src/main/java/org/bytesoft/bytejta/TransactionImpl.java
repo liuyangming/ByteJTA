@@ -1042,42 +1042,6 @@ public class TransactionImpl implements Transaction {
 		}
 	}
 
-	public synchronized void cleanup() {
-		for (int i = 0; i < this.participantList.size(); i++) {
-			XAResourceArchive archive = this.participantList.get(i);
-			Xid currentXid = archive.getXid();
-			if (archive.isHeuristic()) {
-				try {
-					Xid branchXid = archive.getXid();
-					archive.forget(branchXid);
-				} catch (XAException xae) {
-					// Possible exception values are XAER_RMERR, XAER_RMFAIL
-					// , XAER_NOTA, XAER_INVAL, or XAER_PROTO.
-					switch (xae.errorCode) {
-					case XAException.XAER_RMERR:
-						logger.error("[{}] forget: xares= {}, branch={}, error= {}",
-								ByteUtils.byteArrayToString(currentXid.getGlobalTransactionId()), archive,
-								ByteUtils.byteArrayToString(currentXid.getBranchQualifier()), xae.errorCode);
-						break;
-					case XAException.XAER_RMFAIL:
-						logger.error("[{}] forget: xares= {}, branch={}, error= {}",
-								ByteUtils.byteArrayToString(currentXid.getGlobalTransactionId()), archive,
-								ByteUtils.byteArrayToString(currentXid.getBranchQualifier()), xae.errorCode);
-						break;
-					case XAException.XAER_NOTA:
-					case XAException.XAER_INVAL:
-					case XAException.XAER_PROTO:
-						break;
-					default:
-						logger.error("[{}] forget: xares= {}, branch={}, error= {}",
-								ByteUtils.byteArrayToString(currentXid.getGlobalTransactionId()), archive,
-								ByteUtils.byteArrayToString(currentXid.getBranchQualifier()), xae.errorCode);
-					}
-				}
-			} // end-if
-		} // end-for
-	}
-
 	public void recoverIfNecessary() throws SystemException {
 		if (this.transactionContext.isRecoveried()) {
 			this.recover();
@@ -1269,12 +1233,58 @@ public class TransactionImpl implements Transaction {
 
 		TransactionXid xid = this.transactionContext.getXid();
 
-		this.cleanup();
+		this.cleanup(); // forget branch-transaction has been hueristic completed.
 
 		repository.removeErrorTransaction(xid);
 		repository.removeTransaction(xid);
 
 		transactionLogger.deleteTransaction(this.getTransactionArchive());
+	}
+
+	public synchronized void cleanup() throws SystemException {
+		boolean unFinishExists = false;
+
+		for (int i = 0; i < this.participantList.size(); i++) {
+			XAResourceArchive archive = this.participantList.get(i);
+			Xid currentXid = archive.getXid();
+			if (archive.isHeuristic()) {
+				try {
+					Xid branchXid = archive.getXid();
+					archive.forget(branchXid);
+				} catch (XAException xae) {
+					// Possible exception values are XAER_RMERR, XAER_RMFAIL
+					// , XAER_NOTA, XAER_INVAL, or XAER_PROTO.
+					switch (xae.errorCode) {
+					case XAException.XAER_RMERR:
+						unFinishExists = true;
+						logger.error("[{}] forget: xares= {}, branch={}, error= {}",
+								ByteUtils.byteArrayToString(currentXid.getGlobalTransactionId()), archive,
+								ByteUtils.byteArrayToString(currentXid.getBranchQualifier()), xae.errorCode);
+						break;
+					case XAException.XAER_RMFAIL:
+						unFinishExists = true;
+						logger.error("[{}] forget: xares= {}, branch={}, error= {}",
+								ByteUtils.byteArrayToString(currentXid.getGlobalTransactionId()), archive,
+								ByteUtils.byteArrayToString(currentXid.getBranchQualifier()), xae.errorCode);
+						break;
+					case XAException.XAER_NOTA:
+					case XAException.XAER_INVAL:
+					case XAException.XAER_PROTO:
+						break;
+					default:
+						unFinishExists = true;
+						logger.error("[{}] forget: xares= {}, branch={}, error= {}",
+								ByteUtils.byteArrayToString(currentXid.getGlobalTransactionId()), archive,
+								ByteUtils.byteArrayToString(currentXid.getBranchQualifier()), xae.errorCode);
+					}
+				}
+			} // end-if
+		} // end-for
+
+		if (unFinishExists) {
+			throw new SystemException("Error occurred while cleaning branch transaction!");
+		}
+
 	}
 
 	public TransactionArchive getTransactionArchive() {
