@@ -234,16 +234,27 @@ public class TransactionImpl implements Transaction {
 		}
 	}
 
+	private void checkForTransactionExtraIfNecessary() throws RollbackException, HeuristicMixedException,
+			HeuristicRollbackException, SecurityException, IllegalStateException, CommitRequiredException, SystemException {
+
+		if (this.transactionalExtra != null) /* for ByteTCC */ {
+			if (this.participantList.isEmpty() == false && this.participant == null) /* see initGetTransactionStrategy */ {
+				this.participantRollback();
+				throw new HeuristicRollbackException();
+			} else if (this.participantList.size() > 1) {
+				this.participantRollback();
+				throw new HeuristicRollbackException();
+			}
+		} // end-if (this.transactionalExtra != null)
+
+	}
+
 	private void participantOnePhaseCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
 			SecurityException, IllegalStateException, CommitRequiredException, SystemException {
 
-		if (this.participant == null && this.participantList.isEmpty() == false) {
-			this.participantRollback();
-			throw new HeuristicRollbackException();
-		} else if (this.participantList.size() > 1) {
-			this.participantRollback();
-			throw new HeuristicRollbackException();
-		} else if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
+		this.checkForTransactionExtraIfNecessary();
+
+		if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
 			this.participantRollback();
 			throw new HeuristicRollbackException();
 		} else if (this.transactionStatus == Status.STATUS_ROLLING_BACK) {
@@ -722,8 +733,11 @@ public class TransactionImpl implements Transaction {
 					this.nativeParticipantList.add(archive);
 				} else if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
 					this.remoteParticipantList.add(archive);
+				} else if (this.participant == null) {
+					// this.participant = this.participant == null ? archive : this.participant;
+					this.participant = archive;
 				} else {
-					this.participant = this.participant == null ? archive : this.participant;
+					throw new SystemException("There already has a local-resource exists!");
 				}
 
 				this.participantList.add(archive);
