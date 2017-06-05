@@ -237,7 +237,7 @@ public class TransactionImpl implements Transaction {
 	private void participantOnePhaseCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
 			SecurityException, IllegalStateException, CommitRequiredException, SystemException {
 
-		if (this.participant != null && this.participantList.isEmpty() == false) {
+		if (this.participant == null && this.participantList.isEmpty() == false) {
 			this.participantRollback();
 			throw new HeuristicRollbackException();
 		} else if (this.participantList.size() > 1) {
