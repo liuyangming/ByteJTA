@@ -92,6 +92,7 @@ public class XATerminatorOptd implements XATerminator {
 
 		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
 
+		boolean updateRequired = true;
 		try {
 			archive.commit(archive.getXid(), true);
 			archive.setCommitted(true);
@@ -124,12 +125,14 @@ public class XATerminatorOptd implements XATerminator {
 			case XAException.XAER_RMFAIL:
 				logger.warn("An error occurred in one phase commit: {}",
 						ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()));
+				updateRequired = false;
 				throw new XAException(XAException.XA_HEURHAZ);
 			case XAException.XAER_NOTA:
 			case XAException.XAER_INVAL:
 			case XAException.XAER_PROTO:
 				logger.warn("An error occurred in one phase commit: {}",
 						ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()));
+				updateRequired = false;
 				throw new XAException(XAException.XAER_RMERR);
 			case XAException.XAER_RMERR:
 			case XAException.XA_RBCOMMFAIL:
@@ -146,7 +149,9 @@ public class XATerminatorOptd implements XATerminator {
 				throw new XAException(XAException.XA_HEURRB);
 			}
 		} finally {
-			transactionLogger.updateResource(archive);
+			if (updateRequired) {
+				transactionLogger.updateResource(archive);
+			}
 		}
 	}
 
@@ -162,6 +167,8 @@ public class XATerminatorOptd implements XATerminator {
 		}
 
 		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
+
+		boolean updateRequired = true;
 		try {
 			archive.commit(archive.getXid(), false);
 			archive.setCommitted(true);
@@ -216,11 +223,15 @@ public class XATerminatorOptd implements XATerminator {
 				throw new XAException(XAException.XA_RDONLY); // read-only
 			case XAException.XAER_RMFAIL:
 				// An error occurred that makes the resource manager unavailable.
+
+				updateRequired = false;
 				throw new XAException(XAException.XA_HEURHAZ);
 			case XAException.XAER_INVAL:
 				// Invalid arguments were specified.
 			case XAException.XAER_PROTO:
 				// The routine was invoked in an improper context.
+
+				updateRequired = false;
 				throw new XAException(XAException.XAER_RMERR);
 			case XAException.XAER_RMERR:
 				// An error occurred in committing the work performed on behalf of the transaction
@@ -236,7 +247,9 @@ public class XATerminatorOptd implements XATerminator {
 				throw new XAException(XAException.XA_HEURRB);
 			}
 		} finally {
-			transactionLogger.updateResource(archive);
+			if (updateRequired) {
+				transactionLogger.updateResource(archive);
+			}
 		}
 	}
 
@@ -253,6 +266,8 @@ public class XATerminatorOptd implements XATerminator {
 		}
 
 		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
+
+		boolean updateRequired = true;
 		try {
 			archive.rollback(archive.getXid());
 			archive.setRolledback(true);
@@ -303,6 +318,8 @@ public class XATerminatorOptd implements XATerminator {
 				break;
 			case XAException.XAER_RMFAIL:
 				// An error occurred that makes the resource manager unavailable.
+
+				updateRequired = false;
 				throw new XAException(XAException.XA_HEURHAZ);
 			case XAException.XAER_NOTA:
 				// The specified XID is not known by the resource manager.
@@ -319,8 +336,10 @@ public class XATerminatorOptd implements XATerminator {
 					archive.setCompleted(true);
 					throw new XAException(XAException.XA_RDONLY);
 				} else if (archive.getVote() == XAResource.XA_OK) {
+					updateRequired = false;
 					throw new XAException(XAException.XAER_RMERR);
 				} else {
+					updateRequired = false;
 					throw new XAException(XAException.XAER_RMERR);
 				}
 			case XAException.XAER_PROTO:
@@ -340,7 +359,9 @@ public class XATerminatorOptd implements XATerminator {
 				archive.setCompleted(true);
 			}
 		} finally {
-			transactionLogger.updateResource(archive);
+			if (updateRequired) {
+				transactionLogger.updateResource(archive);
+			}
 		}
 	}
 
