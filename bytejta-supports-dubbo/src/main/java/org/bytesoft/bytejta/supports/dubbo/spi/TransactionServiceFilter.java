@@ -323,7 +323,22 @@ public class TransactionServiceFilter implements Filter {
 
 		Map<String, String> attachments = invocation.getAttachments();
 		attachments.put(TransactionCoordinator.class.getName(), transactionCoordinator.getIdentifier());
-		return invoker.invoke(invocation);
+		RpcResult result = (RpcResult) invoker.invoke(invocation);
+		Object value = result.getValue();
+		if (InvocationResult.class.isInstance(value)) {
+			InvocationResult wrapped = (InvocationResult) value;
+			result.setValue(null);
+			result.setException(null);
+
+			if (wrapped.isFailure()) {
+				result.setException(wrapped.getError());
+			} else {
+				result.setValue(wrapped.getValue());
+			}
+
+		} // end-if (InvocationResult.class.isInstance(value))
+
+		return result;
 	}
 
 	public Result consumerInvokeForSVC(Invoker<?> invoker, Invocation invocation) throws RpcException {
