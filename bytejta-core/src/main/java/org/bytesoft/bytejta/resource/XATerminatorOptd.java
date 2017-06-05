@@ -148,6 +148,12 @@ public class XATerminatorOptd implements XATerminator {
 				archive.setCompleted(true);
 				throw new XAException(XAException.XA_HEURRB);
 			}
+		} catch (RuntimeException rex) {
+			logger.error("[{}] Error occurred while committing xa-resource: xares= {}, branch= {}",
+					ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
+					ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()));
+			updateRequired = false;
+			throw new XAException(XAException.XA_HEURHAZ);
 		} finally {
 			if (updateRequired) {
 				transactionLogger.updateResource(archive);
@@ -246,6 +252,12 @@ public class XATerminatorOptd implements XATerminator {
 				archive.setCompleted(true);
 				throw new XAException(XAException.XA_HEURRB);
 			}
+		} catch (RuntimeException rex) {
+			logger.error("[{}] Error occurred while committing xa-resource: xares= {}, branch= {}",
+					ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
+					ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()));
+			updateRequired = false;
+			throw new XAException(XAException.XA_HEURHAZ);
 		} finally {
 			if (updateRequired) {
 				transactionLogger.updateResource(archive);
@@ -346,6 +358,8 @@ public class XATerminatorOptd implements XATerminator {
 				// The routine was invoked in an improper context.
 			case XAException.XAER_INVAL:
 				// Invalid arguments were specified.
+
+				updateRequired = false;
 				throw new XAException(XAException.XAER_RMERR);
 			case XAException.XAER_RMERR:
 				// An error occurred in rolling back the transaction branch. The resource manager is
@@ -358,6 +372,12 @@ public class XATerminatorOptd implements XATerminator {
 				archive.setRolledback(true);
 				archive.setCompleted(true);
 			}
+		} catch (RuntimeException rex) {
+			logger.error("[{}] Error occurred while rolling back xa-resource: xares= {}, branch= {}",
+					ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
+					ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()));
+			updateRequired = false;
+			throw new XAException(XAException.XA_HEURHAZ);
 		} finally {
 			if (updateRequired) {
 				transactionLogger.updateResource(archive);

@@ -139,6 +139,12 @@ public class XATerminatorImpl implements XATerminator {
 				updateRequired = false;
 				throw new XAException(XAException.XAER_RMERR);
 			}
+		} catch (RuntimeException rex) {
+			logger.error("[{}] Error occurred while committing xa-resource: xares= {}, branch= {}",
+					ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
+					ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()));
+			updateRequired = false;
+			throw new XAException(XAException.XA_HEURHAZ);
 		} finally {
 			if (updateRequired) {
 				transactionLogger.updateResource(archive);
@@ -220,6 +226,12 @@ public class XATerminatorImpl implements XATerminator {
 					errorExists = true;
 					updateRequired = false;
 				}
+			} catch (RuntimeException rex) {
+				logger.error("[{}] Error occurred while committing xa-resource: xares= {}, branch= {}",
+						ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
+						ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()));
+				unFinishExists = true;
+				updateRequired = false;
 			} finally {
 				if (updateRequired) {
 					transactionLogger.updateResource(archive);
@@ -403,6 +415,12 @@ public class XATerminatorImpl implements XATerminator {
 					errorExists = true;
 					updateRequired = false;
 				}
+			} catch (RuntimeException rex) {
+				unFinishExists = true;
+				updateRequired = false;
+				logger.error("[{}] Error occurred while rolling back xa-resource: xares= {}, branch= {}",
+						ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
+						ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()));
 			} finally {
 				if (updateRequired) {
 					transactionLogger.updateResource(archive);
