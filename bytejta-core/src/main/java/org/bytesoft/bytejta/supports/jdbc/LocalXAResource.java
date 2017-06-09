@@ -27,6 +27,7 @@ import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
 import org.bytesoft.common.utils.ByteUtils;
+import org.bytesoft.transaction.xa.XidFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,12 +48,16 @@ public class LocalXAResource implements XAResource {
 	}
 
 	public void recoverable(Xid xid) throws XAException {
-		String gxid = ByteUtils.byteArrayToString(xid.getGlobalTransactionId());
+		byte[] globalTransactionId = xid.getGlobalTransactionId();
+		byte[] branchQualifier = xid.getBranchQualifier();
+		long longXid = this.getLongXid(globalTransactionId, branchQualifier);
+
+		String gxid = ByteUtils.byteArrayToString(globalTransactionId);
 		String bxid = null;
-		if (xid.getBranchQualifier() == null || xid.getBranchQualifier().length == 0) {
+		if (branchQualifier == null || branchQualifier.length == 0) {
 			bxid = gxid;
 		} else {
-			bxid = ByteUtils.byteArrayToString(xid.getBranchQualifier());
+			bxid = ByteUtils.byteArrayToString(branchQualifier);
 		}
 
 		Connection connection = this.managedConnection.getPhysicalConnection();
@@ -60,9 +65,10 @@ public class LocalXAResource implements XAResource {
 		PreparedStatement stmt = null;
 		ResultSet rs = null;
 		try {
-			stmt = connection.prepareStatement("select gxid, bxid from bytejta where gxid = ? and bxid = ?");
-			stmt.setString(1, gxid);
-			stmt.setString(2, bxid);
+			stmt = connection.prepareStatement("select gxid, bxid from bytejta where xid = ? gxid = ? and bxid = ?");
+			stmt.setLong(1, longXid);
+			stmt.setString(2, gxid);
+			stmt.setString(3, bxid);
 			rs = stmt.executeQuery();
 			if (rs.next() == false) {
 				throw new XAException(XAException.XAER_NOTA);
@@ -131,26 +137,31 @@ public class LocalXAResource implements XAResource {
 			this.currentXid = null;
 			this.originalAutoCommit = true;
 		} else if (flags == XAResource.TMSUCCESS) {
-			String gxid = ByteUtils.byteArrayToString(xid.getGlobalTransactionId());
+			byte[] globalTransactionId = xid.getGlobalTransactionId();
+			byte[] branchQualifier = xid.getBranchQualifier();
+			long longXid = this.getLongXid(globalTransactionId, branchQualifier);
+
+			String gxid = ByteUtils.byteArrayToString(globalTransactionId);
 			String bxid = null;
-			if (xid.getBranchQualifier() == null || xid.getBranchQualifier().length == 0) {
+			if (branchQualifier == null || branchQualifier.length == 0) {
 				bxid = gxid;
 			} else {
-				bxid = ByteUtils.byteArrayToString(xid.getBranchQualifier());
+				bxid = ByteUtils.byteArrayToString(branchQualifier);
 			}
 
 			Connection connection = this.managedConnection.getPhysicalConnection();
 
 			PreparedStatement stmt = null;
 			try {
-				stmt = connection.prepareStatement("insert into bytejta(gxid, bxid, ctime) values(?, ?, ?)");
-				stmt.setString(1, gxid);
-				stmt.setString(2, bxid);
-				stmt.setLong(3, System.currentTimeMillis());
+				stmt = connection.prepareStatement("insert into bytejta(xid, gxid, bxid, ctime, deleted) values(?, ?, ?, ?, ?)");
+				stmt.setLong(1, longXid);
+				stmt.setString(2, gxid);
+				stmt.setString(3, bxid);
+				stmt.setLong(4, System.currentTimeMillis());
+				stmt.setInt(5, 1);
 				int value = stmt.executeUpdate();
 				if (value == 0) {
-					throw new IllegalStateException(
-							"The operation failed and the data was not written to the database!");
+					throw new IllegalStateException("The operation failed and the data was not written to the database!");
 				}
 			} catch (SQLException ex) {
 				boolean tableExists = false;
@@ -332,9 +343,18 @@ public class LocalXAResource implements XAResource {
 		}
 	}
 
-	// public boolean hasParticipatedTx() {
-	// return currentXid != null;
-	// }
+	protected long getLongXid(byte[] globalTransactionId, byte[] branchQualifier) {
+		byte[] globalByteArray = globalTransactionId;
+		byte[] branchByteArray = branchQualifier == null || branchQualifier.length == 0 ? globalTransactionId : branchQualifier;
+
+		byte[] resultByteArray = new byte[8];
+		int globalStartIndex = XidFactory.GLOBAL_TRANSACTION_LENGTH - 4;
+		int branchStartIndex = XidFactory.BRANCH_QUALIFIER_LENGTH - 4;
+		System.arraycopy(globalByteArray, globalStartIndex, resultByteArray, 0, 4);
+		System.arraycopy(branchByteArray, branchStartIndex, resultByteArray, 4, 4);
+
+		return ByteUtils.byteArrayToLong(resultByteArray);
+	}
 
 	public int getTransactionTimeout() {
 		return 0;
@@ -343,10 +363,6 @@ public class LocalXAResource implements XAResource {
 	public boolean setTransactionTimeout(int transactionTimeout) {
 		return false;
 	}
-
-	// public void setLocalTransaction(Connection localTransaction) {
-	// this.localTransaction = localTransaction;
-	// }
 
 	public LocalXAConnection getManagedConnection() {
 		return managedConnection;

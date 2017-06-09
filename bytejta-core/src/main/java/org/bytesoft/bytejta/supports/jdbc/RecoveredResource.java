@@ -21,6 +21,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import javax.sql.DataSource;
 import javax.transaction.xa.XAException;
@@ -36,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 public class RecoveredResource extends LocalXAResource implements XAResource {
 	static final Logger logger = LoggerFactory.getLogger(RecoveredResource.class);
+	static final Random random = new Random();
 
 	private DataSource dataSource;
 
@@ -141,22 +143,16 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 			return;
 		}
 
-		String[][] xidArray = new String[xids.length][];
+		long[] xidArray = new long[xids.length];
 
 		for (int i = 0; i < xids.length; i++) {
 			Xid xid = xids[i];
-			String gxid = ByteUtils.byteArrayToString(xid.getGlobalTransactionId());
-			String bxid = null;
-			if (xid.getBranchQualifier() == null || xid.getBranchQualifier().length == 0) {
-				bxid = gxid;
-			} else {
-				bxid = ByteUtils.byteArrayToString(xid.getBranchQualifier());
-			}
 
-			String[] record = new String[2];
-			record[0] = gxid;
-			record[1] = bxid;
-			xidArray[i] = record;
+			byte[] globalTransactionId = xid.getGlobalTransactionId();
+			byte[] branchQualifier = xid.getBranchQualifier();
+			long longXid = this.getLongXid(globalTransactionId, branchQualifier);
+
+			xidArray[i] = longXid;
 		}
 
 		Connection conn = null;
@@ -166,10 +162,9 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 			conn = this.dataSource.getConnection();
 			autoCommit = conn.getAutoCommit();
 			conn.setAutoCommit(false);
-			stmt = conn.prepareStatement("delete from bytejta where gxid = ? and bxid = ?");
+			stmt = conn.prepareStatement("delete from bytejta where xid = ?");
 			for (int i = 0; i < xids.length; i++) {
-				stmt.setString(1, xidArray[i][0]);
-				stmt.setString(2, xidArray[i][1]);
+				stmt.setLong(1, xidArray[i]);
 				stmt.addBatch();
 			}
 			int number = 0;
@@ -221,24 +216,29 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 			logger.warn("Error occurred while forgeting local-xa-resource: invalid xid.");
 			return;
 		}
-		String gxid = ByteUtils.byteArrayToString(xid.getGlobalTransactionId());
-		String bxid = null;
-		if (xid.getBranchQualifier() == null || xid.getBranchQualifier().length == 0) {
-			bxid = gxid;
-		} else {
-			bxid = ByteUtils.byteArrayToString(xid.getBranchQualifier());
-		}
+
+		byte[] globalTransactionId = xid.getGlobalTransactionId();
+		byte[] branchQualifier = xid.getBranchQualifier();
+		long longXid = this.getLongXid(globalTransactionId, branchQualifier);
 
 		Connection conn = null;
-		PreparedStatement stmt = null;
+		PreparedStatement updateStmt = null;
+		PreparedStatement deleteStmt = null;
 		try {
 			conn = this.dataSource.getConnection();
-			stmt = conn.prepareStatement("delete from bytejta where gxid = ? and bxid = ?");
-			stmt.setString(1, gxid);
-			stmt.setString(2, bxid);
-			int value = stmt.executeUpdate();
+			updateStmt = conn.prepareStatement("update bytejta set deleted = ? where xid = ?");
+			updateStmt.setInt(1, 1);
+			updateStmt.setLong(2, longXid);
+			int value = updateStmt.executeUpdate();
 			if (value <= 0) {
 				throw new XAException(XAException.XAER_NOTA);
+			}
+
+			if (random.nextInt() % 50 == 0) {
+				deleteStmt = conn.prepareStatement("delete from bytejta where ctime < ? and deleted = ?");
+				deleteStmt.setLong(1, System.currentTimeMillis());
+				deleteStmt.setInt(2, 1);
+				deleteStmt.executeUpdate();
 			}
 		} catch (Exception ex) {
 			boolean tableExists = false;
@@ -253,7 +253,8 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 				throw new XAException(XAException.XAER_RMERR);
 			}
 		} finally {
-			this.closeQuietly(stmt);
+			this.closeQuietly(deleteStmt);
+			this.closeQuietly(updateStmt);
 			this.closeQuietly(conn);
 		}
 	}
