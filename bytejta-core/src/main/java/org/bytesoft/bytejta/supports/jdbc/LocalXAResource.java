@@ -65,10 +65,17 @@ public class LocalXAResource implements XAResource {
 		PreparedStatement stmt = null;
 		ResultSet rs = null;
 		try {
-			stmt = connection.prepareStatement("select gxid, bxid from bytejta where xid = ? gxid = ? and bxid = ?");
+			StringBuilder sql = new StringBuilder();
+			sql.append("select gxid, bxid from bytejta_one where xid = ? gxid = ? and bxid = ? ");
+			sql.append("union all ");
+			sql.append("select gxid, bxid from bytejta_two where xid = ? gxid = ? and bxid = ? ");
+			stmt = connection.prepareStatement(sql.toString());
 			stmt.setLong(1, longXid);
 			stmt.setString(2, gxid);
 			stmt.setString(3, bxid);
+			stmt.setLong(4, longXid);
+			stmt.setString(5, gxid);
+			stmt.setString(6, bxid);
 			rs = stmt.executeQuery();
 			if (rs.next() == false) {
 				throw new XAException(XAException.XAER_NOTA);
@@ -153,7 +160,13 @@ public class LocalXAResource implements XAResource {
 
 			PreparedStatement stmt = null;
 			try {
-				stmt = connection.prepareStatement("insert into bytejta(xid, gxid, bxid, ctime, deleted) values(?, ?, ?, ?, ?)");
+				String sqlOne = "insert into bytejta_one(xid, gxid, bxid, ctime, deleted) values(?, ?, ?, ?, ?)";
+				String sqlTwo = "insert into bytejta_two(xid, gxid, bxid, ctime, deleted) values(?, ?, ?, ?, ?)";
+				long time = System.currentTimeMillis() / 1000L;
+				long mode = time % 60;
+				String finalSql = mode < 30 ? sqlOne : sqlTwo;
+
+				stmt = connection.prepareStatement(finalSql);
 				stmt.setLong(1, longXid);
 				stmt.setString(2, gxid);
 				stmt.setString(3, bxid);

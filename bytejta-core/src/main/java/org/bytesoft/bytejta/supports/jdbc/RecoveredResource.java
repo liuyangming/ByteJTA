@@ -37,6 +37,10 @@ import org.slf4j.LoggerFactory;
 
 public class RecoveredResource extends LocalXAResource implements XAResource {
 	static final Logger logger = LoggerFactory.getLogger(RecoveredResource.class);
+
+	static final String CONSTANT_BYTEJTA_TABLE_ONE = "bytejta_one";
+	static final String CONSTANT_BYTEJTA_TABLE_TWO = "bytejta_two";
+
 	static final Random random = new Random();
 
 	private DataSource dataSource;
@@ -138,7 +142,15 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 		}
 	}
 
-	public synchronized void forget(Xid[] xids) throws XAException {
+	public synchronized void forget(Xid[] xids, boolean flag) throws XAException {
+		if (flag) {
+			this.forget(xids, CONSTANT_BYTEJTA_TABLE_ONE);
+		} else {
+			this.forget(xids, CONSTANT_BYTEJTA_TABLE_TWO);
+		}
+	}
+
+	private void forget(Xid[] xids, String table) throws XAException {
 		if (xids == null || xids.length == 0) {
 			return;
 		}
@@ -150,9 +162,7 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 
 			byte[] globalTransactionId = xid.getGlobalTransactionId();
 			byte[] branchQualifier = xid.getBranchQualifier();
-			long longXid = this.getLongXid(globalTransactionId, branchQualifier);
-
-			xidArray[i] = longXid;
+			xidArray[i] = this.getLongXid(globalTransactionId, branchQualifier);
 		}
 
 		Connection conn = null;
@@ -162,20 +172,12 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 			conn = this.dataSource.getConnection();
 			autoCommit = conn.getAutoCommit();
 			conn.setAutoCommit(false);
-			stmt = conn.prepareStatement("delete from bytejta where xid = ?");
+			stmt = conn.prepareStatement(String.format("delete from %s where xid = ?", table));
 			for (int i = 0; i < xids.length; i++) {
 				stmt.setLong(1, xidArray[i]);
 				stmt.addBatch();
 			}
-			int number = 0;
-			int[] values = stmt.executeBatch();
-			for (int i = 0; values != null && i < values.length; i++) {
-				int value = values[i];
-				number += value > 0 ? value : 0;
-			}
-			if (number != xids.length) {
-				logger.error("Error occurred while forgetting resources, required: {}, actual: {}.", xids.length, number);
-			}
+			stmt.executeBatch();
 			conn.commit();
 		} catch (Exception ex) {
 			logger.error("Error occurred while forgetting resources.");
