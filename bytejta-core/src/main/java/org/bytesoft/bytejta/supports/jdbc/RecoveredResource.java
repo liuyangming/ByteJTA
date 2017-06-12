@@ -21,7 +21,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 import javax.sql.DataSource;
 import javax.transaction.xa.XAException;
@@ -41,34 +40,34 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 	static final String CONSTANT_BYTEJTA_TABLE_ONE = "bytejta_one";
 	static final String CONSTANT_BYTEJTA_TABLE_TWO = "bytejta_two";
 
-	static final Random random = new Random();
-
 	private DataSource dataSource;
 
 	public void recoverable(Xid xid) throws XAException {
-		String gxid = ByteUtils.byteArrayToString(xid.getGlobalTransactionId());
-		String bxid = null;
-		if (xid.getBranchQualifier() == null || xid.getBranchQualifier().length == 0) {
-			bxid = gxid;
-		} else {
-			bxid = ByteUtils.byteArrayToString(xid.getBranchQualifier());
-		}
+		StringBuilder sql = new StringBuilder();
+		sql.append("select gxid, bxid from bytejta_one where xid = ?");
+		sql.append("union ");
+		sql.append("select gxid, bxid from bytejta_two where xid = ?");
+
+		byte[] globalTransactionId = xid.getGlobalTransactionId();
+		byte[] branchQualifier = xid.getBranchQualifier();
+		long longXid = this.getLongXid(globalTransactionId, branchQualifier);
 
 		Connection conn = null;
 		PreparedStatement stmt = null;
 		ResultSet rs = null;
 		try {
 			conn = this.dataSource.getConnection();
-			stmt = conn.prepareStatement("select gxid, bxid from bytejta where gxid = ? and bxid = ?");
-			stmt.setString(1, gxid);
-			stmt.setString(2, bxid);
+			stmt = conn.prepareStatement(sql.toString());
+			stmt.setLong(1, longXid);
+			stmt.setLong(2, longXid);
 			rs = stmt.executeQuery();
 			if (rs.next() == false) {
 				throw new XAException(XAException.XAER_NOTA);
 			}
 		} catch (SQLException ex) {
 			try {
-				this.isTableExists(conn);
+				this.isTableExists(conn, "bytejta_one");
+				this.isTableExists(conn, "bytejta_two");
 			} catch (SQLException sqlEx) {
 				logger.warn("Error occurred while recovering local-xa-resource.", ex);
 				throw new XAException(XAException.XAER_RMFAIL);
@@ -90,12 +89,18 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 
 	public Xid[] recover(int flags) throws XAException {
 		List<Xid> xidList = new ArrayList<Xid>();
+
+		StringBuilder sql = new StringBuilder();
+		sql.append("select gxid, bxid from bytejta_one ");
+		sql.append("union ");
+		sql.append("select gxid, bxid from bytejta_two ");
+
 		Connection conn = null;
 		PreparedStatement stmt = null;
 		ResultSet rs = null;
 		try {
 			conn = this.dataSource.getConnection();
-			stmt = conn.prepareStatement("select gxid, bxid from bytejta");
+			stmt = conn.prepareStatement(sql.toString());
 			rs = stmt.executeQuery();
 			while (rs.next()) {
 				String gxid = rs.getString(1);
@@ -111,15 +116,23 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 				xidList.add(xid);
 			}
 		} catch (Exception ex) {
-			boolean tableExists = false;
+			boolean tableOneExists = false;
 			try {
-				tableExists = this.isTableExists(conn);
+				tableOneExists = this.isTableExists(conn, "bytejta_one");
 			} catch (Exception sqlEx) {
 				logger.warn("Error occurred while recovering local-xa-resource.", ex);
 				throw new XAException(XAException.XAER_RMFAIL);
 			}
 
-			if (tableExists) {
+			boolean tableTwoExists = false;
+			try {
+				tableTwoExists = this.isTableExists(conn, "bytejta_two");
+			} catch (Exception sqlEx) {
+				logger.warn("Error occurred while recovering local-xa-resource.", ex);
+				throw new XAException(XAException.XAER_RMFAIL);
+			}
+
+			if (tableOneExists && tableTwoExists) {
 				throw new XAException(XAException.XAER_RMERR);
 			}
 		} finally {
@@ -190,7 +203,7 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 
 			boolean tableExists = false;
 			try {
-				tableExists = this.isTableExists(conn);
+				tableExists = this.isTableExists(conn, table);
 			} catch (Exception sqlEx) {
 				logger.warn("Error occurred while forgeting local resources.", ex);
 				throw new XAException(XAException.XAER_RMFAIL);
@@ -219,33 +232,28 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 			return;
 		}
 
+		this.forget(xid, "bytejta_one");
+		this.forget(xid, "bytejta_two");
+	}
+
+	public synchronized void forget(Xid xid, String table) throws XAException {
 		byte[] globalTransactionId = xid.getGlobalTransactionId();
 		byte[] branchQualifier = xid.getBranchQualifier();
 		long longXid = this.getLongXid(globalTransactionId, branchQualifier);
 
+		String sql = String.format("delete from %s where xid = ?", table);
+
 		Connection conn = null;
-		PreparedStatement updateStmt = null;
-		PreparedStatement deleteStmt = null;
+		PreparedStatement stmt = null;
 		try {
 			conn = this.dataSource.getConnection();
-			updateStmt = conn.prepareStatement("update bytejta set deleted = ? where xid = ?");
-			updateStmt.setInt(1, 1);
-			updateStmt.setLong(2, longXid);
-			int value = updateStmt.executeUpdate();
-			if (value <= 0) {
-				throw new XAException(XAException.XAER_NOTA);
-			}
-
-			if (random.nextInt() % 50 == 0) {
-				deleteStmt = conn.prepareStatement("delete from bytejta where ctime < ? and deleted = ?");
-				deleteStmt.setLong(1, System.currentTimeMillis());
-				deleteStmt.setInt(2, 1);
-				deleteStmt.executeUpdate();
-			}
+			stmt = conn.prepareStatement(sql);
+			stmt.setLong(1, longXid);
+			stmt.executeUpdate();
 		} catch (Exception ex) {
 			boolean tableExists = false;
 			try {
-				tableExists = this.isTableExists(conn);
+				tableExists = this.isTableExists(conn, table);
 			} catch (Exception sqlEx) {
 				logger.warn("Error occurred while forgeting local-xa-resource.", ex);
 				throw new XAException(XAException.XAER_RMFAIL);
@@ -255,8 +263,7 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 				throw new XAException(XAException.XAER_RMERR);
 			}
 		} finally {
-			this.closeQuietly(deleteStmt);
-			this.closeQuietly(updateStmt);
+			this.closeQuietly(stmt);
 			this.closeQuietly(conn);
 		}
 	}

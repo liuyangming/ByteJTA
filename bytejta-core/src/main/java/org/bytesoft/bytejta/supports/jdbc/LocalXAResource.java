@@ -66,9 +66,9 @@ public class LocalXAResource implements XAResource {
 		ResultSet rs = null;
 		try {
 			StringBuilder sql = new StringBuilder();
-			sql.append("select gxid, bxid from bytejta_one where xid = ? gxid = ? and bxid = ? ");
-			sql.append("union all ");
-			sql.append("select gxid, bxid from bytejta_two where xid = ? gxid = ? and bxid = ? ");
+			sql.append("select xid, gxid, bxid from bytejta_one where xid = ? gxid = ? and bxid = ? ");
+			sql.append("union ");
+			sql.append("select xid, gxid, bxid from bytejta_two where xid = ? gxid = ? and bxid = ? ");
 			stmt = connection.prepareStatement(sql.toString());
 			stmt.setLong(1, longXid);
 			stmt.setString(2, gxid);
@@ -158,20 +158,18 @@ public class LocalXAResource implements XAResource {
 
 			Connection connection = this.managedConnection.getPhysicalConnection();
 
+			long time = System.currentTimeMillis() / 1000L;
+			long mode = time % 60;
+			String table = mode < 30 ? "bytejta_one" : "bytejta_two";
+
 			PreparedStatement stmt = null;
 			try {
-				String sqlOne = "insert into bytejta_one(xid, gxid, bxid, ctime, deleted) values(?, ?, ?, ?, ?)";
-				String sqlTwo = "insert into bytejta_two(xid, gxid, bxid, ctime, deleted) values(?, ?, ?, ?, ?)";
-				long time = System.currentTimeMillis() / 1000L;
-				long mode = time % 60;
-				String finalSql = mode < 30 ? sqlOne : sqlTwo;
-
-				stmt = connection.prepareStatement(finalSql);
+				String sql = String.format("insert into %s(xid, gxid, bxid, ctime) values(?, ?, ?, ?)", table);
+				stmt = connection.prepareStatement(sql);
 				stmt.setLong(1, longXid);
 				stmt.setString(2, gxid);
 				stmt.setString(3, bxid);
 				stmt.setLong(4, System.currentTimeMillis());
-				stmt.setInt(5, 1);
 				int value = stmt.executeUpdate();
 				if (value == 0) {
 					throw new IllegalStateException("The operation failed and the data was not written to the database!");
@@ -179,7 +177,7 @@ public class LocalXAResource implements XAResource {
 			} catch (SQLException ex) {
 				boolean tableExists = false;
 				try {
-					tableExists = this.isTableExists(connection);
+					tableExists = this.isTableExists(connection, table);
 				} catch (Exception sqlEx) {
 					logger.error("Error occurred while ending local-xa-resource: {}", ex.getMessage());
 					throw new XAException(XAException.XAER_RMFAIL);
@@ -301,7 +299,7 @@ public class LocalXAResource implements XAResource {
 		return new Xid[0];
 	}
 
-	protected boolean isTableExists(Connection conn) throws SQLException {
+	protected boolean isTableExists(Connection conn, String table) throws SQLException {
 
 		String catalog = null;
 		try {
@@ -319,7 +317,7 @@ public class LocalXAResource implements XAResource {
 		ResultSet rs = null;
 		try {
 			DatabaseMetaData metadata = conn.getMetaData();
-			rs = metadata.getTables(catalog, schema, "bytejta", null);
+			rs = metadata.getTables(catalog, schema, table, null);
 			return rs.next();
 		} finally {
 			this.closeQuietly(rs);
