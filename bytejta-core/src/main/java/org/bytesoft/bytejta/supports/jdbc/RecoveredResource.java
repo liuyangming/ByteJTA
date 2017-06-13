@@ -37,16 +37,13 @@ import org.slf4j.LoggerFactory;
 public class RecoveredResource extends LocalXAResource implements XAResource {
 	static final Logger logger = LoggerFactory.getLogger(RecoveredResource.class);
 
-	static final String CONSTANT_BYTEJTA_TABLE_ONE = "bytejta_one";
-	static final String CONSTANT_BYTEJTA_TABLE_TWO = "bytejta_two";
-
 	private DataSource dataSource;
 
 	public void recoverable(Xid xid) throws XAException {
 		StringBuilder sql = new StringBuilder();
-		sql.append("select gxid, bxid from bytejta_one where xid = ?");
+		sql.append("select gxid, bxid from bytejta_one where xid = ? ");
 		sql.append("union ");
-		sql.append("select gxid, bxid from bytejta_two where xid = ?");
+		sql.append("select gxid, bxid from bytejta_two where xid = ? ");
 
 		byte[] globalTransactionId = xid.getGlobalTransactionId();
 		byte[] branchQualifier = xid.getBranchQualifier();
@@ -66,8 +63,8 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 			}
 		} catch (SQLException ex) {
 			try {
-				this.isTableExists(conn, "bytejta_one");
-				this.isTableExists(conn, "bytejta_two");
+				this.isTableExists(conn, CONSTANT_BYTEJTA_TABLE_ONE);
+				this.isTableExists(conn, CONSTANT_BYTEJTA_TABLE_TWO);
 			} catch (SQLException sqlEx) {
 				logger.warn("Error occurred while recovering local-xa-resource.", ex);
 				throw new XAException(XAException.XAER_RMFAIL);
@@ -118,7 +115,7 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 		} catch (Exception ex) {
 			boolean tableOneExists = false;
 			try {
-				tableOneExists = this.isTableExists(conn, "bytejta_one");
+				tableOneExists = this.isTableExists(conn, CONSTANT_BYTEJTA_TABLE_ONE);
 			} catch (Exception sqlEx) {
 				logger.warn("Error occurred while recovering local-xa-resource.", ex);
 				throw new XAException(XAException.XAER_RMFAIL);
@@ -126,7 +123,7 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 
 			boolean tableTwoExists = false;
 			try {
-				tableTwoExists = this.isTableExists(conn, "bytejta_two");
+				tableTwoExists = this.isTableExists(conn, CONSTANT_BYTEJTA_TABLE_TWO);
 			} catch (Exception sqlEx) {
 				logger.warn("Error occurred while recovering local-xa-resource.", ex);
 				throw new XAException(XAException.XAER_RMFAIL);
@@ -232,8 +229,8 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 			return;
 		}
 
-		this.forget(xid, "bytejta_one");
-		this.forget(xid, "bytejta_two");
+		this.forget(xid, CONSTANT_BYTEJTA_TABLE_ONE);
+		this.forget(xid, CONSTANT_BYTEJTA_TABLE_TWO);
 	}
 
 	public synchronized void forget(Xid xid, String table) throws XAException {

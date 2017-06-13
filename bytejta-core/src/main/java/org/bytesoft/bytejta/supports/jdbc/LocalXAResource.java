@@ -34,6 +34,9 @@ import org.slf4j.LoggerFactory;
 public class LocalXAResource implements XAResource {
 	static final Logger logger = LoggerFactory.getLogger(LocalXAResource.class);
 
+	static final String CONSTANT_BYTEJTA_TABLE_ONE = "bytejta_one";
+	static final String CONSTANT_BYTEJTA_TABLE_TWO = "bytejta_two";
+
 	private LocalXAConnection managedConnection;
 	private Xid currentXid;
 	private Xid suspendXid;
@@ -160,7 +163,7 @@ public class LocalXAResource implements XAResource {
 
 			long time = System.currentTimeMillis() / 1000L;
 			long mode = time % 60;
-			String table = mode < 30 ? "bytejta_one" : "bytejta_two";
+			String table = mode < 30 ? CONSTANT_BYTEJTA_TABLE_ONE : CONSTANT_BYTEJTA_TABLE_TWO;
 
 			PreparedStatement stmt = null;
 			try {
