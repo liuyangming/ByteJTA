@@ -21,6 +21,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Calendar;
 
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
@@ -33,9 +34,6 @@ import org.slf4j.LoggerFactory;
 
 public class LocalXAResource implements XAResource {
 	static final Logger logger = LoggerFactory.getLogger(LocalXAResource.class);
-
-	static final String CONSTANT_BYTEJTA_TABLE_ONE = "bytejta_one";
-	static final String CONSTANT_BYTEJTA_TABLE_TWO = "bytejta_two";
 
 	private LocalXAConnection managedConnection;
 	private Xid currentXid;
@@ -53,7 +51,6 @@ public class LocalXAResource implements XAResource {
 	public void recoverable(Xid xid) throws XAException {
 		byte[] globalTransactionId = xid.getGlobalTransactionId();
 		byte[] branchQualifier = xid.getBranchQualifier();
-		long longXid = this.getLongXid(globalTransactionId, branchQualifier);
 
 		String gxid = ByteUtils.byteArrayToString(globalTransactionId);
 		String bxid = null;
@@ -63,22 +60,19 @@ public class LocalXAResource implements XAResource {
 			bxid = ByteUtils.byteArrayToString(branchQualifier);
 		}
 
+		String identifier = this.getIdentifier(globalTransactionId, branchQualifier);
+
 		Connection connection = this.managedConnection.getPhysicalConnection();
 
 		PreparedStatement stmt = null;
 		ResultSet rs = null;
 		try {
 			StringBuilder sql = new StringBuilder();
-			sql.append("select xid, gxid, bxid from bytejta_one where xid = ? gxid = ? and bxid = ? ");
-			sql.append("union ");
-			sql.append("select xid, gxid, bxid from bytejta_two where xid = ? gxid = ? and bxid = ? ");
+			sql.append("select xid, gxid, bxid from bytejta where xid = ? gxid = ? and bxid = ? ");
 			stmt = connection.prepareStatement(sql.toString());
-			stmt.setLong(1, longXid);
+			stmt.setString(1, identifier);
 			stmt.setString(2, gxid);
 			stmt.setString(3, bxid);
-			stmt.setLong(4, longXid);
-			stmt.setString(5, gxid);
-			stmt.setString(6, bxid);
 			rs = stmt.executeQuery();
 			if (rs.next() == false) {
 				throw new XAException(XAException.XAER_NOTA);
@@ -149,7 +143,6 @@ public class LocalXAResource implements XAResource {
 		} else if (flags == XAResource.TMSUCCESS) {
 			byte[] globalTransactionId = xid.getGlobalTransactionId();
 			byte[] branchQualifier = xid.getBranchQualifier();
-			long longXid = this.getLongXid(globalTransactionId, branchQualifier);
 
 			String gxid = ByteUtils.byteArrayToString(globalTransactionId);
 			String bxid = null;
@@ -159,17 +152,14 @@ public class LocalXAResource implements XAResource {
 				bxid = ByteUtils.byteArrayToString(branchQualifier);
 			}
 
-			Connection connection = this.managedConnection.getPhysicalConnection();
+			String identifier = this.getIdentifier(globalTransactionId, branchQualifier);
 
-			long time = System.currentTimeMillis() / 1000L;
-			long mode = time % 60;
-			String table = mode < 30 ? CONSTANT_BYTEJTA_TABLE_ONE : CONSTANT_BYTEJTA_TABLE_TWO;
+			Connection connection = this.managedConnection.getPhysicalConnection();
 
 			PreparedStatement stmt = null;
 			try {
-				String sql = String.format("insert into %s(xid, gxid, bxid, ctime) values(?, ?, ?, ?)", table);
-				stmt = connection.prepareStatement(sql);
-				stmt.setLong(1, longXid);
+				stmt = connection.prepareStatement("insert into bytejta(xid, gxid, bxid, ctime) values(?, ?, ?, ?)");
+				stmt.setString(1, identifier);
 				stmt.setString(2, gxid);
 				stmt.setString(3, bxid);
 				stmt.setLong(4, System.currentTimeMillis());
@@ -180,7 +170,7 @@ public class LocalXAResource implements XAResource {
 			} catch (SQLException ex) {
 				boolean tableExists = false;
 				try {
-					tableExists = this.isTableExists(connection, table);
+					tableExists = this.isTableExists(connection);
 				} catch (Exception sqlEx) {
 					logger.error("Error occurred while ending local-xa-resource: {}", ex.getMessage());
 					throw new XAException(XAException.XAER_RMFAIL);
@@ -302,7 +292,7 @@ public class LocalXAResource implements XAResource {
 		return new Xid[0];
 	}
 
-	protected boolean isTableExists(Connection conn, String table) throws SQLException {
+	protected boolean isTableExists(Connection conn) throws SQLException {
 
 		String catalog = null;
 		try {
@@ -320,7 +310,7 @@ public class LocalXAResource implements XAResource {
 		ResultSet rs = null;
 		try {
 			DatabaseMetaData metadata = conn.getMetaData();
-			rs = metadata.getTables(catalog, schema, table, null);
+			rs = metadata.getTables(catalog, schema, "bytejta", null);
 			return rs.next();
 		} finally {
 			this.closeQuietly(rs);
@@ -357,17 +347,35 @@ public class LocalXAResource implements XAResource {
 		}
 	}
 
-	protected long getLongXid(byte[] globalTransactionId, byte[] branchQualifier) {
+	protected String getIdentifier(byte[] globalTransactionId, byte[] branchQualifier) {
+		byte[] resultByteArray = new byte[16];
+
 		byte[] globalByteArray = globalTransactionId;
 		byte[] branchByteArray = branchQualifier == null || branchQualifier.length == 0 ? globalTransactionId : branchQualifier;
 
-		byte[] resultByteArray = new byte[8];
+		byte[] millisByteArray = new byte[8];
+		System.arraycopy(branchByteArray, 6, millisByteArray, 0, 8);
+
+		long millis = ByteUtils.byteArrayToLong(millisByteArray);
+		Calendar calendar = Calendar.getInstance();
+		calendar.setTimeInMillis(millis);
+		int hour = calendar.get(Calendar.HOUR_OF_DAY);
+		int minute = calendar.get(Calendar.MINUTE);
+		int second = calendar.get(Calendar.SECOND);
+
+		int intTimeValue = (hour << 12) | (minute << 6) | second;
+		short shortTimeValue = (short) intTimeValue;
+		byte[] timeByteArray = ByteUtils.shortToByteArray(shortTimeValue);
+
 		int globalStartIndex = XidFactory.GLOBAL_TRANSACTION_LENGTH - 4;
 		int branchStartIndex = XidFactory.BRANCH_QUALIFIER_LENGTH - 4;
-		System.arraycopy(globalByteArray, globalStartIndex, resultByteArray, 0, 4);
-		System.arraycopy(branchByteArray, branchStartIndex, resultByteArray, 4, 4);
 
-		return ByteUtils.byteArrayToLong(resultByteArray);
+		System.arraycopy(branchByteArray, 0, resultByteArray, 0, 6);
+		System.arraycopy(timeByteArray, 0, resultByteArray, 6, 2);
+		System.arraycopy(globalByteArray, globalStartIndex, resultByteArray, 8, 4);
+		System.arraycopy(branchByteArray, branchStartIndex, resultByteArray, 12, 4);
+
+		return ByteUtils.byteArrayToString(resultByteArray);
 	}
 
 	public int getTransactionTimeout() {
