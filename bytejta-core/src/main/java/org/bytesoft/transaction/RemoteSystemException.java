@@ -34,7 +34,7 @@ public class RemoteSystemException extends SystemException {
 		super(errcode);
 	}
 
-	public synchronized Throwable initCause(Throwable cause) {
+	public Throwable initCause(Throwable cause) {
 		if (RemoteException.class.isInstance(cause) == false) {
 			throw new IllegalArgumentException();
 		}

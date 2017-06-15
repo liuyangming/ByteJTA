@@ -23,7 +23,7 @@ import javax.transaction.Synchronization;
 public class SynchronizationList implements Synchronization {
 	private final List<Synchronization> synchronizations = new ArrayList<Synchronization>();
 
-	public synchronized void registerSynchronizationQuietly(Synchronization sync) {
+	public void registerSynchronizationQuietly(Synchronization sync) {
 		SynchronizationImpl synchronization = new SynchronizationImpl(sync);
 		this.synchronizations.add(synchronization);
 	}
@@ -33,7 +33,7 @@ public class SynchronizationList implements Synchronization {
 		for (int i = 0; i < length; i++) {
 			Synchronization synchronization = this.synchronizations.get(i);
 			synchronization.beforeCompletion();
-		}// end-for
+		} // end-for
 	}
 
 	public void afterCompletion(int status) {
@@ -41,7 +41,7 @@ public class SynchronizationList implements Synchronization {
 		for (int i = 0; i < length; i++) {
 			Synchronization synchronization = this.synchronizations.get(i);
 			synchronization.afterCompletion(status);
-		}// end-for
+		} // end-for
 	}
 
 }
