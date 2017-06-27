@@ -4,7 +4,7 @@
 
 	<groupId>org.bytesoft</groupId>
 	<artifactId>bytejta-parent</artifactId>
-	<version>0.4.0-alpha2</version>
+	<version>0.4.0-alpha3</version>
 	<packaging>pom</packaging>
 	<name>bytejta-parent</name>
 	<description>ByteJTA is a XA-complicant transaction manager.</description>
@@ -84,17 +84,17 @@
 			<dependency>
 				<groupId>org.bytesoft</groupId>
 				<artifactId>bytejta-core</artifactId>
-				<version>0.4.0-alpha2</version>
+				<version>0.4.0-alpha3</version>
 			</dependency>
 			<dependency>
 				<groupId>org.bytesoft</groupId>
 				<artifactId>bytejta-supports</artifactId>
-				<version>0.4.0-alpha2</version>
+				<version>0.4.0-alpha3</version>
 			</dependency>
 			<dependency>
 				<groupId>org.bytesoft</groupId>
 				<artifactId>bytejta-supports-dubbo</artifactId>
-				<version>0.4.0-alpha2</version>
+				<version>0.4.0-alpha3</version>
 			</dependency>
 
 			<!-- logger -->
