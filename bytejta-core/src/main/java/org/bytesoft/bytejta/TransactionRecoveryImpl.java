@@ -23,6 +23,8 @@ import javax.transaction.SystemException;
 import javax.transaction.xa.XAResource;
 
 import org.apache.commons.lang3.StringUtils;
+import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
+import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
@@ -195,6 +197,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		transaction.getRemoteParticipantList().addAll(remoteResources);
 
 		List<XAResourceArchive> participants = transaction.getParticipantList();
+		Map<String, XAResourceArchive> applicationMap = transaction.getApplicationMap();
 		Map<String, XAResourceArchive> participantMap = transaction.getParticipantMap();
 		if (archive.getOptimizedResource() != null) {
 			participants.add(archive.getOptimizedResource());
@@ -206,6 +209,13 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 			XAResourceArchive element = participants.get(i);
 			XAResourceDescriptor descriptor = element.getDescriptor();
 			String identifier = StringUtils.trimToEmpty(descriptor.getIdentifier());
+
+			if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
+				RemoteResourceDescriptor resourceDescriptor = (RemoteResourceDescriptor) descriptor;
+				RemoteCoordinator remoteCoordinator = resourceDescriptor.getDelegate();
+				applicationMap.put(remoteCoordinator.getApplication(), element);
+			} // end-if (RemoteResourceDescriptor.class.isInstance(descriptor))
+
 			participantMap.put(identifier, element);
 		}
 

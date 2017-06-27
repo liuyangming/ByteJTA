@@ -19,6 +19,7 @@ public final class InvocationContext {
 
 	private String serverHost;
 	private int serverPort;
+	private String serviceKey;
 
 	public String getServerHost() {
 		return serverHost;
@@ -34,6 +35,14 @@ public final class InvocationContext {
 
 	public void setServerPort(int serverPort) {
 		this.serverPort = serverPort;
+	}
+
+	public String getServiceKey() {
+		return serviceKey;
+	}
+
+	public void setServiceKey(String serviceKey) {
+		this.serviceKey = serviceKey;
 	}
 
 }

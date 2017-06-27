@@ -140,10 +140,12 @@ public class TransactionServiceFilter implements Filter {
 
 		URL targetUrl = invoker.getUrl();
 		String targetAddr = targetUrl.getIp();
+		String targetName = targetUrl.getParameter("application");
 		int targetPort = targetUrl.getPort();
-		String address = String.format("%s:%s", targetAddr, targetPort);
+		String address = String.format("%s:%s:%s", targetAddr, targetName, targetPort);
 		InvocationContext invocationContext = new InvocationContext();
 		invocationContext.setServerHost(targetAddr);
+		invocationContext.setServiceKey(targetName);
 		invocationContext.setServerPort(targetPort);
 
 		RemoteCoordinator remoteCoordinator = remoteCoordinatorRegistry.getTransactionManagerStub(address);
@@ -353,10 +355,12 @@ public class TransactionServiceFilter implements Filter {
 
 		URL targetUrl = invoker.getUrl();
 		String targetAddr = targetUrl.getIp();
+		String targetName = targetUrl.getParameter("application");
 		int targetPort = targetUrl.getPort();
-		String address = String.format("%s:%s", targetAddr, targetPort);
+		String address = String.format("%s:%s:%s", targetAddr, targetName, targetPort);
 		InvocationContext invocationContext = new InvocationContext();
 		invocationContext.setServerHost(targetAddr);
+		invocationContext.setServiceKey(targetName);
 		invocationContext.setServerPort(targetPort);
 
 		RemoteCoordinator remoteCoordinator = remoteCoordinatorRegistry.getTransactionManagerStub(address);

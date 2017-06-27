@@ -41,8 +41,7 @@ public final class TransactionLoadBalance implements LoadBalance {
 		}
 	}
 
-	public <T> Invoker<T> selectRandomInvoker(List<Invoker<T>> invokers, URL url, Invocation invocation)
-			throws RpcException {
+	public <T> Invoker<T> selectRandomInvoker(List<Invoker<T>> invokers, URL url, Invocation invocation) throws RpcException {
 		int lengthOfInvokerList = invokers == null ? 0 : invokers.size();
 		if (lengthOfInvokerList == 0) {
 			throw new RpcException("No invoker is found!");
@@ -54,16 +53,19 @@ public final class TransactionLoadBalance implements LoadBalance {
 	public <T> Invoker<T> selectSpecificInvoker(List<Invoker<T>> invokers, URL url, Invocation invocation,
 			InvocationContext context) throws RpcException {
 		String serverHost = context.getServerHost();
+		String serviceKey = context.getServiceKey();
 		int serverPort = context.getServerPort();
 		for (int i = 0; invokers != null && i < invokers.size(); i++) {
 			Invoker<T> invoker = invokers.get(i);
 			URL targetUrl = invoker.getUrl();
 			String targetAddr = targetUrl.getIp();
+			String targetName = targetUrl.getParameter("application");
 			int targetPort = targetUrl.getPort();
-			if (StringUtils.equals(targetAddr, serverHost) && targetPort == serverPort) {
+			if (StringUtils.equals(targetAddr, serverHost) //
+					&& StringUtils.equalsIgnoreCase(serviceKey, targetName) && targetPort == serverPort) {
 				return invoker;
 			}
 		}
-		throw new RpcException(String.format("Invoker(%s:%s) is not found!", serverHost, serverPort));
+		throw new RpcException(String.format("Invoker(%s:%s:%s) is not found!", serverHost, serviceKey, serverPort));
 	}
 }

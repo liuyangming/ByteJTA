@@ -53,6 +53,8 @@ public interface Transaction extends javax.transaction.Transaction {
 
 	public XAResourceDescriptor getResourceDescriptor(String identifier);
 
+	public XAResourceDescriptor getRemoteCoordinator(String application);
+
 	public TransactionContext getTransactionContext();
 
 	public TransactionArchive getTransactionArchive();

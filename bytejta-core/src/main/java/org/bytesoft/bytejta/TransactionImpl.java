@@ -83,6 +83,7 @@ public class TransactionImpl implements Transaction {
 
 	private final TransactionResourceListenerList resourceListenerList = new TransactionResourceListenerList();
 
+	private final Map<String, XAResourceArchive> applicationMap = new HashMap<String, XAResourceArchive>();
 	private final Map<String, XAResourceArchive> participantMap = new HashMap<String, XAResourceArchive>();
 	private XAResourceArchive participant; // last resource
 	private final List<XAResourceArchive> participantList = new ArrayList<XAResourceArchive>();
@@ -98,6 +99,11 @@ public class TransactionImpl implements Transaction {
 
 	public XAResourceDescriptor getResourceDescriptor(String identifier) {
 		XAResourceArchive archive = this.participantMap.get(identifier);
+		return archive == null ? null : archive.getDescriptor();
+	}
+
+	public XAResourceDescriptor getRemoteCoordinator(String application) {
+		XAResourceArchive archive = this.applicationMap.get(application);
 		return archive == null ? null : archive.getDescriptor();
 	}
 
@@ -741,6 +747,11 @@ public class TransactionImpl implements Transaction {
 				}
 
 				this.participantList.add(archive);
+				if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
+					RemoteResourceDescriptor resourceDescriptor = (RemoteResourceDescriptor) descriptor;
+					RemoteCoordinator remoteCoordinator = resourceDescriptor.getDelegate();
+					this.applicationMap.put(remoteCoordinator.getApplication(), archive);
+				} // end-if (RemoteResourceDescriptor.class.isInstance(descriptor))
 				this.participantMap.put(identifier, archive);
 
 				this.resourceListenerList.onEnlistResource(archive.getXid(), descriptor);
@@ -1514,6 +1525,10 @@ public class TransactionImpl implements Transaction {
 
 	public XAResourceArchive getParticipant() {
 		return participant;
+	}
+
+	public Map<String, XAResourceArchive> getApplicationMap() {
+		return applicationMap;
 	}
 
 	public Map<String, XAResourceArchive> getParticipantMap() {

@@ -373,6 +373,10 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		return this.endpoint;
 	}
 
+	public String getApplication() {
+		throw new IllegalStateException();
+	}
+
 	public void setBeanFactory(TransactionBeanFactory tbf) {
 		this.beanFactory = tbf;
 	}

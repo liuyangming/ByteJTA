@@ -40,8 +40,12 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 			} else if (RemoteCoordinator.class.equals(clazz)) {
 				if ("getIdentifier".equals(methodName)) {
 					String serverHost = this.invocationContext == null ? null : this.invocationContext.getServerHost();
+					String serviceKey = this.invocationContext == null ? null : this.invocationContext.getServiceKey();
 					int serverPort = this.invocationContext == null ? 0 : this.invocationContext.getServerPort();
-					return this.invocationContext == null ? null : String.format("%s:%s", serverHost, serverPort);
+					return this.invocationContext == null ? null
+							: String.format("%s:%s:%s", serverHost, serviceKey, serverPort);
+				} else if ("getApplication".equals(methodName)) {
+					return this.invocationContext == null ? null : this.invocationContext.getServiceKey();
 				} else {
 					throw new XAException(XAException.XAER_RMFAIL);
 				}
