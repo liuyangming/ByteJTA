@@ -17,7 +17,6 @@ package org.bytesoft.bytejta.work;
 
 import javax.resource.spi.work.Work;
 
-import org.bytesoft.bytejta.TransactionCoordinator;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionRecovery;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;

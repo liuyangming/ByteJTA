@@ -80,12 +80,11 @@ public class TransactionXid implements Xid, Cloneable, Serializable {
 	}
 
 	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + this.getFormatId();
-		result = prime * result + Arrays.hashCode(branchQualifier);
-		result = prime * result + Arrays.hashCode(globalTransactionId);
-		return result;
+		int hash = 23;
+		hash += 29 * this.getFormatId();
+		hash += 31 * Arrays.hashCode(branchQualifier);
+		hash += 37 * Arrays.hashCode(globalTransactionId);
+		return hash;
 	}
 
 	public boolean equals(Object obj) {
