@@ -17,24 +17,67 @@ package org.bytesoft.bytejta.supports.jdbc;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
 
 import javax.sql.ConnectionEvent;
 import javax.sql.ConnectionEventListener;
+import javax.sql.PooledConnection;
 import javax.sql.StatementEventListener;
 import javax.sql.XAConnection;
 import javax.transaction.xa.XAResource;
 
 import org.bytesoft.bytejta.supports.resource.CommonResourceDescriptor;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class XAConnectionImpl implements XAConnection, ConnectionEventListener {
+	static final Logger logger = LoggerFactory.getLogger(XAConnectionImpl.class);
+
+	private final Set<ConnectionEventListener> listeners = new HashSet<ConnectionEventListener>();
+
 	private String identifier;
 	private XAConnection delegate;
+	private boolean closed;
 
 	public void connectionClosed(ConnectionEvent event) {
+		this.firePhysicalConnectionClosed(event);
+
+		for (Iterator<ConnectionEventListener> itr = this.listeners.iterator(); itr.hasNext();) {
+			ConnectionEventListener listener = itr.next();
+			try {
+				listener.connectionClosed(new ConnectionEvent(this, event.getSQLException()));
+			} catch (RuntimeException rex) {
+				logger.warn(rex.getMessage(), rex);
+			}
+		} // end-for (Iterator<ConnectionEventListener> itr = this.listeners.iterator(); itr.hasNext();)
 	}
 
 	public void connectionErrorOccurred(ConnectionEvent event) {
+		this.firePhysicalConnectionClosed(event);
+
+		for (Iterator<ConnectionEventListener> itr = this.listeners.iterator(); itr.hasNext();) {
+			ConnectionEventListener listener = itr.next();
+			try {
+				listener.connectionErrorOccurred(new ConnectionEvent(this, event.getSQLException()));
+			} catch (RuntimeException rex) {
+				logger.warn(rex.getMessage(), rex);
+			}
+		} // end-for (Iterator<ConnectionEventListener> itr = this.listeners.iterator(); itr.hasNext();)
+	}
+
+	private void firePhysicalConnectionClosed(ConnectionEvent event) {
+		try {
+			this.delegate.removeConnectionEventListener(this);
+
+			this.close(); // close physical connection
+		} catch (SQLException ex) {
+			logger.warn("Failed to close XAConnection", ex);
+		} catch (RuntimeException ex) {
+			logger.warn("Failed to close XAConnection", ex);
+		}
 	}
 
 	public Connection getConnection() throws SQLException {
@@ -42,11 +85,11 @@ public class XAConnectionImpl implements XAConnection, ConnectionEventListener {
 	}
 
 	public void addConnectionEventListener(ConnectionEventListener listener) {
-		this.delegate.addConnectionEventListener(listener);
+		this.listeners.add(listener);
 	}
 
 	public void removeConnectionEventListener(ConnectionEventListener listener) {
-		this.delegate.removeConnectionEventListener(listener);
+		this.listeners.remove(listener);
 	}
 
 	public void addStatementEventListener(StatementEventListener listener) {
@@ -69,7 +112,10 @@ public class XAConnectionImpl implements XAConnection, ConnectionEventListener {
 	}
 
 	public void close() throws SQLException {
-		this.delegate.close();
+		if (this.closed == false) {
+			this.delegate.close();
+			this.closed = true;
+		} // end-if (this.closed == false)
 	}
 
 	public String getIdentifier() {
