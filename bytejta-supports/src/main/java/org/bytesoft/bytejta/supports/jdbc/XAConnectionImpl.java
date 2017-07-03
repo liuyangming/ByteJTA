@@ -42,8 +42,6 @@ public class XAConnectionImpl implements XAConnection, ConnectionEventListener {
 	private boolean closed;
 
 	public void connectionClosed(ConnectionEvent event) {
-		this.firePhysicalConnectionClosed(event);
-
 		for (Iterator<ConnectionEventListener> itr = this.listeners.iterator(); itr.hasNext();) {
 			ConnectionEventListener listener = itr.next();
 			try {
@@ -52,11 +50,11 @@ public class XAConnectionImpl implements XAConnection, ConnectionEventListener {
 				logger.warn(rex.getMessage(), rex);
 			}
 		} // end-for (Iterator<ConnectionEventListener> itr = this.listeners.iterator(); itr.hasNext();)
+
+		this.firePhysicalConnectionClosed(event); // removeConnectionEventListener
 	}
 
 	public void connectionErrorOccurred(ConnectionEvent event) {
-		this.firePhysicalConnectionClosed(event);
-
 		for (Iterator<ConnectionEventListener> itr = this.listeners.iterator(); itr.hasNext();) {
 			ConnectionEventListener listener = itr.next();
 			try {
@@ -65,6 +63,8 @@ public class XAConnectionImpl implements XAConnection, ConnectionEventListener {
 				logger.warn(rex.getMessage(), rex);
 			}
 		} // end-for (Iterator<ConnectionEventListener> itr = this.listeners.iterator(); itr.hasNext();)
+
+		this.firePhysicalConnectionClosed(event); // removeConnectionEventListener
 	}
 
 	private void firePhysicalConnectionClosed(ConnectionEvent event) {
