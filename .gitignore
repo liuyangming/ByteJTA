@@ -20,3 +20,5 @@ hs_err_pid*
 target
 /bytejta-supports-dubbo/.classpath
 /bytejta-supports-dubbo/.project
+/bytejta-supports-springcloud/.classpath
+/bytejta-supports-springcloud/.project

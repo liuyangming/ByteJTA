@@ -46,9 +46,9 @@ public class TransactionArchiveDeserializer implements ArchiveDeserializer {
 		int length = 3 + 3 + 1;
 		byte[][] nativeByteArray = new byte[nativeArchiveNumber][];
 		for (int i = 0; i < nativeArchiveNumber; i++) {
-			XAResourceArchive compensableArchive = nativeArchiveList.get(i);
+			XAResourceArchive resourceArchive = nativeArchiveList.get(i);
 
-			byte[] resourceByteArray = this.resourceArchiveDeserializer.serialize(xid, compensableArchive);
+			byte[] resourceByteArray = this.resourceArchiveDeserializer.serialize(xid, resourceArchive);
 			byte[] lengthByteArray = ByteUtils.shortToByteArray((short) resourceByteArray.length);
 
 			byte[] elementByteArray = new byte[resourceByteArray.length + 2];

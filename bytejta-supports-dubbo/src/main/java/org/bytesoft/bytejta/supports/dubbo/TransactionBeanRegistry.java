@@ -66,7 +66,7 @@ public class TransactionBeanRegistry implements TransactionBeanFactoryAware {
 				}
 			}
 
-			// ConsumeCoordinator is injected by the CompensableConfigPostProcessor, which has a slight delay.
+			// ConsumeCoordinator is injected by the TransactionConfigPostProcessor, which has a slight delay.
 			return consumeCoordinator;
 		} finally {
 			this.lock.unlock();

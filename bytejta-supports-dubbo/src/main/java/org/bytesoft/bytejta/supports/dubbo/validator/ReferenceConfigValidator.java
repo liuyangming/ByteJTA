@@ -88,10 +88,6 @@ public class ReferenceConfigValidator implements DubboConfigValidator {
 			}
 
 			if (declared == false) {
-				// throw new FatalBeanException(String.format(
-				// "The remote call method(%s) must be declared to throw a remote exception:
-				// org.bytesoft.compensable.RemotingException!",
-				// method));
 				logger.warn("The remote call method({}) should be declared to throw a remote exception: {}!", method,
 						RemotingException.class.getName());
 			}
