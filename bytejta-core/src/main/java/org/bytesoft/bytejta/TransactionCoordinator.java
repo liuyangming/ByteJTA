@@ -30,6 +30,7 @@ import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
+import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.CommitRequiredException;
 import org.bytesoft.transaction.RollbackRequiredException;
@@ -155,21 +156,24 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 			transaction.participantCommit(onePhase);
 			transaction.forgetQuietly(); // forget transaction
 		} catch (SecurityException ex) {
-			logger.error("Error occurred while committing remote coordinator.", ex);
+			logger.error("[{}] Error occurred while committing remote coordinator.",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()), ex);
 			repository.putErrorTransaction(globalXid, transaction);
 
 			XAException xaex = new XAException(XAException.XAER_RMERR);
 			xaex.initCause(ex);
 			throw xaex;
 		} catch (CommitRequiredException ex) {
-			logger.error("Error occurred while committing remote coordinator.", ex);
+			logger.error("[{}] Error occurred while committing remote coordinator.",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()), ex);
 			repository.putErrorTransaction(globalXid, transaction);
 
 			XAException xaex = new XAException(XAException.XAER_RMERR);
 			xaex.initCause(ex);
 			throw xaex;
 		} catch (RollbackException ex) {
-			logger.error("Error occurred while committing remote coordinator, tx has been rolled back.", ex);
+			logger.error("[{}] Error occurred while committing remote coordinator, tx has been rolled back.",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()), ex);
 
 			// don't forget if branch-transaction has been hueristic completed.
 			repository.putErrorTransaction(globalXid, transaction);
@@ -178,7 +182,8 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 			xaex.initCause(ex);
 			throw xaex;
 		} catch (HeuristicMixedException ex) {
-			logger.error("Error occurred while committing remote coordinator, tx has been completed mixed.", ex);
+			logger.error("[{}] Error occurred while committing remote coordinator, tx has been completed mixed.",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()), ex);
 
 			// don't forget if branch-transaction has been hueristic completed.
 			repository.putErrorTransaction(globalXid, transaction);
@@ -187,7 +192,8 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 			xaex.initCause(ex);
 			throw xaex;
 		} catch (HeuristicRollbackException ex) {
-			logger.error("Error occurred while committing remote coordinator, tx has been rolled back heuristically.", ex);
+			logger.error("[{}] Error occurred while committing remote coordinator, tx has been rolled back heuristically.",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()), ex);
 
 			// don't forget if branch-transaction has been hueristic completed.
 			repository.putErrorTransaction(globalXid, transaction);
@@ -196,19 +202,38 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 			xaex.initCause(ex);
 			throw xaex;
 		} catch (SystemException ex) {
-			logger.error("Error occurred while committing remote coordinator.", ex);
+			logger.error("[{}] Error occurred while committing remote coordinator.",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()), ex);
 			repository.putErrorTransaction(globalXid, transaction);
 
 			XAException xaex = new XAException(XAException.XAER_RMERR);
 			xaex.initCause(ex);
 			throw xaex;
 		} catch (RuntimeException ex) {
-			logger.error("Error occurred while committing remote coordinator.", ex);
+			logger.error("[{}] Error occurred while committing remote coordinator.",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()), ex);
 			repository.putErrorTransaction(globalXid, transaction);
 
 			XAException xaex = new XAException(XAException.XAER_RMERR);
 			xaex.initCause(ex);
 			throw xaex;
+		}
+	}
+
+	public void forgetQuietly(Xid xid) {
+		try {
+			this.forget(xid);
+		} catch (XAException ex) {
+			switch (ex.errorCode) {
+			case XAException.XAER_NOTA:
+				break;
+			default:
+				logger.error("[{}] Error occurred while forgeting remote coordinator.",
+						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()), ex);
+			}
+		} catch (RuntimeException ex) {
+			logger.error("[{}] Error occurred while forgeting remote coordinator.",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()), ex);
 		}
 	}
 
@@ -231,10 +256,12 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		try {
 			transaction.forget();
 		} catch (SystemException ex) {
-			logger.error("Error occurred while forgeting remote coordinator.", ex);
+			logger.error("[{}] Error occurred while forgeting remote coordinator.",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()), ex);
 			throw new XAException(XAException.XAER_RMERR);
 		} catch (RuntimeException rex) {
-			logger.error("Error occurred while forgeting remote coordinator.", rex);
+			logger.error("[{}] Error occurred while forgeting remote coordinator.",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()), rex);
 			throw new XAException(XAException.XAER_RMERR);
 		}
 	}
@@ -312,21 +339,24 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 			transaction.participantRollback();
 			transaction.forgetQuietly(); // forget transaction
 		} catch (RollbackRequiredException rrex) {
-			logger.error("Error occurred while rolling back remote coordinator.", rrex);
+			logger.error("[{}] Error occurred while rolling back remote coordinator.",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()), rrex);
 			repository.putErrorTransaction(globalXid, transaction);
 
 			XAException xaex = new XAException(XAException.XAER_RMERR);
 			xaex.initCause(rrex);
 			throw xaex;
 		} catch (SystemException ex) {
-			logger.error("Error occurred while rolling back remote coordinator.", ex);
+			logger.error("[{}] Error occurred while rolling back remote coordinator.",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()), ex);
 			repository.putErrorTransaction(globalXid, transaction);
 
 			XAException xaex = new XAException(XAException.XAER_RMERR);
 			xaex.initCause(ex);
 			throw xaex;
 		} catch (RuntimeException rrex) {
-			logger.error("Error occurred while rolling back remote coordinator.", rrex);
+			logger.error("[{}] Error occurred while rolling back remote coordinator.",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()), rrex);
 			repository.putErrorTransaction(globalXid, transaction);
 
 			XAException xaex = new XAException(XAException.XAER_RMERR);
