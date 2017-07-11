@@ -103,9 +103,10 @@ public class TransactionConfigPostProcessor implements BeanFactoryPostProcessor 
 		mpv.addPropertyValue("ref", new RuntimeBeanReference(refBeanName));
 		mpv.addPropertyValue("cluster", "failfast");
 		mpv.addPropertyValue("loadbalance", "transaction");
+		mpv.addPropertyValue("filter", "transaction");
 		mpv.addPropertyValue("group", "org.bytesoft.bytejta");
 		mpv.addPropertyValue("retries", "0");
-		mpv.addPropertyValue("timeout", "5000");
+		mpv.addPropertyValue("timeout", "6000");
 
 		String skeletonBeanId = String.format("skeleton@%s", RemoteCoordinator.class.getName());
 		registry.registerBeanDefinition(skeletonBeanId, beanDef);
@@ -126,6 +127,7 @@ public class TransactionConfigPostProcessor implements BeanFactoryPostProcessor 
 		mpv.addPropertyValue("timeout", "6000");
 		mpv.addPropertyValue("cluster", "failfast");
 		mpv.addPropertyValue("loadbalance", "transaction");
+		mpv.addPropertyValue("filter", "transaction");
 		mpv.addPropertyValue("group", "org.bytesoft.bytejta");
 		mpv.addPropertyValue("check", "false");
 
