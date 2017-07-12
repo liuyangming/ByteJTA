@@ -56,6 +56,8 @@ public class XidFactoryImpl implements XidFactory {
 					continue;
 				} else if (element.isPointToPoint() || element.isVirtual()) {
 					continue;
+				} else if (element.isLoopback()) {
+					continue;
 				}
 
 				byte[] hardwareAddr = element.getHardwareAddress();
