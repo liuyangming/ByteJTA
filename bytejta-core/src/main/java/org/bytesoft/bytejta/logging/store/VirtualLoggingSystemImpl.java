@@ -388,12 +388,19 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 
 	public abstract File getDefaultDirectory();
 
+	public abstract int getMajorVersion();
+
+	public abstract int getMinorVersion();
+
 	public abstract String getLoggingIdentifier();
 
 	public abstract String getLoggingFilePrefix();
 
 	public VirtualLoggingFile createTransactionLogging(File file) throws IOException {
-		VirtualLoggingFile logging = new VirtualLoggingFile(file);
+		int major = this.getMajorVersion();
+		int minor = this.getMinorVersion();
+
+		VirtualLoggingFile logging = new VirtualLoggingFile(file, major, minor);
 		logging.setTrigger(this);
 		logging.setIdentifier(this.getLoggingIdentifier().getBytes());
 		return logging;

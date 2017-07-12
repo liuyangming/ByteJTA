@@ -75,9 +75,11 @@ public class TransactionInterceptorImpl implements TransactionInterceptor, Trans
 			return;
 		}
 
+		RemoteCoordinator coordinator = this.transactionBeanFactory.getTransactionCoordinator();
+
 		TransactionContext srcTransactionContext = transaction.getTransactionContext();
 		TransactionContext transactionContext = srcTransactionContext.clone();
-		RemoteCoordinator coordinator = this.transactionBeanFactory.getTransactionCoordinator();
+		transactionContext.setPropagatedBy(srcTransactionContext.getPropagatedBy());
 
 		response.setTransactionContext(transactionContext);
 		// response.setSourceTransactionCoordinator(coordinator);
@@ -95,8 +97,10 @@ public class TransactionInterceptorImpl implements TransactionInterceptor, Trans
 			return;
 		}
 
-		TransactionContext transactionContext = srcTransactionContext.clone();
 		RemoteCoordinator coordinator = this.transactionBeanFactory.getTransactionCoordinator();
+
+		TransactionContext transactionContext = srcTransactionContext.clone();
+		transactionContext.setPropagatedBy(srcTransactionContext.getPropagatedBy());
 		try {
 			coordinator.start(transactionContext, XAResource.TMNOFLAGS);
 		} catch (XAException ex) {

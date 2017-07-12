@@ -1316,6 +1316,8 @@ public class TransactionImpl implements Transaction {
 		transactionArchive.getNativeResources().addAll(this.nativeParticipantList);
 		transactionArchive.getRemoteResources().addAll(this.remoteParticipantList);
 		transactionArchive.setStatus(this.transactionStatus);
+		// transactionArchive.setPropagated(this.transactionContext.isPropagated());
+		transactionArchive.setPropagatedBy(this.transactionContext.getPropagatedBy());
 
 		TransactionStrategy currentStrategy = this.getTransactionStrategy();
 		if (CommonTransactionStrategy.class.isInstance(currentStrategy)) {

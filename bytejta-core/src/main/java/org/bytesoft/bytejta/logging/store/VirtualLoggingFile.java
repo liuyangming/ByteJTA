@@ -33,6 +33,9 @@ public class VirtualLoggingFile {
 	static final long DEFAULT_SIZE = 1024 * 1024;
 	static final long INCREASE_SIZE = 1024 * 512;
 
+	static final int DEFAULT_MAJOR_VERSION = 0;
+	static final int DEFAULT_MINOR_VERSION = 2;
+
 	private MappedByteBuffer readable;
 	private MappedByteBuffer writable;
 
@@ -48,9 +51,19 @@ public class VirtualLoggingFile {
 	private boolean marked;
 	private boolean master;
 
+	private int majorVersion = DEFAULT_MAJOR_VERSION;
+	private int minorVersion = DEFAULT_MINOR_VERSION;
+
 	private VirtualLoggingTrigger trigger;
 
 	public VirtualLoggingFile(File file) throws IOException {
+		this(file, DEFAULT_MAJOR_VERSION, DEFAULT_MINOR_VERSION);
+	}
+
+	public VirtualLoggingFile(File file, int major, int minor) throws IOException {
+		this.majorVersion = major;
+		this.minorVersion = minor;
+
 		this.initialized = file.exists();
 		this.raf = new RandomAccessFile(file, "rw");
 		if (this.initialized == false) {
@@ -115,12 +128,12 @@ public class VirtualLoggingFile {
 		this.writable.position(identifier.length);
 		int major = this.writable.get();
 		int minor = this.writable.get();
-		if (major == 0 && minor == 2) {
+		if (major == this.majorVersion && minor == this.minorVersion) {
 			// ignore
 		} else if (this.initialized == false) {
 			writable.position(identifier.length);
-			writable.put((byte) 0x0);
-			writable.put((byte) 0x2);
+			writable.put((byte) this.majorVersion);
+			writable.put((byte) this.minorVersion);
 		} else {
 			throw new IllegalStateException("Incompatible version!");
 		}

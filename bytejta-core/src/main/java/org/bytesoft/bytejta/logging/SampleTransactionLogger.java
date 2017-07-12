@@ -199,6 +199,14 @@ public class SampleTransactionLogger extends VirtualLoggingSystemImpl
 		return directory;
 	}
 
+	public int getMajorVersion() {
+		return 0;
+	}
+
+	public int getMinorVersion() {
+		return 3;
+	}
+
 	public String getLoggingFilePrefix() {
 		return "bytejta-";
 	}

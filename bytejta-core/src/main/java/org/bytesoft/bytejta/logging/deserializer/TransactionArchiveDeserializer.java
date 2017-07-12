@@ -18,18 +18,53 @@ package org.bytesoft.bytejta.logging.deserializer;
 import java.nio.ByteBuffer;
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.archive.XAResourceArchive;
 import org.bytesoft.transaction.logging.ArchiveDeserializer;
 import org.bytesoft.transaction.xa.TransactionXid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TransactionArchiveDeserializer implements ArchiveDeserializer {
+	static final Logger logger = LoggerFactory.getLogger(TransactionArchiveDeserializer.class);
 
 	private ArchiveDeserializer resourceArchiveDeserializer;
 
 	public byte[] serialize(TransactionXid xid, Object obj) {
 		TransactionArchive archive = (TransactionArchive) obj;
+
+		String propagatedBy = String.valueOf(archive.getPropagatedBy());
+		String[] address = propagatedBy.split("\\s*\\:\\s*");
+		byte[] hostByteArray = new byte[4];
+		byte[] nameByteArray = new byte[0];
+		byte[] portByteArray = new byte[2];
+		if (address.length == 3) {
+			String hostStr = address[0];
+			String nameStr = address[1];
+			String portStr = address[2];
+
+			String[] hostArray = hostStr.split("\\s*\\.\\s*");
+			for (int i = 0; hostArray.length == 4 && i < hostArray.length; i++) {
+				try {
+					int value = Integer.valueOf(hostArray[i]);
+					hostByteArray[i] = (byte) (value - 128);
+				} catch (RuntimeException rex) {
+					logger.debug(rex.getMessage(), rex);
+				}
+			}
+
+			nameByteArray = StringUtils.isBlank(nameStr) ? new byte[0] : nameStr.getBytes();
+
+			try {
+				short port = (short) (Integer.valueOf(portStr) - 32768);
+				byte[] byteArray = ByteUtils.shortToByteArray(port);
+				System.arraycopy(byteArray, 0, portByteArray, 0, 2);
+			} catch (RuntimeException rex) {
+				logger.debug(rex.getMessage(), rex);
+			}
+		}
 
 		XAResourceArchive optimizedArchive = archive.getOptimizedResource();
 
@@ -43,7 +78,7 @@ public class TransactionArchiveDeserializer implements ArchiveDeserializer {
 
 		int transactionStrategy = archive.getTransactionStrategyType();
 
-		int length = 3 + 3 + 1;
+		int length = 3 + 3 + 1 + 4 + 1 + nameByteArray.length + 2;
 		byte[][] nativeByteArray = new byte[nativeArchiveNumber][];
 		for (int i = 0; i < nativeArchiveNumber; i++) {
 			XAResourceArchive resourceArchive = nativeArchiveList.get(i);
@@ -100,6 +135,16 @@ public class TransactionArchiveDeserializer implements ArchiveDeserializer {
 
 		byteArray[position++] = (byte) transactionStrategy;
 
+		System.arraycopy(hostByteArray, 0, byteArray, position, 4);
+		position = position + 4;
+
+		byteArray[position++] = (byte) (nameByteArray.length - 128);
+		System.arraycopy(nameByteArray, 0, byteArray, position, nameByteArray.length);
+		position = position + nameByteArray.length;
+
+		System.arraycopy(portByteArray, 0, byteArray, position, 2);
+		position = position + 2;
+
 		for (int i = 0; i < nativeArchiveNumber; i++) {
 			byte[] elementByteArray = nativeByteArray[i];
 			System.arraycopy(elementByteArray, 0, byteArray, position, elementByteArray.length);
@@ -141,6 +186,28 @@ public class TransactionArchiveDeserializer implements ArchiveDeserializer {
 
 		int transactionStrategyType = buffer.get();
 		archive.setTransactionStrategyType(transactionStrategyType);
+
+		byte[] hostByteArray = new byte[4];
+		buffer.get(hostByteArray);
+		StringBuilder ber = new StringBuilder();
+		for (int i = 0; i < hostByteArray.length; i++) {
+			int value = hostByteArray[i] + 128;
+			if (i == 0) {
+				ber.append(value);
+			} else {
+				ber.append(".");
+				ber.append(value);
+			}
+		}
+		String host = ber.toString();
+
+		int sizeOfName = 128 + buffer.get();
+		byte[] nameByteArray = new byte[sizeOfName];
+		buffer.get(nameByteArray);
+		String name = new String(nameByteArray);
+
+		int port = 32768 + buffer.getShort();
+		archive.setPropagatedBy(String.format("%s:%s:%s", host, name, port));
 
 		for (int i = 0; i < nativeArchiveNumber; i++) {
 			int length = buffer.getShort();
