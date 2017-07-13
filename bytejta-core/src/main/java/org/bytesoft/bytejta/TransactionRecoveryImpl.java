@@ -62,6 +62,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 			TransactionXid xid = transactionContext.getXid();
 			try {
 				this.recoverTransaction(transaction);
+				value++;
 			} catch (CommitRequiredException ex) {
 				logger.debug("[{}] recover: branch={}, message= commit-required",
 						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
