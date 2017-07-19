@@ -425,14 +425,16 @@ public class TransactionServiceFilter implements Filter {
 					RpcResult result = new RpcResult();
 					result.setException(rex);
 					return result;
+				} else {
+					logger.error("Error occurred in remote call!", rex);
 				}
 			} catch (RuntimeException rex) {
 				if (success) {
-					logger.error("Error occurred in remote call!", rex);
-
 					RpcResult result = new RpcResult();
 					result.setException(new RpcException("Error occurred in remote call!", rex));
 					return result;
+				} else {
+					logger.error("Error occurred in remote call!", rex);
 				}
 			}
 		}

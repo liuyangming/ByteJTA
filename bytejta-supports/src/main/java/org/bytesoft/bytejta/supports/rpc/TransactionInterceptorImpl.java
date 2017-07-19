@@ -16,6 +16,7 @@
 package org.bytesoft.bytejta.supports.rpc;
 
 import javax.transaction.RollbackException;
+import javax.transaction.Status;
 import javax.transaction.SystemException;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
@@ -43,6 +44,11 @@ public class TransactionInterceptorImpl implements TransactionInterceptor, Trans
 		if (transaction == null) {
 			return;
 		}
+
+		if (transaction.getTransactionStatus() == Status.STATUS_MARKED_ROLLBACK) {
+			throw new IllegalStateException(
+					"Transaction has been marked as rollback only, can not propagate its context to remote branch.");
+		} // end-if (transaction.getTransactionStatus() == Status.STATUS_MARKED_ROLLBACK)
 
 		TransactionContext srcTransactionContext = transaction.getTransactionContext();
 		TransactionContext transactionContext = srcTransactionContext.clone();

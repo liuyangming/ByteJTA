@@ -89,7 +89,12 @@ public class TransactionRequestInterceptor
 				for (int i = 0; servers != null && i < servers.size(); i++) {
 					Server server = servers.get(i);
 					MetaInfo metaInfo = server.getMetaInfo();
-					String instanceId = metaInfo.getInstanceId();
+					// String instanceId = metaInfo.getInstanceId();
+
+					String host = server.getHost();
+					String appName = metaInfo.getAppName();
+					int port = server.getPort();
+					String instanceId = String.format("%s:%s:%s", host, appName, port);
 
 					if (participants.containsKey(instanceId)) {
 						List<Server> serverList = new ArrayList<Server>();
@@ -117,7 +122,13 @@ public class TransactionRequestInterceptor
 				} else {
 					try {
 						MetaInfo metaInfo = server.getMetaInfo();
-						String instanceId = metaInfo.getInstanceId();
+						// String instanceId = metaInfo.getInstanceId();
+
+						String host = server.getHost();
+						String appName = metaInfo.getAppName();
+						int port = server.getPort();
+						String instanceId = String.format("%s:%s:%s", host, appName, port);
+
 						invokeBeforeSendRequest(httpRequest, instanceId);
 					} catch (IOException ex) {
 						throw new RuntimeException(ex);
