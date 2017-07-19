@@ -124,8 +124,11 @@ public class SpringCloudConfiguration extends WebMvcConfigurerAdapter
 
 	@org.springframework.context.annotation.Primary
 	@org.springframework.context.annotation.Bean
-	public feign.codec.Decoder transactionFeignDecoder(@Autowired feign.codec.Decoder decoder) {
-		return new TransactionFeignDecoder(decoder);
+	public feign.codec.Decoder transactionFeignDecoder(@Autowired ObjectFactory<HttpMessageConverters> objectFactory,
+			@Autowired feign.codec.Decoder decoder) {
+		TransactionFeignDecoder feignDecoder = new TransactionFeignDecoder(decoder);
+		feignDecoder.setObjectFactory(objectFactory);
+		return feignDecoder;
 	}
 
 	@org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean(feign.codec.ErrorDecoder.class)

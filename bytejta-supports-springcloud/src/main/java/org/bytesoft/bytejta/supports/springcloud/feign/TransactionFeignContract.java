@@ -17,10 +17,16 @@ package org.bytesoft.bytejta.supports.springcloud.feign;
 
 import java.util.List;
 
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.cloud.netflix.feign.support.SpringMvcContract;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
+
 import feign.MethodMetadata;
 
-public class TransactionFeignContract implements feign.Contract {
-
+public class TransactionFeignContract implements feign.Contract, InitializingBean, ApplicationContextAware {
+	private ApplicationContext applicationContext;
 	private feign.Contract delegate;
 
 	public TransactionFeignContract() {
@@ -28,6 +34,35 @@ public class TransactionFeignContract implements feign.Contract {
 
 	public TransactionFeignContract(feign.Contract contract) {
 		this.delegate = contract;
+	}
+
+	public void afterPropertiesSet() throws Exception {
+		if (this.delegate == null) {
+			this.invokeAfterPropertiesSet();
+		} // end-if (this.delegate == null)
+	}
+
+	public void invokeAfterPropertiesSet() throws Exception {
+		feign.Contract feignContract = null;
+
+		String[] beanNameArray = this.applicationContext.getBeanNamesForType(feign.Contract.class);
+		for (int i = 0; beanNameArray != null && i < beanNameArray.length; i++) {
+			String beanName = beanNameArray[i];
+			Object beanInst = this.applicationContext.getBean(beanName);
+			if (TransactionFeignContract.class.isInstance(beanInst)) {
+				continue;
+			} else if (feignContract != null) {
+				throw new RuntimeException("There are more than one feign.Contract exists!");
+			} else {
+				feignContract = (feign.Contract) beanInst;
+			}
+		}
+
+		if (feignContract == null) {
+			feignContract = new SpringMvcContract();
+		} // end-if (feignContract == null)
+
+		this.delegate = feignContract;
 	}
 
 	public List<MethodMetadata> parseAndValidatateMetadata(Class<?> targetType) {
@@ -47,6 +82,10 @@ public class TransactionFeignContract implements feign.Contract {
 
 	public void setDelegate(feign.Contract delegate) {
 		this.delegate = delegate;
+	}
+
+	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+		this.applicationContext = applicationContext;
 	}
 
 }

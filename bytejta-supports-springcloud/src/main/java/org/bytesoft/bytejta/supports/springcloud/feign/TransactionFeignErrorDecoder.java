@@ -28,16 +28,22 @@ import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.TransactionContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 
 import feign.Request;
 import feign.Response;
+import feign.codec.ErrorDecoder;
 
-public class TransactionFeignErrorDecoder implements feign.codec.ErrorDecoder {
+public class TransactionFeignErrorDecoder implements feign.codec.ErrorDecoder, InitializingBean, ApplicationContextAware {
 	static Logger logger = LoggerFactory.getLogger(TransactionFeignErrorDecoder.class);
 
 	static final String HEADER_TRANCACTION_KEY = "org.bytesoft.bytejta.transaction";
 	static final String HEADER_PROPAGATION_KEY = "org.bytesoft.bytejta.propagation";
 
+	private ApplicationContext applicationContext;
 	private feign.codec.ErrorDecoder delegate;
 
 	public TransactionFeignErrorDecoder() {
@@ -45,6 +51,35 @@ public class TransactionFeignErrorDecoder implements feign.codec.ErrorDecoder {
 
 	public TransactionFeignErrorDecoder(feign.codec.ErrorDecoder decoder) {
 		this.delegate = decoder;
+	}
+
+	public void afterPropertiesSet() throws Exception {
+		if (this.delegate == null) {
+			this.invokeAfterPropertiesSet();
+		} // end-if (this.delegate == null)
+	}
+
+	public void invokeAfterPropertiesSet() throws Exception {
+		feign.codec.ErrorDecoder errorDecoder = null;
+
+		String[] beanNameArray = this.applicationContext.getBeanNamesForType(feign.codec.ErrorDecoder.class);
+		for (int i = 0; beanNameArray != null && i < beanNameArray.length; i++) {
+			String beanName = beanNameArray[i];
+			Object beanInst = this.applicationContext.getBean(beanName);
+			if (TransactionFeignErrorDecoder.class.isInstance(beanInst)) {
+				continue;
+			} else if (errorDecoder != null) {
+				throw new RuntimeException("There are more than one feign.codec.ErrorDecoder exists!");
+			} else {
+				errorDecoder = (feign.codec.ErrorDecoder) beanInst;
+			}
+		}
+
+		if (errorDecoder == null) {
+			errorDecoder = new ErrorDecoder.Default();
+		} // end-if (errorDecoder == null)
+
+		this.delegate = errorDecoder;
 	}
 
 	public Exception decode(String methodKey, Response resp) {
@@ -113,6 +148,10 @@ public class TransactionFeignErrorDecoder implements feign.codec.ErrorDecoder {
 
 	public void setDelegate(feign.codec.ErrorDecoder delegate) {
 		this.delegate = delegate;
+	}
+
+	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+		this.applicationContext = applicationContext;
 	}
 
 }
