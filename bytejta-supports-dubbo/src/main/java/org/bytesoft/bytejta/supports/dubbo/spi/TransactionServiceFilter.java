@@ -28,7 +28,6 @@ import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
 import org.apache.commons.lang3.StringUtils;
-import org.bytesoft.bytejta.TransactionCoordinator;
 import org.bytesoft.bytejta.supports.dubbo.DubboRemoteCoordinator;
 import org.bytesoft.bytejta.supports.dubbo.InvocationContext;
 import org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry;
@@ -47,6 +46,7 @@ import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.transaction.annotation.Propagation;
 
 import com.alibaba.com.caucho.hessian.io.HessianHandle;
 import com.alibaba.dubbo.common.URL;
@@ -91,9 +91,9 @@ public class TransactionServiceFilter implements Filter {
 		Class<?>[] parameterTypeArray = invocation.getParameterTypes();
 		Class<?> parameterType = (parameterTypeArray == null || parameterTypeArray.length == 0) ? null : parameterTypeArray[0];
 		if (parameterTypeArray == null || parameterTypeArray.length == 0) {
-			return this.wrapResultForProvider(invoker, invocation, false);
+			return this.wrapResultForProvider(invoker, invocation, null, false);
 		} else if (Xid.class.equals(parameterType) == false) {
-			return this.wrapResultForProvider(invoker, invocation, false);
+			return this.wrapResultForProvider(invoker, invocation, null, false);
 		}
 
 		RpcResult result = new RpcResult();
@@ -117,11 +117,13 @@ public class TransactionServiceFilter implements Filter {
 			String remoteAddr = invocation.getAttachment(RemoteCoordinator.class.getName());
 
 			if (StringUtils.equals(propagatedBy, remoteAddr)) {
-				return this.wrapResultForProvider(invoker, invocation, false);
+				return this.wrapResultForProvider(invoker, invocation, propagatedBy, false);
 			}
 
 			InvocationResult wrapped = new InvocationResult();
 			wrapped.setError(new XAException(XAException.XAER_PROTO));
+
+			wrapped.setVariable(Propagation.class.getName(), String.valueOf(transactionContext.getPropagatedBy()));
 			wrapped.setVariable(RemoteCoordinator.class.getName(), transactionCoordinator.getIdentifier());
 
 			result.setException(null);
@@ -137,6 +139,8 @@ public class TransactionServiceFilter implements Filter {
 	public Result providerInvokeForSVC(Invoker<?> invoker, Invocation invocation) throws RpcException {
 		RemoteCoordinatorRegistry remoteCoordinatorRegistry = RemoteCoordinatorRegistry.getInstance();
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
+		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
+		TransactionManager transactionManager = beanFactory.getTransactionManager();
 		RemoteCoordinator consumeCoordinator = beanRegistry.getConsumeCoordinator();
 
 		URL targetUrl = invoker.getUrl();
@@ -166,19 +170,25 @@ public class TransactionServiceFilter implements Filter {
 		TransactionResponseImpl response = new TransactionResponseImpl();
 		response.setSourceTransactionCoordinator(remoteCoordinator);
 
+		String propagatedBy = null;
 		boolean failure = false;
 		try {
 			this.beforeProviderInvokeForSVC(invocation, request, response);
-			return this.wrapResultForProvider(invoker, invocation, true);
+
+			Transaction transaction = transactionManager.getTransactionQuietly();
+			TransactionContext transactionContext = transaction == null ? null : transaction.getTransactionContext();
+			propagatedBy = transactionContext == null ? null : String.valueOf(transactionContext.getPropagatedBy());
+
+			return this.wrapResultForProvider(invoker, invocation, propagatedBy, true);
 		} catch (RpcException rex) {
 			failure = true;
 
-			return this.createErrorResultForProvider(rex, true);
+			return this.createErrorResultForProvider(rex, propagatedBy, true);
 		} catch (Throwable rex) {
 			failure = true;
 			logger.error("Error occurred in remote call!", rex);
 
-			return this.createErrorResultForProvider(rex, true);
+			return this.createErrorResultForProvider(rex, propagatedBy, true);
 		} finally {
 			try {
 				this.afterProviderInvokeForSVC(invocation, request, response);
@@ -186,47 +196,47 @@ public class TransactionServiceFilter implements Filter {
 				if (failure) {
 					logger.error("Error occurred in remote call!", rex);
 				} else {
-					return this.createErrorResultForProvider(rex, true);
+					return this.createErrorResultForProvider(rex, propagatedBy, true);
 				}
 			} catch (Throwable rex) {
 				if (failure) {
 					logger.error("Error occurred in remote call!", rex);
 				} else {
-					return this.createErrorResultForProvider(rex, true);
+					return this.createErrorResultForProvider(rex, propagatedBy, true);
 				}
 			}
 		}
 
 	}
 
-	public Result wrapResultForProvider(Invoker<?> invoker, Invocation invocation, boolean attachRequired) {
+	public Result wrapResultForProvider(Invoker<?> invoker, Invocation invocation, String propagatedBy,
+			boolean attachRequired) {
 
 		try {
 			RpcResult result = (RpcResult) invoker.invoke(invocation);
 			if (result.hasException()) {
-				return this.createErrorResultForProvider(result.getException(), attachRequired);
+				return this.createErrorResultForProvider(result.getException(), propagatedBy, attachRequired);
 			} else {
-				return this.convertResultForProvider(result, attachRequired);
+				return this.convertResultForProvider(result, propagatedBy, attachRequired);
 			}
 		} catch (Throwable rex) {
-			return this.createErrorResultForProvider(rex, attachRequired);
+			return this.createErrorResultForProvider(rex, propagatedBy, attachRequired);
 		}
 
 	}
 
-	private Result convertResultForProvider(RpcResult result, boolean attachRequired) {
+	private Result convertResultForProvider(RpcResult result, String propagatedBy, boolean attachRequired) {
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
-		TransactionManager transactionManager = beanFactory.getTransactionManager();
+		RemoteCoordinator transactionCoordinator = beanFactory.getTransactionCoordinator();
 
 		Object value = result.getValue();
 
 		InvocationResult wrapped = new InvocationResult();
 		wrapped.setValue(value);
 		if (attachRequired) {
-			Transaction transaction = transactionManager.getTransactionQuietly();
-			TransactionContext transactionContext = transaction.getTransactionContext();
-			wrapped.setVariable(RemoteCoordinator.class.getName(), String.valueOf(transactionContext.getPropagatedBy()));
+			wrapped.setVariable(Propagation.class.getName(), propagatedBy);
+			wrapped.setVariable(RemoteCoordinator.class.getName(), transactionCoordinator.getIdentifier());
 		}
 
 		result.setException(null);
@@ -235,7 +245,7 @@ public class TransactionServiceFilter implements Filter {
 		return result;
 	}
 
-	private Result createErrorResultForProvider(Throwable throwable, boolean attachRequired) {
+	private Result createErrorResultForProvider(Throwable throwable, String propagatedBy, boolean attachRequired) {
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
 		RemoteCoordinator transactionCoordinator = beanFactory.getTransactionCoordinator();
@@ -245,6 +255,7 @@ public class TransactionServiceFilter implements Filter {
 		InvocationResult wrapped = new InvocationResult();
 		wrapped.setError(throwable);
 		if (attachRequired) {
+			wrapped.setVariable(Propagation.class.getName(), propagatedBy);
 			wrapped.setVariable(RemoteCoordinator.class.getName(), transactionCoordinator.getIdentifier());
 		}
 
@@ -397,7 +408,7 @@ public class TransactionServiceFilter implements Filter {
 					result.setValue(wrapped.getValue());
 				}
 
-				String propagatedBy = (String) wrapped.getVariable(RemoteCoordinator.class.getName());
+				String propagatedBy = (String) wrapped.getVariable(Propagation.class.getName());
 				String identifier = transactionCoordinator.getIdentifier();
 				boolean participantDelistRequired = StringUtils.equals(propagatedBy, identifier) == false;
 				response.setParticipantDelistFlag(participantDelistRequired);
