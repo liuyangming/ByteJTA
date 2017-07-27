@@ -22,6 +22,7 @@ import java.lang.reflect.Method;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 
+import org.apache.commons.lang3.StringUtils;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 
 public class DubboRemoteCoordinator implements InvocationHandler {
@@ -45,7 +46,13 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 					return this.invocationContext == null ? null
 							: String.format("%s:%s:%s", serverHost, serviceKey, serverPort);
 				} else if ("getApplication".equals(methodName)) {
-					return this.invocationContext == null ? null : this.invocationContext.getServiceKey();
+					if (this.invocationContext == null) {
+						return null;
+					} else if (StringUtils.isNotBlank(this.invocationContext.getServiceKey())) {
+						return this.invocationContext.getServiceKey();
+					} else {
+						return this.invokeCoordinator(proxy, method, args);
+					}
 				} else {
 					throw new XAException(XAException.XAER_RMFAIL);
 				}
