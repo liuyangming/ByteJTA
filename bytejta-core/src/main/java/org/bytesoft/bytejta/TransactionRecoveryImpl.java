@@ -54,8 +54,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 	public synchronized void timingRecover() {
 		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
 		List<Transaction> transactions = transactionRepository.getErrorTransactionList();
-		int total = transactions == null ? 0 : transactions.size();
-		int value = 0;
+		int total = transactions == null ? 0 : transactions.size(), value = 0;
 		for (int i = 0; transactions != null && i < transactions.size(); i++) {
 			Transaction transaction = transactions.get(i);
 			TransactionContext transactionContext = transaction.getTransactionContext();

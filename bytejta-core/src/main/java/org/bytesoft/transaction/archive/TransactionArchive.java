@@ -21,6 +21,7 @@ import java.util.List;
 import javax.transaction.xa.Xid;
 
 public class TransactionArchive {
+	private transient String endpoint;
 	private Xid xid;
 	private int status;
 	private int vote;
@@ -31,6 +32,14 @@ public class TransactionArchive {
 
 	private int transactionStrategyType;
 	private XAResourceArchive optimizedResource;
+
+	public String getEndpoint() {
+		return endpoint;
+	}
+
+	public void setEndpoint(String endpoint) {
+		this.endpoint = endpoint;
+	}
 
 	public Xid getXid() {
 		return xid;
