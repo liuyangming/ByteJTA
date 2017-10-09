@@ -278,6 +278,13 @@ public class TransactionImpl implements Transaction {
 		try {
 			this.synchronizationList.beforeCompletion();
 			this.delistAllResource();
+
+			try {
+				this.invokeParticipantPrepare();
+			} catch (CommitRequiredException crex) {
+				// some RMs has already been committed.
+			}
+
 			this.invokeParticipantCommit();
 		} catch (RollbackRequiredException rrex) {
 			this.participantRollback();
@@ -329,6 +336,49 @@ public class TransactionImpl implements Transaction {
 			throw new HeuristicRollbackException();
 		} finally {
 			this.synchronizationList.afterCompletion(this.transactionStatus);
+		}
+
+	}
+
+	private void invokeParticipantPrepare() throws RollbackRequiredException, CommitRequiredException {
+		TransactionXid xid = this.transactionContext.getXid();
+		TransactionArchive archive = this.getTransactionArchive();
+		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
+
+		logger.info("[{}] prepare-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+
+		this.transactionStatus = Status.STATUS_PREPARING;
+		archive.setStatus(this.transactionStatus);
+		this.transactionListenerList.onPrepareStart(xid);
+		transactionLogger.updateTransaction(archive);
+
+		boolean unFinishExists = true;
+		try {
+			TransactionStrategy currentStrategy = this.getTransactionStrategy();
+			currentStrategy.prepare(xid);
+
+			unFinishExists = false;
+		} catch (CommitRequiredException ex) {
+			unFinishExists = false;
+			throw ex;
+		} catch (RollbackRequiredException ex) {
+			this.transactionListenerList.onPrepareFailure(xid);
+			logger.info("[{}] prepare-transaction failed", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+			throw ex;
+		} catch (RuntimeException ex) {
+			this.transactionListenerList.onPrepareFailure(xid);
+			logger.info("[{}] prepare-transaction failed", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+			throw ex;
+		} finally {
+			if (unFinishExists == false) {
+				this.transactionStatus = Status.STATUS_PREPARED;
+				archive.setStatus(this.transactionStatus);
+				this.transactionListenerList.onPrepareSuccess(xid);
+				transactionLogger.updateTransaction(archive);
+
+				logger.info("[{}] prepare-transaction complete successfully",
+						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+			}
 		}
 
 	}
