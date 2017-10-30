@@ -51,7 +51,7 @@ public class ManagedConnectionFactoryHandler implements InvocationHandler {
 				containsReturningClass = true;
 				break;
 			}
-		}
+		} // end-for (int i = 0; i < interfaces.length; i++)
 
 		if (LocalXADataSource.class.isInstance(this.delegate) && XADataSource.class.equals(declaringClass)
 				&& javax.sql.XAConnection.class.equals(returningClass)) {
@@ -83,8 +83,7 @@ public class ManagedConnectionFactoryHandler implements InvocationHandler {
 				finalObject = Proxy.newProxyInstance(cl, interfaceArray, interceptor);
 			}
 			return (javax.sql.XAConnection) finalObject;
-		} else if (XAConnectionFactory.class.equals(declaringClass)
-				&& javax.jms.XAConnection.class.equals(returningClass)) {
+		} else if (XAConnectionFactory.class.equals(declaringClass) && javax.jms.XAConnection.class.equals(returningClass)) {
 			ManagedConnectionHandler interceptor = new ManagedConnectionHandler(resultObject);
 			interceptor.setIdentifier(this.identifier);
 
@@ -98,8 +97,7 @@ public class ManagedConnectionFactoryHandler implements InvocationHandler {
 				finalObject = Proxy.newProxyInstance(cl, interfaceArray, interceptor);
 			}
 			return (javax.jms.XAConnection) finalObject;
-		} else if (ManagedConnectionFactory.class.equals(declaringClass)
-				&& ManagedConnection.class.equals(returningClass)) {
+		} else if (ManagedConnectionFactory.class.equals(declaringClass) && ManagedConnection.class.equals(returningClass)) {
 			ManagedConnectionHandler interceptor = new ManagedConnectionHandler(resultObject);
 			interceptor.setIdentifier(this.identifier);
 
