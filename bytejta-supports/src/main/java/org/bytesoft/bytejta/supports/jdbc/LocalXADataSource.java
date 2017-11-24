@@ -28,6 +28,7 @@ import javax.transaction.SystemException;
 import javax.transaction.TransactionManager;
 
 import org.bytesoft.transaction.Transaction;
+import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 import org.springframework.beans.factory.BeanNameAware;
 
@@ -40,18 +41,12 @@ public class LocalXADataSource /* extends TransactionListenerAdapter */
 	private String beanName;
 	private TransactionManager transactionManager;
 
-	// private final Map<Xid, LocalXAConnection> connections = new ConcurrentHashMap<Xid, LocalXAConnection>();
-
 	public Connection getConnection() throws SQLException {
 		try {
 			Transaction transaction = (Transaction) this.transactionManager.getTransaction();
 			if (transaction == null) {
 				return this.dataSource.getConnection();
 			}
-
-			// transaction.registerTransactionListener(this);
-			// transactionXid = transaction.getTransactionContext().getXid();
-			// LocalXAConnection xacon = this.connections.get(transactionXid);
 
 			XAResourceDescriptor descriptor = transaction.getResourceDescriptor(this.beanName);
 			LocalXAResource resource = descriptor == null ? null : (LocalXAResource) descriptor.getDelegate();
@@ -64,9 +59,11 @@ public class LocalXADataSource /* extends TransactionListenerAdapter */
 			xacon = this.getXAConnection();
 			LogicalConnection connection = xacon.getConnection();
 			descriptor = xacon.getXAResource();
+			LocalXAResource localXARes = (LocalXAResource) descriptor.getDelegate();
+			boolean loggingRequired = TransactionContext.class.equals(transaction.getTransactionContext().getClass()) == false;
+			localXARes.setLoggingRequired(loggingRequired);
 			transaction.enlistResource(descriptor);
 
-			// this.connections.put(transactionXid, xacon);
 			return connection;
 		} catch (SystemException ex) {
 			throw new SQLException(ex);
@@ -85,10 +82,6 @@ public class LocalXADataSource /* extends TransactionListenerAdapter */
 				return this.dataSource.getConnection(username, password);
 			}
 
-			// transaction.registerTransactionListener(this);
-			// transactionXid = transaction.getTransactionContext().getXid();
-			// LocalXAConnection xacon = this.connections.get(transactionXid);
-
 			XAResourceDescriptor descriptor = transaction.getResourceDescriptor(this.beanName);
 			LocalXAResource resource = descriptor == null ? null : (LocalXAResource) descriptor.getDelegate();
 			LocalXAConnection xacon = resource == null ? null : resource.getManagedConnection();
@@ -100,9 +93,11 @@ public class LocalXADataSource /* extends TransactionListenerAdapter */
 			xacon = this.getXAConnection(username, password);
 			LogicalConnection connection = xacon.getConnection();
 			descriptor = xacon.getXAResource();
+			LocalXAResource localXARes = (LocalXAResource) descriptor.getDelegate();
+			boolean loggingRequired = TransactionContext.class.equals(transaction.getTransactionContext().getClass()) == false;
+			localXARes.setLoggingRequired(loggingRequired);
 			transaction.enlistResource(descriptor);
 
-			// this.connections.put(transactionXid, xacon);
 			return connection;
 		} catch (SystemException ex) {
 			throw new SQLException(ex);
@@ -113,13 +108,6 @@ public class LocalXADataSource /* extends TransactionListenerAdapter */
 		}
 
 	}
-
-	// public void onCommitStart(TransactionXid xid) {
-	// this.connections.remove(xid);
-	// }
-	// public void onRollbackStart(TransactionXid xid) {
-	// this.connections.remove(xid);
-	// }
 
 	public boolean isWrapperFor(Class<?> iface) {
 		if (iface == null) {
