@@ -16,9 +16,14 @@
 package org.bytesoft.bytejta.supports.springcloud.loadbalancer;
 
 import java.util.List;
-import java.util.Random;
 
+import org.apache.commons.lang3.StringUtils;
 import org.bytesoft.bytejta.supports.springcloud.SpringCloudBeanRegistry;
+import org.bytesoft.bytejta.supports.springcloud.rule.TransactionRule;
+import org.bytesoft.bytejta.supports.springcloud.rule.TransactionRuleImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.core.env.Environment;
 
 import com.netflix.client.config.IClientConfig;
 import com.netflix.loadbalancer.AbstractLoadBalancerRule;
@@ -27,7 +32,10 @@ import com.netflix.loadbalancer.IRule;
 import com.netflix.loadbalancer.Server;
 
 public class TransactionLoadBalancerRuleImpl extends AbstractLoadBalancerRule implements IRule {
-	static Random random = new Random();
+	static final String CONSTANT_RULE_KEY = "org.bytesoft.bytejta.NFTransactionRuleClassName";
+	static Logger logger = LoggerFactory.getLogger(TransactionLoadBalancerRuleImpl.class);
+
+	static Class<?> transactionRuleClass;
 
 	private IClientConfig clientConfig;
 
@@ -35,8 +43,38 @@ public class TransactionLoadBalancerRuleImpl extends AbstractLoadBalancerRule im
 		SpringCloudBeanRegistry registry = SpringCloudBeanRegistry.getInstance();
 		TransactionLoadBalancerInterceptor interceptor = registry.getLoadBalancerInterceptor();
 
+		if (transactionRuleClass == null) {
+			Environment environment = registry.getEnvironment();
+			String clazzName = environment.getProperty(CONSTANT_RULE_KEY);
+			if (StringUtils.isNotBlank(clazzName)) {
+				try {
+					ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+					transactionRuleClass = classLoader.loadClass(clazzName);
+				} catch (Exception ex) {
+					logger.error("Error occurred while loading class {}.", clazzName, ex);
+					transactionRuleClass = TransactionRuleImpl.class;
+				}
+			} else {
+				transactionRuleClass = TransactionRuleImpl.class;
+			}
+		}
+
+		TransactionRule transactionRule = null;
+		if (TransactionRuleImpl.class.equals(transactionRuleClass)) {
+			transactionRule = new TransactionRuleImpl();
+		} else {
+			try {
+				transactionRule = (TransactionRule) transactionRuleClass.newInstance();
+			} catch (Exception ex) {
+				logger.error("Can not create an instance of class {}.", transactionRuleClass.getName(), ex);
+				transactionRule = new TransactionRuleImpl();
+			}
+		}
+		transactionRule.initWithNiwsConfig(this.clientConfig);
+		transactionRule.setLoadBalancer(this.getLoadBalancer());
+
 		if (interceptor == null) {
-			return this.chooseServer(key);
+			return transactionRule.chooseServer(key);
 		} // end-if (interceptor == null)
 
 		ILoadBalancer loadBalancer = this.getLoadBalancer();
@@ -46,37 +84,12 @@ public class TransactionLoadBalancerRuleImpl extends AbstractLoadBalancerRule im
 		try {
 			List<Server> serverList = interceptor.beforeCompletion(servers);
 
-			server = this.chooseServer(key, serverList);
+			server = transactionRule.chooseServer(key, serverList);
 		} finally {
 			interceptor.afterCompletion(server);
 		}
 
 		return server;
-	}
-
-	public Server chooseServer(Object key) {
-		ILoadBalancer loadBalancer = this.getLoadBalancer();
-		List<Server> reachableServers = loadBalancer.getReachableServers();
-		List<Server> allServers = loadBalancer.getAllServers();
-
-		if (reachableServers != null && reachableServers.isEmpty() == false) {
-			return reachableServers.get(random.nextInt(reachableServers.size()));
-		} else if (allServers != null && allServers.isEmpty() == false) {
-			return allServers.get(random.nextInt(allServers.size()));
-		} else {
-			return null;
-		}
-
-	}
-
-	public Server chooseServer(Object key, List<Server> serverList) {
-		if (serverList == null || serverList.isEmpty()) {
-			return null;
-		} else if (serverList.size() == 1) {
-			return serverList.get(0);
-		} else {
-			return serverList.get(random.nextInt(serverList.size()));
-		}
 	}
 
 	public void initWithNiwsConfig(IClientConfig clientConfig) {
