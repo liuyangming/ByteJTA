@@ -805,7 +805,7 @@ public class TransactionImpl implements Transaction {
 			XAResourceDescriptor lro = this.participant.getDescriptor();
 			try {
 				if (lro.isSameRM(descriptor) == false) {
-					throw new SystemException();
+					throw new SystemException("Only one non-XA resource is allowed to participate in global transaction.");
 				}
 			} catch (XAException ex) {
 				SystemException sysEx = new SystemException();
