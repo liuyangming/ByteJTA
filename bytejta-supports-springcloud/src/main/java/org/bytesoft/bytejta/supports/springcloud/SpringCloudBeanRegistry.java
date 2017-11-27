@@ -25,15 +25,18 @@ import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.EnvironmentAware;
+import org.springframework.core.env.Environment;
 import org.springframework.web.client.RestTemplate;
 
-public final class SpringCloudBeanRegistry implements TransactionBeanFactoryAware {
+public final class SpringCloudBeanRegistry implements TransactionBeanFactoryAware, EnvironmentAware {
 	static final Logger logger = LoggerFactory.getLogger(SpringCloudBeanRegistry.class);
 	private static final SpringCloudBeanRegistry instance = new SpringCloudBeanRegistry();
 
 	private TransactionBeanFactory beanFactory;
 	private RestTemplate restTemplate;
 	private ThreadLocal<TransactionLoadBalancerInterceptor> interceptors = new ThreadLocal<TransactionLoadBalancerInterceptor>();
+	private Environment environment;
 
 	private SpringCloudBeanRegistry() {
 		if (instance != null) {
@@ -58,6 +61,7 @@ public final class SpringCloudBeanRegistry implements TransactionBeanFactoryAwar
 
 		SpringCloudCoordinator handler = new SpringCloudCoordinator();
 		handler.setIdentifier(identifier);
+		handler.setEnvironment(this.environment);
 
 		coordinator = (RemoteCoordinator) Proxy.newProxyInstance(SpringCloudCoordinator.class.getClassLoader(),
 				new Class[] { RemoteCoordinator.class }, handler);
@@ -92,6 +96,14 @@ public final class SpringCloudBeanRegistry implements TransactionBeanFactoryAwar
 
 	public TransactionBeanFactory getBeanFactory() {
 		return beanFactory;
+	}
+
+	public Environment getEnvironment() {
+		return environment;
+	}
+
+	public void setEnvironment(Environment environment) {
+		this.environment = environment;
 	}
 
 }
