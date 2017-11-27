@@ -202,7 +202,9 @@ public class TransactionImpl implements Transaction {
 			archive.setStatus(this.transactionStatus);
 
 			this.transactionListenerList.onPrepareFailure(xid);
-			throw new RollbackRequiredException();
+			RollbackRequiredException rrex = new RollbackRequiredException();
+			rrex.initCause(xaex);
+			throw rrex;
 		} finally {
 			transactionLogger.updateTransaction(archive);
 		}
@@ -218,12 +220,16 @@ public class TransactionImpl implements Transaction {
 			logger.error("[{}] recover: branch={}, status= mixed, message= {}",
 					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
 					ByteUtils.byteArrayToString(xid.getBranchQualifier()), ex.getMessage(), ex);
-			throw new SystemException(ex.getMessage());
+			SystemException sysEx = new SystemException();
+			sysEx.initCause(ex);
+			throw sysEx;
 		} catch (HeuristicRollbackException ex) {
 			logger.error("[{}] recover: branch={}, status= rolledback",
 					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-					ByteUtils.byteArrayToString(xid.getBranchQualifier()));
-			throw new SystemException(ex.getMessage());
+					ByteUtils.byteArrayToString(xid.getBranchQualifier()), ex);
+			SystemException sysEx = new SystemException();
+			sysEx.initCause(ex);
+			throw sysEx;
 		}
 	}
 
@@ -288,13 +294,19 @@ public class TransactionImpl implements Transaction {
 			this.invokeParticipantCommit();
 		} catch (RollbackRequiredException rrex) {
 			this.participantRollback();
-			throw new HeuristicRollbackException();
+			HeuristicRollbackException hrex = new HeuristicRollbackException();
+			hrex.initCause(rrex);
+			throw hrex;
 		} catch (SystemException ex) {
 			this.participantRollback();
-			throw new HeuristicRollbackException();
+			HeuristicRollbackException hrex = new HeuristicRollbackException();
+			hrex.initCause(ex);
+			throw hrex;
 		} catch (RuntimeException rex) {
 			this.participantRollback();
-			throw new HeuristicRollbackException();
+			HeuristicRollbackException hrex = new HeuristicRollbackException();
+			hrex.initCause(rex);
+			throw hrex;
 		} finally {
 			this.synchronizationList.afterCompletion(this.transactionStatus);
 		}
@@ -327,13 +339,19 @@ public class TransactionImpl implements Transaction {
 			this.invokeParticipantCommit();
 		} catch (RollbackRequiredException rrex) {
 			this.participantRollback();
-			throw new HeuristicRollbackException();
+			HeuristicRollbackException hrex = new HeuristicRollbackException();
+			hrex.initCause(rrex);
+			throw hrex;
 		} catch (SystemException ex) {
 			this.participantRollback();
-			throw new HeuristicRollbackException();
+			HeuristicRollbackException hrex = new HeuristicRollbackException();
+			hrex.initCause(ex);
+			throw hrex;
 		} catch (RuntimeException rex) {
 			this.participantRollback();
-			throw new HeuristicRollbackException();
+			HeuristicRollbackException hrex = new HeuristicRollbackException();
+			hrex.initCause(rex);
+			throw hrex;
 		} finally {
 			this.synchronizationList.afterCompletion(this.transactionStatus);
 		}
@@ -458,13 +476,19 @@ public class TransactionImpl implements Transaction {
 			this.delistAllResource();
 		} catch (RollbackRequiredException rrex) {
 			this.fireRollback();
-			throw new HeuristicRollbackException();
+			HeuristicRollbackException hrex = new HeuristicRollbackException();
+			hrex.initCause(rrex);
+			throw hrex;
 		} catch (SystemException ex) {
 			this.fireRollback();
-			throw new HeuristicRollbackException();
+			HeuristicRollbackException hrex = new HeuristicRollbackException();
+			hrex.initCause(ex);
+			throw hrex;
 		} catch (RuntimeException rex) {
 			this.fireRollback();
-			throw new HeuristicRollbackException();
+			HeuristicRollbackException hrex = new HeuristicRollbackException();
+			hrex.initCause(rex);
+			throw hrex;
 		}
 
 		try {
@@ -514,24 +538,28 @@ public class TransactionImpl implements Transaction {
 			switch (xaex.errorCode) {
 			case XAException.XA_HEURMIX:
 				this.transactionListenerList.onCommitHeuristicMixed(xid);
-				throw new HeuristicMixedException();
+				HeuristicMixedException hmex = new HeuristicMixedException();
+				hmex.initCause(xaex);
+				throw hmex;
 			case XAException.XA_HEURCOM:
 				this.transactionListenerList.onCommitSuccess(xid);
 				break;
 			case XAException.XA_HEURRB:
 				this.transactionListenerList.onCommitHeuristicRolledback(xid);
-				throw new HeuristicRollbackException();
+				HeuristicRollbackException hrex = new HeuristicRollbackException();
+				hrex.initCause(xaex);
+				throw hrex;
 			default:
 				this.transactionListenerList.onCommitFailure(xid);
-				logger.warn("Unknown state in committing transaction phase.");
 				SystemException ex = new SystemException();
 				ex.initCause(xaex);
 				throw ex;
 			}
 		} catch (RuntimeException rex) {
 			this.transactionListenerList.onCommitFailure(xid);
-			logger.warn("Unknown error occurred while committing transaction.", rex);
-			throw new SystemException();
+			SystemException sysEx = new SystemException();
+			sysEx.initCause(rex);
+			throw sysEx;
 		}
 	}
 
@@ -557,14 +585,18 @@ public class TransactionImpl implements Transaction {
 		} catch (RollbackRequiredException xaex) {
 			this.transactionListenerList.onPrepareFailure(xid);
 			this.fireRollback();
-			throw new HeuristicRollbackException();
+			HeuristicRollbackException hrex = new HeuristicRollbackException();
+			hrex.initCause(xaex);
+			throw hrex;
 		} catch (CommitRequiredException xaex) {
 			vote = XAResource.XA_OK;
 			// committed = true;
 		} catch (RuntimeException rex) {
 			this.transactionListenerList.onPrepareFailure(xid);
 			this.fireRollback();
-			throw new HeuristicRollbackException();
+			HeuristicRollbackException hrex = new HeuristicRollbackException();
+			hrex.initCause(rex);
+			throw hrex;
 		}
 
 		this.transactionListenerList.onPrepareSuccess(xid);
@@ -706,6 +738,8 @@ public class TransactionImpl implements Transaction {
 				throw rrex;
 			}
 		} catch (RuntimeException ex) {
+			logger.error("XATerminatorImpl.delistResource(XAResourceArchive, int)", ex);
+
 			SystemException sysex = new SystemException();
 			sysex.initCause(ex);
 			throw sysex;
@@ -774,9 +808,11 @@ public class TransactionImpl implements Transaction {
 					throw new SystemException();
 				}
 			} catch (XAException ex) {
-				throw new SystemException();
+				SystemException sysEx = new SystemException();
+				sysEx.initCause(ex);
+				throw sysEx;
 			} catch (RuntimeException ex) {
-				throw new IllegalStateException();
+				throw new IllegalStateException(ex);
 			}
 		}
 
@@ -873,6 +909,8 @@ public class TransactionImpl implements Transaction {
 				throw new RollbackException();
 			}
 		} catch (RuntimeException ex) {
+			logger.error("XATerminatorImpl.enlistResource(XAResourceArchive, int)", ex);
+
 			throw new RollbackException();
 		}
 
@@ -979,10 +1017,14 @@ public class TransactionImpl implements Transaction {
 			unFinishExists = false;
 		} catch (HeuristicMixedException ex) {
 			this.transactionListenerList.onRollbackFailure(xid);
-			throw new SystemException();
+			SystemException sysEx = new SystemException();
+			sysEx.initCause(ex);
+			throw sysEx;
 		} catch (HeuristicCommitException ex) {
 			this.transactionListenerList.onRollbackFailure(xid);
-			throw new SystemException();
+			SystemException sysEx = new SystemException();
+			sysEx.initCause(ex);
+			throw sysEx;
 		} catch (SystemException ex) {
 			this.transactionListenerList.onRollbackFailure(xid);
 			throw ex;
@@ -1061,11 +1103,11 @@ public class TransactionImpl implements Transaction {
 		try {
 			this.delistAllResource();
 		} catch (RollbackRequiredException rrex) {
-			logger.warn(rrex.getMessage());
+			logger.warn(rrex.getMessage(), rrex);
 		} catch (SystemException ex) {
-			logger.warn(ex.getMessage());
+			logger.warn(ex.getMessage(), ex);
 		} catch (RuntimeException rex) {
-			logger.warn(rex.getMessage());
+			logger.warn(rex.getMessage(), rex);
 		}
 	}
 
@@ -1252,7 +1294,7 @@ public class TransactionImpl implements Transaction {
 				default:
 					logger.error("[{}] recover-resource failed. branch= {}",
 							ByteUtils.byteArrayToString(globalXid.getGlobalTransactionId()),
-							ByteUtils.byteArrayToString(globalXid.getBranchQualifier()));
+							ByteUtils.byteArrayToString(globalXid.getBranchQualifier()), ex);
 					throw new SystemException();
 				}
 			}

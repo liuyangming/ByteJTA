@@ -88,7 +88,7 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 
 			return descriptor;
 		} catch (Exception ex) {
-			logger.error("can not find a matching xa-resource(identifier= {})!", identifier);
+			logger.error("can not find a matching xa-resource(identifier= {})!", identifier, ex);
 			return null;
 		}
 
@@ -130,7 +130,7 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 
 				return descriptor;
 			} catch (Exception ex) {
-				logger.warn(ex.getMessage());
+				logger.warn(ex.getMessage(), ex);
 
 				XAResource xares = xaConnection.getXAResource();
 
@@ -159,7 +159,7 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 
 				return descriptor;
 			} catch (Exception ex) {
-				logger.warn(ex.getMessage());
+				logger.warn(ex.getMessage(), ex);
 
 				XAResource xares = xaSession.getXAResource();
 
@@ -187,7 +187,7 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 
 				return descriptor;
 			} catch (Exception ex) {
-				logger.warn(ex.getMessage());
+				logger.warn(ex.getMessage(), ex);
 
 				XAResource xares = managedConnection.getXAResource();
 

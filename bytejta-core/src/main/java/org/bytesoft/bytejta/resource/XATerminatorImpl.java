@@ -111,6 +111,10 @@ public class XATerminatorImpl implements XATerminator {
 					ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
 					ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()), true);
 		} catch (XAException xaex) {
+			logger.error("[{}] Error occurred while committing xa-resource: xares= {}, branch= {}, code= {}",
+					ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
+					ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()), xaex.errorCode, xaex);
+
 			switch (xaex.errorCode) {
 			case XAException.XA_HEURCOM:
 				archive.setHeuristic(true);
@@ -142,7 +146,7 @@ public class XATerminatorImpl implements XATerminator {
 		} catch (RuntimeException rex) {
 			logger.error("[{}] Error occurred while committing xa-resource: xares= {}, branch= {}",
 					ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
-					ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()));
+					ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()), rex);
 			updateRequired = false;
 			throw new XAException(XAException.XA_HEURHAZ);
 		} finally {
@@ -188,6 +192,10 @@ public class XATerminatorImpl implements XATerminator {
 						ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
 						ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), false);
 			} catch (XAException xaex) {
+				logger.error("[{}] Error occurred while committing xa-resource: xares= {}, branch= {}, code= {}",
+						ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
+						ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()), xaex.errorCode, xaex);
+
 				switch (xaex.errorCode) {
 				case XAException.XA_HEURHAZ:
 					archive.setHeuristic(true);
@@ -229,7 +237,7 @@ public class XATerminatorImpl implements XATerminator {
 			} catch (RuntimeException rex) {
 				logger.error("[{}] Error occurred while committing xa-resource: xares= {}, branch= {}",
 						ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
-						ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()));
+						ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()), rex);
 				unFinishExists = true;
 				updateRequired = false;
 			} finally {
@@ -263,6 +271,8 @@ public class XATerminatorImpl implements XATerminator {
 			case XAException.XA_HEURHAZ:
 			case XAException.XA_HEURMIX:
 			case XAException.XA_HEURRB:
+				logger.warn("An error occurred in one phase commit: {}, transaction has been completed!",
+						ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()));
 				throw xaex;
 			case XAException.XAER_RMFAIL:
 				logger.warn("An error occurred in one phase commit: {}",
@@ -284,6 +294,8 @@ public class XATerminatorImpl implements XATerminator {
 			case XAException.XA_RBTIMEOUT:
 			case XAException.XA_RBTRANSIENT:
 			default:
+				logger.warn("An error occurred in one phase commit: {}, transaction has been rolled back!",
+						ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()));
 				throw new XAException(XAException.XA_HEURRB);
 			}
 		}
@@ -327,7 +339,9 @@ public class XATerminatorImpl implements XATerminator {
 				// Invalid arguments were specified.
 			case XAException.XAER_PROTO:
 				// The routine was invoked in an improper context.
-				throw new XAException(XAException.XAER_RMERR);
+				XAException error = new XAException(XAException.XAER_RMERR);
+				error.initCause(xaex);
+				throw error;
 			case XAException.XAER_RMERR:
 				// An error occurred in committing the work performed on behalf of the transaction
 				// branch and the branch’s work has been rolled back. Note that returning this error
@@ -337,7 +351,9 @@ public class XATerminatorImpl implements XATerminator {
 				// commit the branch and that it cannot hold the branch’s resources in a prepared
 				// state. Otherwise, [XA_RETRY] should be returned.
 			default:// XA_RB*
-				throw new XAException(XAException.XA_HEURRB);
+				XAException xarb = new XAException(XAException.XA_HEURRB);
+				xarb.initCause(xaex);
+				throw xarb;
 			}
 		}
 	}
@@ -377,6 +393,10 @@ public class XATerminatorImpl implements XATerminator {
 						ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
 						ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()));
 			} catch (XAException xaex) {
+				logger.error("[{}] Error occurred while rolling back xa-resource: xares= {}, branch= {}, code= {}",
+						ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
+						ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()), xaex.errorCode, xaex);
+
 				switch (xaex.errorCode) {
 				case XAException.XA_HEURHAZ:
 					unFinishExists = true;
@@ -420,7 +440,7 @@ public class XATerminatorImpl implements XATerminator {
 				updateRequired = false;
 				logger.error("[{}] Error occurred while rolling back xa-resource: xares= {}, branch= {}",
 						ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
-						ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()));
+						ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()), rex);
 			} finally {
 				if (updateRequired) {
 					transactionLogger.updateResource(archive);
@@ -473,7 +493,9 @@ public class XATerminatorImpl implements XATerminator {
 				throw xaex;
 			case XAException.XAER_RMFAIL:
 				// An error occurred that makes the resource manager unavailable.
-				throw new XAException(XAException.XA_HEURHAZ);
+				XAException xrhaz = new XAException(XAException.XA_HEURHAZ);
+				xrhaz.initCause(xaex);
+				throw xrhaz;
 			case XAException.XAER_NOTA:
 				// The specified XID is not known by the resource manager.
 				if (archive.isReadonly()) {
@@ -500,7 +522,9 @@ public class XATerminatorImpl implements XATerminator {
 				// The resource manager has rolled back the transaction branch’s work and has
 				// released all held resources. These values are typically returned when the
 				// branch was already marked rollback-only.
-				throw new XAException(XAException.XA_HEURRB);
+				XAException xarb = new XAException(XAException.XA_HEURRB);
+				xarb.initCause(xaex);
+				throw xarb;
 			}
 		}
 	}

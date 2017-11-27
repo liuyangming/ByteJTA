@@ -26,6 +26,8 @@ import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.xa.XidFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,6 +37,8 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 @Controller
 public class TransactionCoordinatorController extends PropertyEditorSupport implements TransactionBeanFactoryAware {
+	static final Logger logger = LoggerFactory.getLogger(TransactionCoordinatorController.class);
+
 	@Autowired
 	private TransactionCoordinator transactionCoordinator;
 	@Autowired
@@ -50,11 +54,15 @@ public class TransactionCoordinatorController extends PropertyEditorSupport impl
 
 			return this.transactionCoordinator.prepare(xid);
 		} catch (XAException ex) {
+			logger.error("Error occurred while preparing transaction: {}.", identifier, ex);
+
 			response.addHeader("failure", "true");
 			response.addHeader("XA_XAER", String.valueOf(ex.errorCode));
 			response.setStatus(500);
 			return -1;
 		} catch (RuntimeException ex) {
+			logger.error("Error occurred while preparing transaction: {}.", identifier, ex);
+
 			response.addHeader("failure", "true");
 			response.setStatus(500);
 			return -1;
@@ -72,10 +80,14 @@ public class TransactionCoordinatorController extends PropertyEditorSupport impl
 
 			this.transactionCoordinator.commit(xid, onePhase);
 		} catch (XAException ex) {
+			logger.error("Error occurred while committing transaction: {}.", identifier, ex);
+
 			response.addHeader("failure", "true");
 			response.addHeader("XA_XAER", String.valueOf(ex.errorCode));
 			response.setStatus(500);
 		} catch (RuntimeException ex) {
+			logger.error("Error occurred while committing transaction: {}.", identifier, ex);
+
 			response.addHeader("failure", "true");
 			response.setStatus(500);
 		}
@@ -91,10 +103,14 @@ public class TransactionCoordinatorController extends PropertyEditorSupport impl
 
 			this.transactionCoordinator.rollback(xid);
 		} catch (XAException ex) {
+			logger.error("Error occurred while rolling back transaction: {}.", identifier, ex);
+
 			response.addHeader("failure", "true");
 			response.addHeader("XA_XAER", String.valueOf(ex.errorCode));
 			response.setStatus(500);
 		} catch (RuntimeException ex) {
+			logger.error("Error occurred while rolling back transaction: {}.", identifier, ex);
+
 			response.addHeader("failure", "true");
 			response.setStatus(500);
 		}
@@ -106,11 +122,15 @@ public class TransactionCoordinatorController extends PropertyEditorSupport impl
 		try {
 			return this.transactionCoordinator.recover(flag);
 		} catch (XAException ex) {
+			logger.error("Error occurred while recovering transactions.", ex);
+
 			response.addHeader("failure", "true");
 			response.addHeader("XA_XAER", String.valueOf(ex.errorCode));
 			response.setStatus(500);
 			return new Xid[0];
 		} catch (RuntimeException ex) {
+			logger.error("Error occurred while recovering transactions.", ex);
+
 			response.addHeader("failure", "true");
 			response.setStatus(500);
 			return new Xid[0];
@@ -127,10 +147,14 @@ public class TransactionCoordinatorController extends PropertyEditorSupport impl
 
 			this.transactionCoordinator.forget(xid);
 		} catch (XAException ex) {
+			logger.error("Error occurred while forgetting transaction: {}.", identifier, ex);
+
 			response.addHeader("failure", "true");
 			response.addHeader("XA_XAER", String.valueOf(ex.errorCode));
 			response.setStatus(500);
 		} catch (RuntimeException ex) {
+			logger.error("Error occurred while forgetting transaction: {}.", identifier, ex);
+
 			response.addHeader("failure", "true");
 			response.setStatus(500);
 		}

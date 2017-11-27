@@ -163,7 +163,7 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 			stmt.executeBatch();
 			conn.commit();
 		} catch (Exception ex) {
-			logger.error("Error occurred while forgetting resources.");
+			logger.error("Error occurred while forgetting resources.", ex);
 
 			try {
 				conn.rollback();
