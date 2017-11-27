@@ -60,7 +60,9 @@ public class LocalXADataSource /* extends TransactionListenerAdapter */
 			LogicalConnection connection = xacon.getConnection();
 			descriptor = xacon.getXAResource();
 			LocalXAResource localXARes = (LocalXAResource) descriptor.getDelegate();
-			boolean loggingRequired = TransactionContext.class.equals(transaction.getTransactionContext().getClass()) == false;
+			TransactionContext transactionContext = transaction.getTransactionContext();
+			boolean loggingRequired = LocalXACompatible.class.isInstance(transactionContext) //
+					? ((LocalXACompatible) transactionContext).compatibleLoggingLRO() : false;
 			localXARes.setLoggingRequired(loggingRequired);
 			transaction.enlistResource(descriptor);
 
@@ -94,7 +96,9 @@ public class LocalXADataSource /* extends TransactionListenerAdapter */
 			LogicalConnection connection = xacon.getConnection();
 			descriptor = xacon.getXAResource();
 			LocalXAResource localXARes = (LocalXAResource) descriptor.getDelegate();
-			boolean loggingRequired = TransactionContext.class.equals(transaction.getTransactionContext().getClass()) == false;
+			TransactionContext transactionContext = transaction.getTransactionContext();
+			boolean loggingRequired = LocalXACompatible.class.isInstance(transactionContext) //
+					? ((LocalXACompatible) transactionContext).compatibleLoggingLRO() : false;
 			localXARes.setLoggingRequired(loggingRequired);
 			transaction.enlistResource(descriptor);
 
