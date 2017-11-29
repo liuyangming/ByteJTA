@@ -33,6 +33,7 @@ public final class SpringCloudBeanRegistry implements TransactionBeanFactoryAwar
 	static final Logger logger = LoggerFactory.getLogger(SpringCloudBeanRegistry.class);
 	private static final SpringCloudBeanRegistry instance = new SpringCloudBeanRegistry();
 
+	@javax.inject.Inject
 	private TransactionBeanFactory beanFactory;
 	private RestTemplate restTemplate;
 	private ThreadLocal<TransactionLoadBalancerInterceptor> interceptors = new ThreadLocal<TransactionLoadBalancerInterceptor>();

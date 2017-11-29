@@ -36,10 +36,12 @@ import org.slf4j.LoggerFactory;
 
 public class TransactionInterceptorImpl implements TransactionInterceptor, TransactionBeanFactoryAware {
 	static final Logger logger = LoggerFactory.getLogger(TransactionInterceptorImpl.class);
-	private TransactionBeanFactory transactionBeanFactory;
+
+	@javax.inject.Inject
+	private TransactionBeanFactory beanFactory;
 
 	public void beforeSendRequest(TransactionRequest request) throws IllegalStateException {
-		TransactionManager transactionManager = this.transactionBeanFactory.getTransactionManager();
+		TransactionManager transactionManager = this.beanFactory.getTransactionManager();
 		Transaction transaction = transactionManager.getTransactionQuietly();
 		if (transaction == null) {
 			return;
@@ -75,13 +77,13 @@ public class TransactionInterceptorImpl implements TransactionInterceptor, Trans
 	}
 
 	public void beforeSendResponse(TransactionResponse response) throws IllegalStateException {
-		TransactionManager transactionManager = this.transactionBeanFactory.getTransactionManager();
+		TransactionManager transactionManager = this.beanFactory.getTransactionManager();
 		Transaction transaction = transactionManager.getTransactionQuietly();
 		if (transaction == null) {
 			return;
 		}
 
-		RemoteCoordinator coordinator = this.transactionBeanFactory.getTransactionCoordinator();
+		RemoteCoordinator coordinator = this.beanFactory.getTransactionCoordinator();
 
 		TransactionContext srcTransactionContext = transaction.getTransactionContext();
 		TransactionContext transactionContext = srcTransactionContext.clone();
@@ -103,7 +105,7 @@ public class TransactionInterceptorImpl implements TransactionInterceptor, Trans
 			return;
 		}
 
-		RemoteCoordinator coordinator = this.transactionBeanFactory.getTransactionCoordinator();
+		RemoteCoordinator coordinator = this.beanFactory.getTransactionCoordinator();
 
 		TransactionContext transactionContext = srcTransactionContext.clone();
 		transactionContext.setPropagatedBy(srcTransactionContext.getPropagatedBy());
@@ -115,7 +117,7 @@ public class TransactionInterceptorImpl implements TransactionInterceptor, Trans
 	}
 
 	public void afterReceiveResponse(TransactionResponse response) throws IllegalStateException {
-		TransactionManager transactionManager = this.transactionBeanFactory.getTransactionManager();
+		TransactionManager transactionManager = this.beanFactory.getTransactionManager();
 		Transaction transaction = transactionManager.getTransactionQuietly();
 		TransactionContext transactionContext = response.getTransactionContext();
 		RemoteCoordinator resource = response.getSourceTransactionCoordinator();
@@ -143,7 +145,7 @@ public class TransactionInterceptorImpl implements TransactionInterceptor, Trans
 	}
 
 	public void setBeanFactory(TransactionBeanFactory tbf) {
-		this.transactionBeanFactory = tbf;
+		this.beanFactory = tbf;
 	}
 
 }

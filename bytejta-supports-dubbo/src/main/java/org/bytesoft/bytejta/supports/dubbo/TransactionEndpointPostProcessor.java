@@ -19,8 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.bytesoft.common.utils.CommonUtils;
-import org.bytesoft.transaction.TransactionBeanFactory;
-import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.aware.TransactionEndpointAware;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.FatalBeanException;
@@ -33,8 +31,7 @@ import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import com.alibaba.dubbo.config.ApplicationConfig;
 import com.alibaba.dubbo.config.ProtocolConfig;
 
-public class TransactionEndpointPostProcessor implements BeanFactoryPostProcessor, TransactionBeanFactoryAware {
-	private TransactionBeanFactory beanFactory;
+public class TransactionEndpointPostProcessor implements BeanFactoryPostProcessor {
 
 	public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
 		ClassLoader cl = Thread.currentThread().getContextClassLoader();
@@ -103,14 +100,6 @@ public class TransactionEndpointPostProcessor implements BeanFactoryPostProcesso
 			mpv.addPropertyValue(TransactionEndpointAware.ENDPOINT_FIELD_NAME, identifier);
 		}
 
-	}
-
-	public TransactionBeanFactory getBeanFactory() {
-		return beanFactory;
-	}
-
-	public void setBeanFactory(TransactionBeanFactory beanFactory) {
-		this.beanFactory = beanFactory;
 	}
 
 }

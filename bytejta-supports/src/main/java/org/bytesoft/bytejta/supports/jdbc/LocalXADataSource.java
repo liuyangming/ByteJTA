@@ -39,6 +39,7 @@ public class LocalXADataSource /* extends TransactionListenerAdapter */
 
 	private DataSource dataSource;
 	private String beanName;
+	@javax.annotation.Resource
 	private TransactionManager transactionManager;
 
 	public Connection getConnection() throws SQLException {

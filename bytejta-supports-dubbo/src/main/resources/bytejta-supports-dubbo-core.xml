@@ -31,9 +31,9 @@
 	<bean id="bytejtaResourceDeserializer" class="org.bytesoft.bytejta.supports.dubbo.serialize.XAResourceDeserializerImpl" />
 
 	<bean id="bytejtaBeanFactory" class="org.bytesoft.bytejta.TransactionBeanFactoryImpl">
-		<property name="transactionManager" ref="bytejtaTransactionManager" />
+		<property name="transactionManager" ref="transactionManager" />
 		<property name="xidFactory" ref="bytejtaXidFactory" />
-		<property name="transactionTimer" ref="bytejtaTransactionManager" />
+		<property name="transactionTimer" ref="transactionManager" />
 		<property name="transactionLogger" ref="bytejtaTransactionLogger" />
 		<property name="transactionRepository" ref="bytejtaTransactionRepository" />
 		<property name="transactionInterceptor" ref="bytejtaTransactionInterceptor" />

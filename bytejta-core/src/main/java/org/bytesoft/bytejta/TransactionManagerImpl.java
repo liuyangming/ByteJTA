@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
 public class TransactionManagerImpl implements TransactionManager, TransactionTimer, TransactionBeanFactoryAware {
 	static final Logger logger = LoggerFactory.getLogger(TransactionManagerImpl.class);
 
+	@javax.inject.Inject
 	private TransactionBeanFactory beanFactory;
 	private int timeoutSeconds = 5 * 60;
 	private final Map<Thread, Transaction> associatedTxMap = new ConcurrentHashMap<Thread, Transaction>();

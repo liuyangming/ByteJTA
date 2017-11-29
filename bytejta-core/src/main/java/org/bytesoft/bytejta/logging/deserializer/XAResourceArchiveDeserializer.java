@@ -34,6 +34,7 @@ import org.bytesoft.transaction.xa.XidFactory;
 
 public class XAResourceArchiveDeserializer implements ArchiveDeserializer, TransactionBeanFactoryAware {
 
+	@javax.inject.Inject
 	private TransactionBeanFactory beanFactory;
 	// private XAResourceDeserializer deserializer;
 

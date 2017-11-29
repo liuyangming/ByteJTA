@@ -31,6 +31,7 @@ import javax.transaction.UserTransaction;
 public class UserTransactionImpl implements UserTransaction, Referenceable, Serializable {
 	private static final long serialVersionUID = 1L;
 
+	@javax.inject.Inject
 	private transient TransactionManager transactionManager;
 
 	public void begin() throws NotSupportedException, SystemException {

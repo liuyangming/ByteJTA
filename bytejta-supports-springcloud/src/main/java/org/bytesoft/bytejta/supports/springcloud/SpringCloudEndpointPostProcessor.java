@@ -36,6 +36,7 @@ public class SpringCloudEndpointPostProcessor
 		implements BeanFactoryPostProcessor, TransactionBeanFactoryAware, EnvironmentAware {
 	static final Logger logger = LoggerFactory.getLogger(SpringCloudEndpointPostProcessor.class);
 
+	@javax.inject.Inject
 	private TransactionBeanFactory beanFactory;
 	private Environment environment;
 

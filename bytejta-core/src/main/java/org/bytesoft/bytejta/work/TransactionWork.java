@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 public class TransactionWork implements Work, TransactionBeanFactoryAware {
 	static final Logger logger = LoggerFactory.getLogger(TransactionWork.class);
 
+	@javax.inject.Inject
 	private TransactionBeanFactory beanFactory;
 
 	static final long SECOND_MILLIS = 1000L;

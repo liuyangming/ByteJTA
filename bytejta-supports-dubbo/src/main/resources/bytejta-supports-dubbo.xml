@@ -13,7 +13,10 @@
 
 	<import resource="classpath:bytejta-supports-dubbo-core.xml" />
 
-	<bean id="transactionManager" class="org.springframework.transaction.jta.JtaTransactionManager" />
-	<tx:annotation-driven transaction-manager="transactionManager" />
+	<bean id="jtaTransactionManager" class="org.springframework.transaction.jta.JtaTransactionManager">
+		<property name="userTransaction" ref="bytejtaUserTransaction" />
+		<property name="transactionManager" ref="transactionManager" />
+	</bean>
+	<tx:annotation-driven transaction-manager="jtaTransactionManager" />
 
 </beans>

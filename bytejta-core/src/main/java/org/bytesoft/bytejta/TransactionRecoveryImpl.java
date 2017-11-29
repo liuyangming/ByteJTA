@@ -48,8 +48,9 @@ import org.slf4j.LoggerFactory;
 public class TransactionRecoveryImpl implements TransactionRecovery, TransactionBeanFactoryAware {
 	static final Logger logger = LoggerFactory.getLogger(TransactionRecoveryImpl.class);
 
-	private TransactionBeanFactory beanFactory;
 	private TransactionRecoveryListener listener;
+	@javax.inject.Inject
+	private TransactionBeanFactory beanFactory;
 
 	public synchronized void timingRecover() {
 		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();

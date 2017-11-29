@@ -46,6 +46,7 @@ public class SampleTransactionLogger extends VirtualLoggingSystemImpl
 		implements TransactionLogger, LoggingFlushable, TransactionBeanFactoryAware, TransactionEndpointAware {
 	static final Logger logger = LoggerFactory.getLogger(SampleTransactionLogger.class);
 
+	@javax.inject.Inject
 	private TransactionBeanFactory beanFactory;
 	private String endpoint;
 

@@ -31,8 +31,9 @@ public class TransactionBeanRegistry implements TransactionBeanFactoryAware {
 
 	private static final TransactionBeanRegistry instance = new TransactionBeanRegistry();
 
-	private TransactionBeanFactory beanFactory;
 	private RemoteCoordinator consumeCoordinator;
+	@javax.inject.Inject
+	private TransactionBeanFactory beanFactory;
 
 	private Lock lock = new ReentrantLock();
 	private Condition condition = this.lock.newCondition();
