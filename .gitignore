@@ -22,3 +22,5 @@ target
 /bytejta-supports-dubbo/.project
 /bytejta-supports-springcloud/.classpath
 /bytejta-supports-springcloud/.project
+/bytejta-logger/.classpath
+/bytejta-logger/.project
