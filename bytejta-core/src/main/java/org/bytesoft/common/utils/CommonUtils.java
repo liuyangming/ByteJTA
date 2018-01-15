@@ -23,6 +23,7 @@ import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,6 +32,29 @@ import com.caucho.hessian.io.HessianOutput;
 
 public class CommonUtils {
 	static final Logger logger = LoggerFactory.getLogger(CommonUtils.class);
+
+	public static boolean instanceEquals(String source, String target) {
+		if (StringUtils.isBlank(source) && StringUtils.isNotBlank(target)) {
+			return false;
+		} else if (StringUtils.isBlank(target) && StringUtils.isNotBlank(source)) {
+			return false;
+		} else if (StringUtils.isBlank(target) && StringUtils.isBlank(source)) {
+			return true;
+		} else {
+			String[] sourceArray = source.split("\\s*:\\s*");
+			String[] targetArray = target.split("\\s*:\\s*");
+			if (sourceArray.length != targetArray.length) {
+				return false;
+			} else {
+				String sourceAddr = sourceArray[0];
+				String targetAddr = targetArray[0];
+				String sourcePort = sourceArray[sourceArray.length - 1];
+				String targetPort = targetArray[targetArray.length - 1];
+				return StringUtils.equalsIgnoreCase(sourceAddr, targetAddr)
+						&& StringUtils.equalsIgnoreCase(sourcePort, targetPort);
+			}
+		}
+	}
 
 	public static boolean equals(Object o1, Object o2) {
 		if (o1 != null) {
