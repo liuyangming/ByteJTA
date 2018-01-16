@@ -52,6 +52,7 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.env.Environment;
 import org.springframework.http.client.ClientHttpRequestFactory;
@@ -65,6 +66,7 @@ import feign.InvocationHandlerFactory;
 import feign.Target;
 import feign.codec.ErrorDecoder;
 
+@Import(SpringCloudSupportConfiguration.class)
 @PropertySource(value = "bytejta:loadbalancer.config", factory = TransactionPropertySourceFactory.class)
 @Configuration
 public class SpringCloudConfiguration extends WebMvcConfigurerAdapter
@@ -148,7 +150,6 @@ public class SpringCloudConfiguration extends WebMvcConfigurerAdapter
 	public TransactionHandlerInterceptor transactionHandlerInterceptor() {
 		TransactionHandlerInterceptor interceptor = new TransactionHandlerInterceptor();
 		interceptor.setEndpoint(this.identifier);
-		// interceptor.setApplicationContext(this.applicationContext);
 		return interceptor;
 	}
 

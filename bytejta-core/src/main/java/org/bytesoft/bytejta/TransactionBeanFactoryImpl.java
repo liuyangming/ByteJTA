@@ -29,6 +29,8 @@ import org.bytesoft.transaction.supports.serialize.XAResourceDeserializer;
 import org.bytesoft.transaction.xa.XidFactory;
 
 public class TransactionBeanFactoryImpl implements TransactionBeanFactory {
+	private static final TransactionBeanFactoryImpl instance = new TransactionBeanFactoryImpl();
+
 	private TransactionManager transactionManager;
 	private XidFactory xidFactory;
 	private TransactionTimer transactionTimer;
@@ -41,6 +43,16 @@ public class TransactionBeanFactoryImpl implements TransactionBeanFactory {
 
 	private ArchiveDeserializer archiveDeserializer;
 	private XAResourceDeserializer resourceDeserializer;
+
+	private TransactionBeanFactoryImpl() {
+		if (instance != null) {
+			throw new IllegalStateException();
+		}
+	}
+
+	public static TransactionBeanFactoryImpl getInstance() {
+		return instance;
+	}
 
 	public TransactionManager getTransactionManager() {
 		return transactionManager;

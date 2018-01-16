@@ -15,8 +15,30 @@
  */
 package org.bytesoft.bytejta.supports.springcloud.config;
 
-@org.springframework.context.annotation.Configuration
-public class SpringCloudSupportConfiguration {
+import org.bytesoft.bytejta.TransactionBeanFactoryImpl;
+import org.bytesoft.bytejta.supports.config.ScheduleWorkConfiguration;
+import org.bytesoft.bytejta.supports.config.TransactionConfiguration;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
+import org.springframework.transaction.annotation.TransactionManagementConfigurer;
+
+@EnableTransactionManagement
+@Import({ TransactionConfiguration.class, ScheduleWorkConfiguration.class })
+@Configuration
+public class SpringCloudSupportConfiguration implements TransactionManagementConfigurer, ApplicationContextAware {
+	private ApplicationContext applicationContext;
+
+	public PlatformTransactionManager annotationDrivenTransactionManager() {
+		org.springframework.transaction.jta.JtaTransactionManager jtaTransactionManager //
+				= new org.springframework.transaction.jta.JtaTransactionManager();
+		jtaTransactionManager.setTransactionManager(TransactionBeanFactoryImpl.getInstance().getTransactionManager());
+		return jtaTransactionManager;
+	}
 
 	@org.springframework.context.annotation.Bean
 	public org.bytesoft.bytejta.supports.springcloud.SpringCloudEndpointPostProcessor springCloudEndpointPostProcessor() {
@@ -41,7 +63,7 @@ public class SpringCloudSupportConfiguration {
 
 	@org.springframework.context.annotation.Bean
 	public org.bytesoft.bytejta.logging.deserializer.TransactionArchiveDeserializer bytejtaTransactionDeserializer(
-			@org.springframework.beans.factory.annotation.Autowired org.bytesoft.bytejta.logging.deserializer.XAResourceArchiveDeserializer resourceArchiveDeserializer) {
+			@Autowired org.bytesoft.bytejta.logging.deserializer.XAResourceArchiveDeserializer resourceArchiveDeserializer) {
 		org.bytesoft.bytejta.logging.deserializer.TransactionArchiveDeserializer transactionArchiveDeserializer //
 				= new org.bytesoft.bytejta.logging.deserializer.TransactionArchiveDeserializer();
 		transactionArchiveDeserializer.setResourceArchiveDeserializer(resourceArchiveDeserializer);
@@ -50,49 +72,35 @@ public class SpringCloudSupportConfiguration {
 
 	@org.springframework.context.annotation.Bean
 	public org.bytesoft.bytejta.logging.ArchiveDeserializerImpl bytejtaArchiveDeserializer(
-			@org.springframework.beans.factory.annotation.Autowired org.bytesoft.bytejta.logging.deserializer.TransactionArchiveDeserializer transactionArchiveDeserializer,
-			@org.springframework.beans.factory.annotation.Autowired org.bytesoft.bytejta.logging.deserializer.XAResourceArchiveDeserializer xaResourceArchiveDeserializer) {
+			@Autowired org.bytesoft.bytejta.logging.deserializer.TransactionArchiveDeserializer transactionArchiveDeserializer,
+			@Autowired org.bytesoft.bytejta.logging.deserializer.XAResourceArchiveDeserializer xaResourceArchiveDeserializer) {
 		org.bytesoft.bytejta.logging.ArchiveDeserializerImpl archiveDeserializer //
 				= new org.bytesoft.bytejta.logging.ArchiveDeserializerImpl();
 		archiveDeserializer.setTransactionArchiveDeserializer(transactionArchiveDeserializer);
 		archiveDeserializer.setXaResourceArchiveDeserializer(xaResourceArchiveDeserializer);
+		TransactionBeanFactoryImpl.getInstance().setArchiveDeserializer(archiveDeserializer);
 		return archiveDeserializer;
 	}
 
 	@org.springframework.context.annotation.Bean
 	public org.bytesoft.bytejta.supports.springcloud.serialize.XAResourceDeserializerImpl bytejtaResourceDeserializer() {
-		return new org.bytesoft.bytejta.supports.springcloud.serialize.XAResourceDeserializerImpl();
+		org.bytesoft.bytejta.supports.springcloud.serialize.XAResourceDeserializerImpl resourceDeserializer //
+				= new org.bytesoft.bytejta.supports.springcloud.serialize.XAResourceDeserializerImpl();
+		TransactionBeanFactoryImpl.getInstance().setResourceDeserializer(resourceDeserializer);
+		return resourceDeserializer;
 	}
 
 	@org.springframework.context.annotation.Bean
-	public org.bytesoft.bytejta.TransactionBeanFactoryImpl bytejtaBeanFactory(
-			@org.springframework.beans.factory.annotation.Autowired org.bytesoft.transaction.TransactionManager transactionManager,
-			@org.springframework.beans.factory.annotation.Autowired org.bytesoft.transaction.xa.XidFactory xidFactory,
-			@org.springframework.beans.factory.annotation.Autowired org.bytesoft.transaction.supports.TransactionTimer transactionTimer,
-			@org.springframework.beans.factory.annotation.Autowired org.bytesoft.transaction.logging.TransactionLogger transactionLogger,
-			@org.springframework.beans.factory.annotation.Autowired org.bytesoft.transaction.TransactionRepository transactionRepository,
-			@org.springframework.beans.factory.annotation.Autowired org.bytesoft.transaction.supports.rpc.TransactionInterceptor transactionInterceptor,
-			@org.springframework.beans.factory.annotation.Autowired org.bytesoft.transaction.TransactionRecovery transactionRecovery,
-			@org.springframework.beans.factory.annotation.Autowired org.bytesoft.bytejta.supports.wire.RemoteCoordinator transactionCoordinator,
-			@org.springframework.beans.factory.annotation.Autowired org.bytesoft.transaction.TransactionLock transactionLock,
-			@org.springframework.beans.factory.annotation.Autowired org.bytesoft.transaction.logging.ArchiveDeserializer archiveDeserializer,
-			@org.springframework.beans.factory.annotation.Autowired org.bytesoft.transaction.supports.serialize.XAResourceDeserializer resourceDeserializer) {
+	public org.bytesoft.transaction.TransactionBeanFactory transactionBeanFactory() {
+		return TransactionBeanFactoryImpl.getInstance();
+	}
 
-		org.bytesoft.bytejta.TransactionBeanFactoryImpl beanFactory = new org.bytesoft.bytejta.TransactionBeanFactoryImpl();
+	public ApplicationContext getApplicationContext() {
+		return applicationContext;
+	}
 
-		beanFactory.setTransactionManager(transactionManager);
-		beanFactory.setXidFactory(xidFactory);
-		beanFactory.setTransactionTimer(transactionTimer);
-		beanFactory.setTransactionLogger(transactionLogger);
-		beanFactory.setTransactionRepository(transactionRepository);
-		beanFactory.setTransactionInterceptor(transactionInterceptor);
-		beanFactory.setTransactionRecovery(transactionRecovery);
-		beanFactory.setTransactionCoordinator(transactionCoordinator);
-		beanFactory.setTransactionLock(transactionLock);
-		beanFactory.setArchiveDeserializer(archiveDeserializer);
-		beanFactory.setResourceDeserializer(resourceDeserializer);
-
-		return beanFactory;
+	public void setApplicationContext(ApplicationContext applicationContext) {
+		this.applicationContext = applicationContext;
 	}
 
 }
