@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.bytejta.supports.springcloud;
+package org.bytesoft.bytejta.supports.springcloud.config;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
+import org.bytesoft.bytejta.supports.springcloud.SpringCloudBeanRegistry;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionClientRegistry;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignContract;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignDecoder;
