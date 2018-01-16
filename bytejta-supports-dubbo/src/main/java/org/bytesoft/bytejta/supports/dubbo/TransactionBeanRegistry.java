@@ -77,8 +77,13 @@ public class TransactionBeanRegistry implements TransactionBeanFactoryAware {
 	public void setConsumeCoordinator(RemoteCoordinator consumeCoordinator) {
 		try {
 			this.lock.lock();
-			this.consumeCoordinator = consumeCoordinator;
-			this.condition.signalAll();
+			if (this.consumeCoordinator == null) {
+				this.consumeCoordinator = consumeCoordinator;
+				this.condition.signalAll();
+			} else {
+				throw new IllegalStateException(
+						"Field 'consumeCoordinator' has already been set, please check your app whether it imports ByteJTA repeatedly!");
+			}
 		} finally {
 			this.lock.unlock();
 		}
