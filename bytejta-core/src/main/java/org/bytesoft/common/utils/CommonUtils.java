@@ -110,4 +110,14 @@ public class CommonUtils {
 		}
 	}
 
+	public static String getInetAddress(String host) {
+		try {
+			InetAddress inetAddr = InetAddress.getByName(host);
+			return inetAddr.getHostAddress();
+		} catch (UnknownHostException ex) {
+			logger.error("Error occurred while getting ip address: host= {}.", host, ex);
+			return host;
+		}
+	}
+
 }

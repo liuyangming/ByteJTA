@@ -74,6 +74,8 @@ public class TransactionHandlerInterceptor implements HandlerInterceptor, Transa
 		TransactionContext transactionContext = null;
 		if (byteArray != null && byteArray.length > 0) {
 			transactionContext = (TransactionContext) CommonUtils.deserializeObject(byteArray);
+			transactionContext.setPropagated(true);
+			transactionContext.setPropagatedBy(propagationText);
 		}
 
 		TransactionRequestImpl req = new TransactionRequestImpl();
