@@ -32,10 +32,12 @@ import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignIntercept
 import org.bytesoft.bytejta.supports.springcloud.property.TransactionPropertySourceFactory;
 import org.bytesoft.bytejta.supports.springcloud.web.TransactionHandlerInterceptor;
 import org.bytesoft.bytejta.supports.springcloud.web.TransactionRequestInterceptor;
+import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.aware.TransactionEndpointAware;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.PropertyValue;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.ObjectFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -66,8 +68,8 @@ import feign.codec.ErrorDecoder;
 
 @PropertySource(value = "bytejta:loadbalancer.config", factory = TransactionPropertySourceFactory.class)
 @Configuration
-public class SpringCloudConfiguration extends WebMvcConfigurerAdapter
-		implements BeanFactoryPostProcessor, TransactionEndpointAware, EnvironmentAware, ApplicationContextAware {
+public class SpringCloudConfiguration extends WebMvcConfigurerAdapter implements BeanFactoryPostProcessor, InitializingBean,
+		TransactionEndpointAware, EnvironmentAware, ApplicationContextAware {
 	static final String CONSTANT_INCLUSIONS = "org.bytesoft.bytejta.feign.inclusions";
 	static final String CONSTANT_EXCLUSIONS = "org.bytesoft.bytejta.feign.exclusions";
 	static final String FEIGN_FACTORY_CLASS = "org.springframework.cloud.netflix.feign.FeignClientFactoryBean";
@@ -76,6 +78,13 @@ public class SpringCloudConfiguration extends WebMvcConfigurerAdapter
 	private String identifier;
 	private Environment environment;
 	private transient final Set<String> transientClientSet = new HashSet<String>();
+
+	public void afterPropertiesSet() throws Exception {
+		String host = CommonUtils.getInetAddress();
+		String name = this.environment.getProperty("spring.application.name");
+		String port = this.environment.getProperty("server.port");
+		this.identifier = String.format("%s:%s:%s", host, name, port);
+	}
 
 	@org.springframework.context.annotation.Primary
 	@org.springframework.context.annotation.Bean
