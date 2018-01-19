@@ -32,6 +32,7 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
+import org.apache.commons.lang3.StringUtils;
 import org.bytesoft.bytejta.resource.XATerminatorImpl;
 import org.bytesoft.bytejta.resource.XATerminatorOptd;
 import org.bytesoft.bytejta.strategy.CommonTransactionStrategy;
@@ -672,6 +673,14 @@ public class TransactionImpl implements Transaction {
 	public boolean delistResource(XAResourceDescriptor descriptor, int flag) throws IllegalStateException, SystemException {
 		String identifier = descriptor.getIdentifier();
 
+		RemoteCoordinator transactionCoordinator = this.beanFactory.getTransactionCoordinator();
+		String self = transactionCoordinator.getIdentifier();
+		String parent = String.valueOf(this.transactionContext.getPropagatedBy());
+
+		if (StringUtils.equalsIgnoreCase(identifier, self) || CommonUtils.instanceEquals(parent, identifier)) {
+			return true;
+		}
+
 		XAResourceArchive archive = this.participantMap.get(identifier);
 		if (archive == null) {
 			throw new SystemException();
@@ -821,10 +830,20 @@ public class TransactionImpl implements Transaction {
 			success = this.enlistResource(archive, flags);
 		} finally {
 			if (success) {
+				RemoteCoordinator transactionCoordinator = this.beanFactory.getTransactionCoordinator();
+				String self = transactionCoordinator.getIdentifier();
+				String parent = String.valueOf(this.transactionContext.getPropagatedBy());
+
+				boolean resourceValid = StringUtils.equalsIgnoreCase(identifier, self) == false
+						&& CommonUtils.instanceEquals(parent, identifier) == false;
 				if (CommonResourceDescriptor.class.isInstance(descriptor)) {
 					this.nativeParticipantList.add(archive);
 				} else if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
-					this.remoteParticipantList.add(archive);
+					if (resourceValid) {
+						this.remoteParticipantList.add(archive);
+					} else {
+						logger.warn("Endpoint {} can not be its own remote branch!", identifier);
+					}
 				} else if (this.participant == null) {
 					// this.participant = this.participant == null ? archive : this.participant;
 					this.participant = archive;
@@ -832,15 +851,17 @@ public class TransactionImpl implements Transaction {
 					throw new SystemException("There already has a local-resource exists!");
 				}
 
-				this.participantList.add(archive);
-				if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
-					RemoteResourceDescriptor resourceDescriptor = (RemoteResourceDescriptor) descriptor;
-					RemoteCoordinator remoteCoordinator = resourceDescriptor.getDelegate();
-					this.applicationMap.put(remoteCoordinator.getApplication(), archive);
-				} // end-if (RemoteResourceDescriptor.class.isInstance(descriptor))
-				this.participantMap.put(identifier, archive);
+				if (resourceValid) {
+					this.participantList.add(archive);
+					if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
+						RemoteResourceDescriptor resourceDescriptor = (RemoteResourceDescriptor) descriptor;
+						RemoteCoordinator remoteCoordinator = resourceDescriptor.getDelegate();
+						this.applicationMap.put(remoteCoordinator.getApplication(), archive);
+					} // end-if (RemoteResourceDescriptor.class.isInstance(descriptor))
+					this.participantMap.put(identifier, archive);
 
-				this.resourceListenerList.onEnlistResource(archive.getXid(), descriptor);
+					this.resourceListenerList.onEnlistResource(archive.getXid(), descriptor);
+				} // end-if (resourceValid)
 			}
 		}
 
