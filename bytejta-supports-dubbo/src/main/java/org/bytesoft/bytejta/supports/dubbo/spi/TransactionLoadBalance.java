@@ -59,7 +59,8 @@ public final class TransactionLoadBalance implements LoadBalance {
 				(TransactionImpl) transactionManager.getTransactionQuietly();
 		List<XAResourceArchive> participantList = transaction == null ? null : transaction.getRemoteParticipantList();
 
-		for (int i = 0; invokers != null && participantList != null && i < invokers.size(); i++) {
+		for (int i = 0; invokers != null && participantList != null && participantList.isEmpty() == false
+				&& i < invokers.size(); i++) {
 			Invoker<T> invoker = invokers.get(i);
 			URL invokerUrl = invoker.getUrl();
 			String invokerHost = invokerUrl.getHost();

@@ -60,9 +60,9 @@ public class TransactionInterceptorImpl implements TransactionInterceptor, Trans
 
 			RemoteResourceDescriptor descriptor = new RemoteResourceDescriptor();
 			descriptor.setDelegate(resource);
-			descriptor.setIdentifier(resource.getIdentifier());
 
-			transaction.enlistResource(descriptor);
+			boolean participantEnlisted = transaction.enlistResource(descriptor);
+			((TransactionRequestImpl) request).setParticipantEnlistFlag(participantEnlisted);
 		} catch (IllegalStateException ex) {
 			logger.error("TransactionInterceptorImpl.beforeSendRequest(TransactionRequest)", ex);
 			throw ex;
@@ -121,19 +121,26 @@ public class TransactionInterceptorImpl implements TransactionInterceptor, Trans
 		Transaction transaction = transactionManager.getTransactionQuietly();
 		TransactionContext transactionContext = response.getTransactionContext();
 		RemoteCoordinator resource = response.getSourceTransactionCoordinator();
+
+		boolean participantEnlistFlag = ((TransactionResponseImpl) response).isParticipantEnlistFlag();
+		// boolean participantDelistFlag = ((TransactionResponseImpl) response).isParticipantDelistFlag();
+
 		if (transaction == null || transactionContext == null) {
 			return;
 		} else if (resource == null) {
 			logger.error("TransactionInterceptorImpl.afterReceiveResponse(TransactionRequest): remote coordinator is null.");
 			throw new IllegalStateException("remote coordinator is null.");
+		} else if (participantEnlistFlag == false) {
+			return;
 		}
 
 		try {
 			RemoteResourceDescriptor descriptor = new RemoteResourceDescriptor();
 			descriptor.setDelegate(resource);
-			descriptor.setIdentifier(resource.getIdentifier());
+			// descriptor.setIdentifier(resource.getIdentifier());
 
 			transaction.delistResource(descriptor, XAResource.TMSUCCESS);
+			// transaction.delistResource(descriptor, participantDelistFlag ? XAResource.TMFAIL : XAResource.TMSUCCESS);
 		} catch (IllegalStateException ex) {
 			logger.error("TransactionInterceptorImpl.afterReceiveResponse(TransactionRequest)", ex);
 			throw ex;

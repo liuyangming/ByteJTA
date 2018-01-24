@@ -57,7 +57,9 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 					throw new XAException(XAException.XAER_RMFAIL);
 				}
 			} else if (XAResource.class.equals(clazz)) {
-				if ("prepare".equals(methodName)) {
+				if ("start".equals(methodName)) {
+					return this.invokeCoordinator(proxy, method, args);
+				} else if ("prepare".equals(methodName)) {
 					return this.invokeCoordinator(proxy, method, args);
 				} else if ("commit".equals(methodName)) {
 					return this.invokeCoordinator(proxy, method, args);

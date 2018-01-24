@@ -781,11 +781,9 @@ public class TransactionImpl implements Transaction {
 
 	public boolean enlistResource(XAResourceDescriptor descriptor)
 			throws RollbackException, IllegalStateException, SystemException {
-		String identifier = descriptor.getIdentifier();
-
 		XAResourceArchive archive = null;
 
-		XAResourceArchive element = this.participantMap.get(identifier);
+		XAResourceArchive element = this.participantMap.get(descriptor.getIdentifier()); // dubbo: old identifier
 		if (element != null) {
 			XAResourceDescriptor xard = element.getDescriptor();
 			try {
@@ -830,17 +828,25 @@ public class TransactionImpl implements Transaction {
 			success = this.enlistResource(archive, flags);
 		} finally {
 			if (success) {
-				RemoteCoordinator transactionCoordinator = this.beanFactory.getTransactionCoordinator();
-				String self = transactionCoordinator.getIdentifier();
-				String parent = String.valueOf(this.transactionContext.getPropagatedBy());
+				String identifier = descriptor.getIdentifier(); // dubbo: new identifier
 
-				boolean resourceValid = StringUtils.equalsIgnoreCase(identifier, self) == false
-						&& CommonUtils.instanceEquals(parent, identifier) == false;
+				boolean resourceValid = true;
 				if (CommonResourceDescriptor.class.isInstance(descriptor)) {
 					this.nativeParticipantList.add(archive);
 				} else if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
+					RemoteCoordinator transactionCoordinator = this.beanFactory.getTransactionCoordinator();
+					String self = transactionCoordinator.getIdentifier();
+					String parent = String.valueOf(this.transactionContext.getPropagatedBy());
+
+					resourceValid = StringUtils.equalsIgnoreCase(identifier, self) == false
+							&& CommonUtils.instanceEquals(parent, identifier) == false;
+
 					if (resourceValid) {
+						RemoteResourceDescriptor resourceDescriptor = (RemoteResourceDescriptor) descriptor;
+						RemoteCoordinator remoteCoordinator = resourceDescriptor.getDelegate();
+
 						this.remoteParticipantList.add(archive);
+						this.applicationMap.put(remoteCoordinator.getApplication(), archive);
 					} else {
 						logger.warn("Endpoint {} can not be its own remote branch!", identifier);
 					}
@@ -853,11 +859,6 @@ public class TransactionImpl implements Transaction {
 
 				if (resourceValid) {
 					this.participantList.add(archive);
-					if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
-						RemoteResourceDescriptor resourceDescriptor = (RemoteResourceDescriptor) descriptor;
-						RemoteCoordinator remoteCoordinator = resourceDescriptor.getDelegate();
-						this.applicationMap.put(remoteCoordinator.getApplication(), archive);
-					} // end-if (RemoteResourceDescriptor.class.isInstance(descriptor))
 					this.participantMap.put(identifier, archive);
 
 					this.resourceListenerList.onEnlistResource(archive.getXid(), descriptor);
