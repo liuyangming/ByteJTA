@@ -480,16 +480,18 @@ public class TransactionServiceFilter implements Filter {
 		String targetAddr = targetUrl.getIp();
 		int targetPort = targetUrl.getPort();
 		String remoteAddr = String.format("%s:%s", targetAddr, targetPort);
-		// String targetApp = coordinatorRegistry.getApplication(remoteAddr);
-		// String targetName = targetApp == null ? targetUrl.getParameter("application") : targetApp;
 
-		// String address = String.format("%s:%s:%s", targetAddr, targetName, targetPort);
+		String targetName = coordinatorRegistry.getApplication(remoteAddr);
+		String instanceId = String.format("%s:%s:%s", targetAddr, targetName, targetPort);
+
 		InvocationContext invocationContext = new InvocationContext();
 		invocationContext.setServerHost(targetAddr);
-		// invocationContext.setServiceKey(targetName);
+		invocationContext.setServiceKey(targetName);
 		invocationContext.setServerPort(targetPort);
 
-		RemoteCoordinator remoteCoordinator = coordinatorRegistry.getRemoteCoordinatorByAddr(remoteAddr);
+		RemoteCoordinator remoteCoordinator = StringUtils.isNotBlank(targetName)
+				? coordinatorRegistry.getRemoteCoordinator(instanceId)
+				: coordinatorRegistry.getRemoteCoordinatorByAddr(remoteAddr);
 		if (remoteCoordinator == null) {
 			DubboRemoteCoordinator dubboCoordinator = new DubboRemoteCoordinator();
 			dubboCoordinator.setInvocationContext(invocationContext);

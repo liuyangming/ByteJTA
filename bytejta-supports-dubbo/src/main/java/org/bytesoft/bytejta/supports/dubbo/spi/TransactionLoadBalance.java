@@ -64,14 +64,17 @@ public final class TransactionLoadBalance implements LoadBalance {
 			Invoker<T> invoker = invokers.get(i);
 			URL invokerUrl = invoker.getUrl();
 			String invokerHost = invokerUrl.getHost();
-			String invokerName = invokerUrl.getParameter("application");
 			int invokerPort = invokerUrl.getPort();
-			String invokerAddr = String.format("%s:%s:%s", invokerHost, invokerName, invokerPort);
+			String invokerAddr = String.format("%s:%s", invokerHost, invokerPort);
 			for (int j = 0; participantList != null && j < participantList.size(); j++) {
 				XAResourceArchive archive = participantList.get(j);
 				XAResourceDescriptor descriptor = archive.getDescriptor();
 				String identifier = descriptor.getIdentifier();
-				if (StringUtils.equalsIgnoreCase(invokerAddr, identifier)) {
+				String[] values = identifier == null ? new String[0] : identifier.split("\\s*:\\s*");
+				String targetAddr = values.length == 3 ? values[0] : null;
+				String targetPort = values.length == 3 ? values[2] : null;
+				String remoteAddr = String.format("%s:%s", targetAddr, targetPort);
+				if (StringUtils.equalsIgnoreCase(invokerAddr, remoteAddr)) {
 					return invoker;
 				} // end-if (StringUtils.equalsIgnoreCase(invokerAddr, identifier))
 			}
