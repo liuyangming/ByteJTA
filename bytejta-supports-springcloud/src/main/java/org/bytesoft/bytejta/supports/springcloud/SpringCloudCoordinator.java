@@ -26,6 +26,7 @@ import javax.transaction.xa.Xid;
 
 import org.apache.commons.lang3.StringUtils;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
+import org.bytesoft.bytejta.supports.wire.RemoteCoordinatorRegistry;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.common.utils.CommonUtils;
 import org.slf4j.Logger;
@@ -61,7 +62,9 @@ public class SpringCloudCoordinator implements InvocationHandler {
 				throw new XAException(XAException.XAER_RMFAIL);
 			}
 		} else if (XAResource.class.equals(clazz)) {
-			if ("prepare".equals(methodName)) {
+			if ("start".equals(methodName)) {
+				return null; // return immediately
+			} else if ("prepare".equals(methodName)) {
 				return this.invokePostCoordinator(proxy, method, args);
 			} else if ("commit".equals(methodName)) {
 				return this.invokePostCoordinator(proxy, method, args);
