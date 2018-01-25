@@ -92,34 +92,45 @@ public class TransactionServiceFilter implements Filter {
 		RemoteCoordinatorRegistry coordinatorRegistry = RemoteCoordinatorRegistry.getInstance();
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
+		RemoteCoordinator consumeCoordinator = beanRegistry.getConsumeCoordinator();
 		RemoteCoordinator transactionCoordinator = beanFactory.getTransactionCoordinator();
 
-		String sourceKey = StringUtils.trimToEmpty(invocation.getAttachment(RemoteCoordinator.class.getName()));
-		String targetKey = transactionCoordinator.getIdentifier();
+		String instanceId = StringUtils.trimToEmpty(invocation.getAttachment(RemoteCoordinator.class.getName()));
 
-		String[] values = sourceKey.split("\\s*:\\s*");
-		String application = null;
-		String identifier = null;
-		if (values != null && values.length == 3) {
-			String addr = values[0];
-			application = values[1];
-			String port = values[2];
-			identifier = String.format("%s:%s", addr, port);
+		RemoteCoordinator remoteCoordinator = coordinatorRegistry.getRemoteCoordinator(instanceId);
+		if (StringUtils.isNotBlank(instanceId) && remoteCoordinator == null) {
+			String[] values = instanceId == null ? new String[0] : instanceId.split("\\s*:\\s*");
+
+			String targetAddr = values.length == 3 ? values[0] : StringUtils.EMPTY;
+			String targetName = values.length == 3 ? values[1] : StringUtils.EMPTY;
+			String targetPort = values.length == 3 ? values[2] : String.valueOf(0);
+
+			String remoteAddr = StringUtils.isBlank(targetAddr) && StringUtils.isBlank(targetPort) //
+					? StringUtils.EMPTY : String.format("%s:%s", targetAddr, targetPort);
+
+			InvocationContext invocationContext = new InvocationContext();
+			invocationContext.setServerHost(targetAddr);
+			invocationContext.setServiceKey(targetName);
+			invocationContext.setServerPort(Integer.valueOf(targetPort));
+
+			DubboRemoteCoordinator dubboCoordinator = new DubboRemoteCoordinator();
+			dubboCoordinator.setInvocationContext(invocationContext);
+			dubboCoordinator.setRemoteCoordinator(consumeCoordinator);
+
+			remoteCoordinator = (RemoteCoordinator) Proxy.newProxyInstance(DubboRemoteCoordinator.class.getClassLoader(),
+					new Class[] { RemoteCoordinator.class }, dubboCoordinator);
+
+			coordinatorRegistry.putApplication(remoteAddr, targetName);
+			coordinatorRegistry.putRemoteAddr(instanceId, remoteAddr);
+
+			coordinatorRegistry.putRemoteCoordinator(instanceId, remoteCoordinator);
+			coordinatorRegistry.putRemoteCoordinatorByAddr(remoteAddr, remoteCoordinator);
 		}
-
-		if (coordinatorRegistry.containsRemoteAddr(sourceKey) == false) {
-			if (StringUtils.isNotBlank(sourceKey)) {
-				coordinatorRegistry.putRemoteAddr(sourceKey, identifier);
-			}
-			if (StringUtils.isNotBlank(identifier)) {
-				coordinatorRegistry.putApplication(identifier, application);
-			}
-		} // end-if (instanceKeysMap.containsKey(sourceKey) == false)
 
 		RpcResult result = new RpcResult();
 
 		InvocationResult wrapped = new InvocationResult();
-		wrapped.setVariable(RemoteCoordinator.class.getName(), targetKey);
+		wrapped.setVariable(RemoteCoordinator.class.getName(), transactionCoordinator.getIdentifier());
 
 		result.setException(null);
 		result.setValue(wrapped);
@@ -183,31 +194,42 @@ public class TransactionServiceFilter implements Filter {
 	}
 
 	public Result providerInvokeForSVC(Invoker<?> invoker, Invocation invocation) throws RpcException {
-		RemoteCoordinatorRegistry remoteCoordinatorRegistry = RemoteCoordinatorRegistry.getInstance();
+		RemoteCoordinatorRegistry coordinatorRegistry = RemoteCoordinatorRegistry.getInstance();
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
 		TransactionManager transactionManager = beanFactory.getTransactionManager();
 		RemoteCoordinator consumeCoordinator = beanRegistry.getConsumeCoordinator();
 
-		URL targetUrl = invoker.getUrl();
-		String targetAddr = targetUrl.getIp();
-		// String targetName = targetUrl.getParameter("application");
-		int targetPort = targetUrl.getPort();
-		String remoteAddr = String.format("%s:%s", targetAddr, targetPort);
-		InvocationContext invocationContext = new InvocationContext();
-		invocationContext.setServerHost(targetAddr);
-		// invocationContext.setServiceKey(targetName);
-		invocationContext.setServerPort(targetPort);
+		String instanceId = invocation.getAttachment(RemoteCoordinator.class.getName());
 
-		RemoteCoordinator remoteCoordinator = remoteCoordinatorRegistry.getRemoteCoordinatorByAddr(remoteAddr);
-		if (remoteCoordinator == null) {
+		RemoteCoordinator remoteCoordinator = coordinatorRegistry.getRemoteCoordinator(instanceId);
+		if (StringUtils.isNotBlank(instanceId) && remoteCoordinator == null) {
+			String[] values = instanceId == null ? new String[0] : instanceId.split("\\s*:\\s*");
+
+			String targetAddr = values.length == 3 ? values[0] : StringUtils.EMPTY;
+			String targetName = values.length == 3 ? values[1] : StringUtils.EMPTY;
+			String targetPort = values.length == 3 ? values[2] : String.valueOf(0);
+
+			String remoteAddr = StringUtils.isBlank(targetAddr) && StringUtils.isBlank(targetPort) //
+					? StringUtils.EMPTY : String.format("%s:%s", targetAddr, targetPort);
+
+			InvocationContext invocationContext = new InvocationContext();
+			invocationContext.setServerHost(targetAddr);
+			invocationContext.setServiceKey(targetName);
+			invocationContext.setServerPort(Integer.valueOf(targetPort));
+
 			DubboRemoteCoordinator dubboCoordinator = new DubboRemoteCoordinator();
 			dubboCoordinator.setInvocationContext(invocationContext);
 			dubboCoordinator.setRemoteCoordinator(consumeCoordinator);
 
 			remoteCoordinator = (RemoteCoordinator) Proxy.newProxyInstance(DubboRemoteCoordinator.class.getClassLoader(),
 					new Class[] { RemoteCoordinator.class }, dubboCoordinator);
-			remoteCoordinatorRegistry.putRemoteCoordinatorByAddr(remoteAddr, remoteCoordinator);
+
+			coordinatorRegistry.putApplication(remoteAddr, targetName);
+			coordinatorRegistry.putRemoteAddr(instanceId, remoteAddr);
+
+			coordinatorRegistry.putRemoteCoordinator(instanceId, remoteCoordinator);
+			coordinatorRegistry.putRemoteCoordinatorByAddr(remoteAddr, remoteCoordinator);
 		}
 
 		TransactionRequestImpl request = new TransactionRequestImpl();
@@ -386,12 +408,12 @@ public class TransactionServiceFilter implements Filter {
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
 		RemoteCoordinator transactionCoordinator = beanFactory.getTransactionCoordinator();
+		RemoteCoordinator consumeCoordinator = beanRegistry.getConsumeCoordinator();
 
-		String sourceKey = StringUtils.trimToEmpty(transactionCoordinator.getIdentifier());
-		String targetKey = null;
+		String instanceId = null;
 
 		Map<String, String> attachments = invocation.getAttachments();
-		attachments.put(RemoteCoordinator.class.getName(), sourceKey);
+		attachments.put(RemoteCoordinator.class.getName(), transactionCoordinator.getIdentifier());
 
 		RpcResult result = (RpcResult) invoker.invoke(invocation);
 
@@ -407,35 +429,46 @@ public class TransactionServiceFilter implements Filter {
 				result.setValue(wrapped.getValue());
 			}
 
-			targetKey = StringUtils.trimToEmpty(String.valueOf(wrapped.getVariable(RemoteCoordinator.class.getName())));
+			instanceId = StringUtils.trimToEmpty(String.valueOf(wrapped.getVariable(RemoteCoordinator.class.getName())));
 		} // end-if (InvocationResult.class.isInstance(value))
 
-		if (targetKey != null) {
-			String[] values = targetKey.split("\\s*:\\s*");
-			String application = null;
-			String remoteAddr = null;
-			if (values != null && values.length == 3) {
-				String addr = values[0];
-				application = values[1];
-				String port = values[2];
-				remoteAddr = String.format("%s:%s", addr, port);
-			}
+		if (StringUtils.isNotBlank(instanceId) && coordinatorRegistry.getRemoteCoordinator(instanceId) == null) {
+			String[] values = instanceId == null ? new String[0] : instanceId.split("\\s*:\\s*");
 
-			if (coordinatorRegistry.containsRemoteAddr(targetKey) == false) {
-				if (StringUtils.isNotBlank(targetKey)) {
-					coordinatorRegistry.putRemoteAddr(targetKey, remoteAddr);
-				}
-				if (StringUtils.isNotBlank(remoteAddr)) {
-					coordinatorRegistry.putApplication(remoteAddr, application);
-				}
-			} // end-if (instanceKeysMap.containsKey(targetKey) == false)
+			String targetAddr = values.length == 3 ? values[0] : StringUtils.EMPTY;
+			String targetName = values.length == 3 ? values[1] : StringUtils.EMPTY;
+			String targetPort = values.length == 3 ? values[2] : String.valueOf(0);
+
+			String remoteAddr = StringUtils.isBlank(targetAddr) && StringUtils.isBlank(targetPort) //
+					? StringUtils.EMPTY : String.format("%s:%s", targetAddr, targetPort);
+
+			coordinatorRegistry.putApplication(remoteAddr, targetName);
+			coordinatorRegistry.putRemoteAddr(instanceId, remoteAddr);
 
 			RemoteCoordinator remoteCoordinator = coordinatorRegistry.getRemoteCoordinatorByAddr(remoteAddr);
-			DubboRemoteCoordinator dubboCoordinator = (DubboRemoteCoordinator) Proxy.getInvocationHandler(remoteCoordinator);
+			if (remoteCoordinator == null) {
+				InvocationContext invocationContext = new InvocationContext();
+				invocationContext.setServerHost(targetAddr);
+				invocationContext.setServiceKey(targetName);
+				invocationContext.setServerPort(Integer.valueOf(targetPort));
 
-			dubboCoordinator.getInvocationContext().setServiceKey(application);
+				DubboRemoteCoordinator dubboCoordinator = new DubboRemoteCoordinator();
+				dubboCoordinator.setInvocationContext(invocationContext);
+				dubboCoordinator.setRemoteCoordinator(consumeCoordinator);
 
-			coordinatorRegistry.putRemoteCoordinator(targetKey, remoteCoordinator);
+				remoteCoordinator = (RemoteCoordinator) Proxy.newProxyInstance(DubboRemoteCoordinator.class.getClassLoader(),
+						new Class[] { RemoteCoordinator.class }, dubboCoordinator);
+
+				coordinatorRegistry.putRemoteCoordinatorByAddr(remoteAddr, remoteCoordinator);
+				coordinatorRegistry.putRemoteCoordinator(instanceId, remoteCoordinator);
+			} else {
+				DubboRemoteCoordinator dubboCoordinator = (DubboRemoteCoordinator) Proxy
+						.getInvocationHandler(remoteCoordinator);
+				dubboCoordinator.getInvocationContext().setServiceKey(targetName);
+
+				// coordinatorRegistry.putRemoteCoordinatorByAddr(remoteAddr, remoteCoordinator);
+				coordinatorRegistry.putRemoteCoordinator(instanceId, remoteCoordinator);
+			}
 		}
 
 		return result;
