@@ -211,6 +211,10 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		return transaction == null ? Status.STATUS_NO_TRANSACTION : transaction.getTransactionStatus();
 	}
 
+	public Transaction getTransaction(Thread thread) {
+		return this.associatedTxMap.get(thread);
+	}
+
 	public Transaction getTransactionQuietly() {
 		try {
 			return this.getTransaction();
