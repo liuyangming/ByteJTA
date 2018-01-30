@@ -30,6 +30,7 @@ import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignDecoder;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignErrorDecoder;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignHandler;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignInterceptor;
+import org.bytesoft.bytejta.supports.springcloud.hystrix.TransactionHystrixBeanPostProcessor;
 import org.bytesoft.bytejta.supports.springcloud.property.TransactionPropertySourceFactory;
 import org.bytesoft.bytejta.supports.springcloud.web.TransactionHandlerInterceptor;
 import org.bytesoft.bytejta.supports.springcloud.web.TransactionRequestInterceptor;
@@ -43,6 +44,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.web.HttpMessageConverters;
 import org.springframework.cloud.netflix.feign.support.ResponseEntityDecoder;
 import org.springframework.cloud.netflix.feign.support.SpringDecoder;
@@ -60,10 +63,6 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
 
-import feign.Feign;
-import feign.Feign.Builder;
-import feign.InvocationHandlerFactory;
-import feign.Target;
 import feign.codec.ErrorDecoder;
 
 @Import(SpringCloudSupportConfiguration.class)
@@ -82,22 +81,24 @@ public class SpringCloudConfiguration extends WebMvcConfigurerAdapter
 
 	@org.springframework.context.annotation.Primary
 	@org.springframework.context.annotation.Bean
-	public InvocationHandlerFactory transactionInvocationHandlerFactory() {
-		return new InvocationHandlerFactory() {
+	@ConditionalOnProperty(name = "feign.hystrix.enabled", havingValue = "false", matchIfMissing = true)
+	public feign.Feign.Builder transactionFeignBuilder() {
+		return feign.Feign.builder().invocationHandlerFactory(new feign.InvocationHandlerFactory() {
 			@SuppressWarnings("rawtypes")
-			public InvocationHandler create(Target target, Map<Method, MethodHandler> dispatch) {
+			public InvocationHandler create(feign.Target target, Map<Method, MethodHandler> dispatch) {
 				TransactionFeignHandler handler = new TransactionFeignHandler();
 				handler.setTarget(target);
 				handler.setHandlers(dispatch);
 				return handler;
 			}
-		};
+		});
 	}
 
-	@org.springframework.context.annotation.Primary
 	@org.springframework.context.annotation.Bean
-	public Builder transactionFeignBuilder(@Autowired InvocationHandlerFactory invocationHandlerFactory) {
-		return Feign.builder().invocationHandlerFactory(invocationHandlerFactory);
+	@ConditionalOnProperty(name = "feign.hystrix.enabled")
+	@ConditionalOnClass(feign.hystrix.HystrixFeign.class)
+	public TransactionHystrixBeanPostProcessor hystrixPostProcessor() {
+		return new TransactionHystrixBeanPostProcessor();
 	}
 
 	@org.springframework.context.annotation.Bean

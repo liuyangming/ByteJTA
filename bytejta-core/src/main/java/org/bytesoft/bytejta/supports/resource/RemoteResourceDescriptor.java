@@ -26,14 +26,20 @@ import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 public class RemoteResourceDescriptor implements XAResourceDescriptor {
 
 	private RemoteCoordinator delegate;
-	private String identifier;
+
+	public void setIdentifier(String identifier) {
+	}
+
+	public String getIdentifier() {
+		return this.delegate == null ? null : this.delegate.getIdentifier();
+	}
 
 	public boolean isTransactionCommitted(Xid xid) throws IllegalStateException {
 		throw new IllegalStateException();
 	}
 
 	public String toString() {
-		return String.format("remote-resource[id= %s]", this.identifier);
+		return String.format("remote-resource[id= %s]", this.getIdentifier());
 	}
 
 	public void setTransactionTimeoutQuietly(int timeout) {
@@ -81,7 +87,7 @@ public class RemoteResourceDescriptor implements XAResourceDescriptor {
 	}
 
 	public void start(Xid arg0, int arg1) throws XAException {
-		// delegate.start(arg0, arg1);
+		delegate.start(arg0, arg1);
 	}
 
 	public RemoteCoordinator getDelegate() {
@@ -90,14 +96,6 @@ public class RemoteResourceDescriptor implements XAResourceDescriptor {
 
 	public void setDelegate(RemoteCoordinator delegate) {
 		this.delegate = delegate;
-	}
-
-	public String getIdentifier() {
-		return identifier;
-	}
-
-	public void setIdentifier(String identifier) {
-		this.identifier = identifier;
 	}
 
 }

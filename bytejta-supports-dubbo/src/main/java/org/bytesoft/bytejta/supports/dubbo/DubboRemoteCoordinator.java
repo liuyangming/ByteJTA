@@ -24,6 +24,7 @@ import javax.transaction.xa.XAResource;
 
 import org.apache.commons.lang3.StringUtils;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
+import org.bytesoft.bytejta.supports.wire.RemoteCoordinatorRegistry;
 
 public class DubboRemoteCoordinator implements InvocationHandler {
 
@@ -57,7 +58,19 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 					throw new XAException(XAException.XAER_RMFAIL);
 				}
 			} else if (XAResource.class.equals(clazz)) {
-				if ("prepare".equals(methodName)) {
+				String serverHost = this.invocationContext == null ? null : this.invocationContext.getServerHost();
+				int serverPort = this.invocationContext == null ? 0 : this.invocationContext.getServerPort();
+				String remoteAddr = String.format("%s:%s", serverHost, serverPort);
+				if ("start".equals(methodName)) {
+					RemoteCoordinatorRegistry coordinatorRegistry = RemoteCoordinatorRegistry.getInstance();
+					if (this.invocationContext == null) {
+						throw new IllegalAccessException();
+					} else if (coordinatorRegistry.containsApplication(remoteAddr)) {
+						return null;
+					} else {
+						return this.invokeCoordinator(proxy, method, args);
+					}
+				} else if ("prepare".equals(methodName)) {
 					return this.invokeCoordinator(proxy, method, args);
 				} else if ("commit".equals(methodName)) {
 					return this.invokeCoordinator(proxy, method, args);

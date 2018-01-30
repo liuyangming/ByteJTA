@@ -27,6 +27,8 @@ public interface TransactionManager extends javax.transaction.TransactionManager
 
 	public Transaction desociateThread();
 
+	public Transaction getTransaction(Thread thread);
+
 	public Transaction getTransactionQuietly();
 
 	public Transaction getTransaction() throws SystemException;

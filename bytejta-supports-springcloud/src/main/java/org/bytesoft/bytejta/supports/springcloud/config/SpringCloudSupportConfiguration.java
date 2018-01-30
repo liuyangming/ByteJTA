@@ -41,6 +41,11 @@ public class SpringCloudSupportConfiguration implements TransactionManagementCon
 	}
 
 	@org.springframework.context.annotation.Bean
+	public org.bytesoft.bytejta.supports.springcloud.dbcp.CommonDBCPXADataSourceWrapper xaDataSourceWrapper() {
+		return new org.bytesoft.bytejta.supports.springcloud.dbcp.CommonDBCPXADataSourceWrapper();
+	}
+
+	@org.springframework.context.annotation.Bean
 	public org.bytesoft.bytejta.supports.springcloud.SpringCloudEndpointPostProcessor springCloudEndpointPostProcessor() {
 		return new org.bytesoft.bytejta.supports.springcloud.SpringCloudEndpointPostProcessor();
 	}
