@@ -127,11 +127,11 @@ public class TransactionInterceptorImpl implements TransactionInterceptor, Trans
 
 		if (transaction == null || transactionContext == null) {
 			return;
+		} else if (participantEnlistFlag == false) {
+			return;
 		} else if (resource == null) {
 			logger.error("TransactionInterceptorImpl.afterReceiveResponse(TransactionRequest): remote coordinator is null.");
 			throw new IllegalStateException("remote coordinator is null.");
-		} else if (participantEnlistFlag == false) {
-			return;
 		}
 
 		try {

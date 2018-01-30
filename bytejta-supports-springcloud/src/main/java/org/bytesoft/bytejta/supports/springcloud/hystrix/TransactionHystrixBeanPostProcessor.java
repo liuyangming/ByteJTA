@@ -31,11 +31,17 @@ import com.netflix.hystrix.HystrixCommandGroupKey;
 import com.netflix.hystrix.HystrixCommandKey;
 
 import feign.InvocationHandlerFactory.MethodHandler;
+import feign.Target;
+import feign.hystrix.FallbackFactory;
 
 public class TransactionHystrixBeanPostProcessor implements BeanPostProcessor {
 	static final String HYSTRIX_COMMAND_NAME = "TransactionHystrixInvocationHandler#invoke(Thread,Method,Object[])";
 	static final String HYSTRIX_INVOKER_NAME = "invoke";
 
+	static final String HYSTRIX_FIELD_CONSTANT = "constant";
+	static final String HYSTRIX_FIELD_TARGET = "target";
+	static final String HYSTRIX_FIELD_FACTORY = "fallbackFactory";
+	static final String HYSTRIX_FIELD_FALLBACK = "fallbackMethodMap";
 	static final String HYSTRIX_FIELD_DISPATH = "dispatch";
 	static final String HYSTRIX_FIELD_SETTERS = "setterMethodMap";
 	static final String HYSTRIX_SETTER_GRPKEY = "groupKey";
@@ -75,6 +81,33 @@ public class TransactionHystrixBeanPostProcessor implements BeanPostProcessor {
 			Field groupKeyField = Setter.class.getDeclaredField(HYSTRIX_SETTER_GRPKEY);
 			groupKeyField.setAccessible(true);
 
+			Field fallbackField = handler.getClass().getDeclaredField(HYSTRIX_FIELD_FALLBACK);
+			fallbackField.setAccessible(true);
+			Map<Method, Method> fallbackMap = (Map<Method, Method>) fallbackField.get(handler);
+
+			Field targetField = handler.getClass().getDeclaredField(HYSTRIX_FIELD_TARGET);
+			targetField.setAccessible(true);
+			Target<?> target = (Target<?>) targetField.get(handler);
+
+			Field factoryField = handler.getClass().getDeclaredField(HYSTRIX_FIELD_FACTORY);
+			factoryField.setAccessible(true);
+			FallbackFactory<?> factory = (FallbackFactory<?>) factoryField.get(handler);
+			if (FallbackFactory.Default.class.isInstance(factory)) {
+				Field constantField = FallbackFactory.Default.class.getDeclaredField(HYSTRIX_FIELD_CONSTANT);
+				constantField.setAccessible(true);
+				Object constant = constantField.get(factory);
+				TransactionHystrixFallbackHandler fallback = new TransactionHystrixFallbackHandler(constant);
+				Object proxy = Proxy.newProxyInstance(constant.getClass().getClassLoader(),
+						new Class<?>[] { TransactionHystrixInvocationHandler.class, target.type() }, fallback);
+				constantField.set(factory, proxy);
+			} else {
+				TransactionHystrixFallbackFactoryHandler factoryHandler = new TransactionHystrixFallbackFactoryHandler(factory,
+						target.type());
+				FallbackFactory<?> proxy = (FallbackFactory<?>) Proxy.newProxyInstance(factory.getClass().getClassLoader(),
+						new Class<?>[] { FallbackFactory.class }, factoryHandler);
+				factoryField.set(handler, proxy);
+			}
+
 			HystrixCommandGroupKey hystrixCommandGroupKey = null;
 			for (Iterator<Map.Entry<Method, Setter>> itr = setterMap.entrySet().iterator(); hystrixCommandGroupKey == null
 					&& itr.hasNext();) {
@@ -104,7 +137,7 @@ public class TransactionHystrixBeanPostProcessor implements BeanPostProcessor {
 					new Class<?>[] { Thread.class, Method.class, Object[].class });
 			setterMap.put(key, setter);
 			dispatch.put(key, new TransactionHystrixMethodHandler(dispatch));
-
+			fallbackMap.put(key, key);
 		} catch (Exception ex) {
 			throw new IllegalStateException("Error occurred!");
 		}

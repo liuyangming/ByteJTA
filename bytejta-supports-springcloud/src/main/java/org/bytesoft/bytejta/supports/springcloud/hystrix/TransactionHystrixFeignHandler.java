@@ -46,10 +46,7 @@ public class TransactionHystrixFeignHandler implements InvocationHandler {
 				Method targetMethod = TransactionHystrixInvocationHandler.class.getDeclaredMethod(
 						TransactionHystrixBeanPostProcessor.HYSTRIX_INVOKER_NAME,
 						new Class<?>[] { Thread.class, Method.class, Object[].class });
-				Object[] targetArgs = new Object[args.length + 2];
-				targetArgs[0] = Thread.currentThread();
-				targetArgs[1] = method;
-				System.arraycopy(args, 0, targetArgs, 2, args.length);
+				Object[] targetArgs = new Object[] { Thread.currentThread(), method, args };
 				return this.delegate.invoke(proxy, targetMethod, targetArgs);
 			}
 		}

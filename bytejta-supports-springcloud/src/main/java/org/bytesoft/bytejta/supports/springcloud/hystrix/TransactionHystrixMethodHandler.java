@@ -59,13 +59,12 @@ public class TransactionHystrixMethodHandler implements MethodHandler {
 
 		Thread thread = (Thread) argv[0];
 		Method method = (Method) argv[1];
-		Object[] values = new Object[argv.length - 2];
-		System.arraycopy(argv, 2, values, 0, values.length);
+		Object[] args = (Object[]) argv[2];
 
 		TransactionImpl transaction = //
 				(TransactionImpl) transactionManager.getTransaction(thread);
 		if (transaction == null) {
-			return this.dispatch.get(method).invoke(values);
+			return this.dispatch.get(method).invoke(args);
 		}
 
 		final TransactionContext transactionContext = transaction.getTransactionContext();
@@ -162,7 +161,7 @@ public class TransactionHystrixMethodHandler implements MethodHandler {
 
 		try {
 			transactionManager.associateThread(transaction);
-			return this.dispatch.get(method).invoke(values);
+			return this.dispatch.get(method).invoke(args);
 		} finally {
 
 			try {
