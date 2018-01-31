@@ -608,6 +608,9 @@ public class TransactionServiceFilter implements Filter {
 		TransactionInterceptor transactionInterceptor = beanFactory.getTransactionInterceptor();
 		RemoteCoordinator transactionCoordinator = beanFactory.getTransactionCoordinator();
 
+		Map<String, String> attachments = invocation.getAttachments();
+		attachments.put(RemoteCoordinator.class.getName(), transactionCoordinator.getIdentifier());
+
 		transactionInterceptor.beforeSendRequest(request);
 		if (request.getTransactionContext() != null) {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -619,10 +622,9 @@ public class TransactionServiceFilter implements Filter {
 				throw new RpcException("Error occurred in remote call!", ex);
 			}
 			String transactionContextContent = ByteUtils.byteArrayToString(baos.toByteArray());
-			Map<String, String> attachments = invocation.getAttachments();
 			attachments.put(TransactionContext.class.getName(), transactionContextContent);
-			attachments.put(RemoteCoordinator.class.getName(), transactionCoordinator.getIdentifier());
 		}
+
 	}
 
 	private void afterConsumerInvokeForSVC(Invocation invocation, TransactionRequestImpl request,
