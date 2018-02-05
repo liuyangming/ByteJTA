@@ -1,5 +1,5 @@
 /**
- * Copyright 2014-2017 yangming.liu<bytefox@126.com>.
+ * Copyright 2014-2018 yangming.liu<bytefox@126.com>.
  *
  * This copyrighted material is made available to anyone wishing to use, modify,
  * copy, or redistribute it subject to the terms and conditions of the GNU
@@ -45,8 +45,12 @@ public class TransactionHystrixFeignHandler implements InvocationHandler {
 			} else {
 				Method targetMethod = TransactionHystrixInvocationHandler.class.getDeclaredMethod(
 						TransactionHystrixBeanPostProcessor.HYSTRIX_INVOKER_NAME,
-						new Class<?>[] { Thread.class, Method.class, Object[].class });
-				Object[] targetArgs = new Object[] { Thread.currentThread(), method, args };
+						new Class<?>[] { TransactionHystrixInvocation.class });
+				TransactionHystrixInvocation invocation = new TransactionHystrixInvocation();
+				invocation.setThread(Thread.currentThread());
+				invocation.setMethod(method);
+				invocation.setArgs(args);
+				Object[] targetArgs = new Object[] { invocation };
 				return this.delegate.invoke(proxy, targetMethod, targetArgs);
 			}
 		}

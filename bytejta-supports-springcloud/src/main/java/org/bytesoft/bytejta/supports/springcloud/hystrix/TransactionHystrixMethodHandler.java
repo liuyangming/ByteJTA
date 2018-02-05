@@ -57,9 +57,10 @@ public class TransactionHystrixMethodHandler implements MethodHandler {
 		TransactionManager transactionManager = beanFactory.getTransactionManager();
 		final TransactionInterceptor transactionInterceptor = beanFactory.getTransactionInterceptor();
 
-		Thread thread = (Thread) argv[0];
-		Method method = (Method) argv[1];
-		Object[] args = (Object[]) argv[2];
+		TransactionHystrixInvocation invocation = (TransactionHystrixInvocation) argv[0];
+		Thread thread = invocation.getThread(); // (Thread) argv[0];
+		Method method = invocation.getMethod(); // (Method) argv[1];
+		Object[] args = invocation.getArgs(); // (Object[]) argv[2];
 
 		TransactionImpl transaction = //
 				(TransactionImpl) transactionManager.getTransaction(thread);

@@ -35,7 +35,7 @@ import feign.Target;
 import feign.hystrix.FallbackFactory;
 
 public class TransactionHystrixBeanPostProcessor implements BeanPostProcessor {
-	static final String HYSTRIX_COMMAND_NAME = "TransactionHystrixInvocationHandler#invoke(Thread,Method,Object[])";
+	static final String HYSTRIX_COMMAND_NAME = "TransactionHystrixInvocationHandler#invoke(TransactionHystrixInvocation)";
 	static final String HYSTRIX_INVOKER_NAME = "invoke";
 
 	static final String HYSTRIX_FIELD_CONSTANT = "constant";
@@ -92,21 +92,23 @@ public class TransactionHystrixBeanPostProcessor implements BeanPostProcessor {
 			Field factoryField = handler.getClass().getDeclaredField(HYSTRIX_FIELD_FACTORY);
 			factoryField.setAccessible(true);
 			FallbackFactory<?> factory = (FallbackFactory<?>) factoryField.get(handler);
-			if (FallbackFactory.Default.class.isInstance(factory)) {
-				Field constantField = FallbackFactory.Default.class.getDeclaredField(HYSTRIX_FIELD_CONSTANT);
-				constantField.setAccessible(true);
-				Object constant = constantField.get(factory);
-				TransactionHystrixFallbackHandler fallback = new TransactionHystrixFallbackHandler(constant);
-				Object proxy = Proxy.newProxyInstance(constant.getClass().getClassLoader(),
-						new Class<?>[] { TransactionHystrixInvocationHandler.class, target.type() }, fallback);
-				constantField.set(factory, proxy);
-			} else {
-				TransactionHystrixFallbackFactoryHandler factoryHandler = new TransactionHystrixFallbackFactoryHandler(factory,
-						target.type());
-				FallbackFactory<?> proxy = (FallbackFactory<?>) Proxy.newProxyInstance(factory.getClass().getClassLoader(),
-						new Class<?>[] { FallbackFactory.class }, factoryHandler);
-				factoryField.set(handler, proxy);
-			}
+			if (factory != null) {
+				if (FallbackFactory.Default.class.isInstance(factory)) {
+					Field constantField = FallbackFactory.Default.class.getDeclaredField(HYSTRIX_FIELD_CONSTANT);
+					constantField.setAccessible(true);
+					Object constant = constantField.get(factory);
+					TransactionHystrixFallbackHandler fallback = new TransactionHystrixFallbackHandler(constant);
+					Object proxy = Proxy.newProxyInstance(constant.getClass().getClassLoader(),
+							new Class<?>[] { TransactionHystrixInvocationHandler.class, target.type() }, fallback);
+					constantField.set(factory, proxy);
+				} else {
+					TransactionHystrixFallbackFactoryHandler factoryHandler = new TransactionHystrixFallbackFactoryHandler(
+							factory, target.type());
+					FallbackFactory<?> proxy = (FallbackFactory<?>) Proxy.newProxyInstance(factory.getClass().getClassLoader(),
+							new Class<?>[] { FallbackFactory.class }, factoryHandler);
+					factoryField.set(handler, proxy);
+				}
+			} // end-if (factory != null) {
 
 			HystrixCommandGroupKey hystrixCommandGroupKey = null;
 			for (Iterator<Map.Entry<Method, Setter>> itr = setterMap.entrySet().iterator(); hystrixCommandGroupKey == null
@@ -134,7 +136,7 @@ public class TransactionHystrixBeanPostProcessor implements BeanPostProcessor {
 			Setter setter = Setter.withGroupKey(groupKey).andCommandKey(commandKey);
 
 			Method key = TransactionHystrixInvocationHandler.class.getDeclaredMethod(HYSTRIX_INVOKER_NAME,
-					new Class<?>[] { Thread.class, Method.class, Object[].class });
+					new Class<?>[] { TransactionHystrixInvocation.class });
 			setterMap.put(key, setter);
 			dispatch.put(key, new TransactionHystrixMethodHandler(dispatch));
 			fallbackMap.put(key, key);
