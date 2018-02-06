@@ -15,19 +15,16 @@
  */
 package org.bytesoft.bytejta.supports.springcloud;
 
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionClientRegistry;
+import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignBeanPostProcessor;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignContract;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignDecoder;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignErrorDecoder;
-import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignHandler;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignInterceptor;
 import org.bytesoft.bytejta.supports.springcloud.hystrix.TransactionHystrixBeanPostProcessor;
 import org.bytesoft.bytejta.supports.springcloud.property.TransactionPropertySourceFactory;
@@ -85,19 +82,10 @@ public class SpringCloudConfiguration extends WebMvcConfigurerAdapter implements
 		this.identifier = String.format("%s:%s:%s", host, name, port);
 	}
 
-	@org.springframework.context.annotation.Primary
 	@org.springframework.context.annotation.Bean
 	@ConditionalOnProperty(name = "feign.hystrix.enabled", havingValue = "false", matchIfMissing = true)
-	public feign.Feign.Builder transactionFeignBuilder() {
-		return feign.Feign.builder().invocationHandlerFactory(new feign.InvocationHandlerFactory() {
-			@SuppressWarnings("rawtypes")
-			public InvocationHandler create(feign.Target target, Map<Method, MethodHandler> dispatch) {
-				TransactionFeignHandler handler = new TransactionFeignHandler();
-				handler.setTarget(target);
-				handler.setHandlers(dispatch);
-				return handler;
-			}
-		});
+	public TransactionFeignBeanPostProcessor feignPostProcessor() {
+		return new TransactionFeignBeanPostProcessor();
 	}
 
 	@org.springframework.context.annotation.Bean
