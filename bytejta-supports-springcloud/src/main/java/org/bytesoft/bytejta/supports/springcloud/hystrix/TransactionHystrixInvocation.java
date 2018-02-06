@@ -15,25 +15,36 @@
  */
 package org.bytesoft.bytejta.supports.springcloud.hystrix;
 
-import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 
-public class TransactionHystrixFallbackHandler implements InvocationHandler {
-	private final Object fallback;
+public class TransactionHystrixInvocation {
 
-	public TransactionHystrixFallbackHandler(Object fallback) {
-		this.fallback = fallback;
+	private Thread thread;
+	private Method method;
+	private Object[] args;
+
+	public Thread getThread() {
+		return thread;
 	}
 
-	public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-		TransactionHystrixInvocation invocation = (TransactionHystrixInvocation) args[0];
-		Method targetMethod = invocation.getMethod(); // (Method) args[1];
-		Object[] targetArgs = invocation.getArgs(); // (Object[]) args[2];
-		return targetMethod.invoke(this.fallback, targetArgs);
+	public void setThread(Thread thread) {
+		this.thread = thread;
 	}
 
-	public Object getFallback() {
-		return fallback;
+	public Method getMethod() {
+		return method;
+	}
+
+	public void setMethod(Method method) {
+		this.method = method;
+	}
+
+	public Object[] getArgs() {
+		return args;
+	}
+
+	public void setArgs(Object[] args) {
+		this.args = args;
 	}
 
 }
