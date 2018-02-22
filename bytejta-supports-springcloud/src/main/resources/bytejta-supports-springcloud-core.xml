@@ -27,7 +27,11 @@
 		<property name="transactionArchiveDeserializer" ref="bytejtaTransactionDeserializer" />
 		<property name="xaResourceArchiveDeserializer" ref="bytejtaXAResourceDeserializer" />
 	</bean>
-	<bean id="bytejtaResourceDeserializer" class="org.bytesoft.bytejta.supports.springcloud.serialize.XAResourceDeserializerImpl" />
+
+	<bean id="commonResourceDeserializer" class="org.bytesoft.bytejta.supports.resource.serialize.XAResourceDeserializerImpl" />
+	<bean id="bytejtaResourceDeserializer" class="org.bytesoft.bytejta.supports.springcloud.serialize.XAResourceDeserializerImpl">
+		<property name="resourceDeserializer" ref="commonResourceDeserializer" />
+	</bean>
 
 	<bean id="bytejtaBeanFactory" class="org.bytesoft.bytejta.TransactionBeanFactoryImpl">
 		<property name="transactionManager" ref="transactionManager" />

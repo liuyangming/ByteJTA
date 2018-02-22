@@ -14,11 +14,9 @@
 	<import resource="classpath:bytejta-supports-core.xml" />
 	<import resource="classpath:bytejta-supports-task.xml" />
 
-	<bean class="org.bytesoft.bytejta.supports.dubbo.TransactionEndpointPostProcessor" />
-	<bean class="org.bytesoft.bytejta.supports.dubbo.DubboConfigPostProcessor" />
-	<bean class="org.bytesoft.bytejta.supports.dubbo.TransactionConfigPostProcessor" />
-
-	<bean class="org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry" factory-method="getInstance" />
+	<!-- <bean class="org.bytesoft.bytejta.supports.dubbo.TransactionEndpointPostProcessor" /> -->
+	<!-- <bean class="org.bytesoft.bytejta.supports.dubbo.DubboConfigPostProcessor" /> -->
+	<!-- <bean class="org.bytesoft.bytejta.supports.dubbo.TransactionConfigPostProcessor" /> -->
 
 	<bean id="bytejtaXAResourceDeserializer" class="org.bytesoft.bytejta.logging.deserializer.XAResourceArchiveDeserializer" />
 	<bean id="bytejtaTransactionDeserializer" class="org.bytesoft.bytejta.logging.deserializer.TransactionArchiveDeserializer">
@@ -29,10 +27,7 @@
 		<property name="xaResourceArchiveDeserializer" ref="bytejtaXAResourceDeserializer" />
 	</bean>
 
-	<bean id="commonResourceDeserializer" class="org.bytesoft.bytejta.supports.resource.serialize.XAResourceDeserializerImpl" />
-	<bean id="bytejtaResourceDeserializer" class="org.bytesoft.bytejta.supports.dubbo.serialize.XAResourceDeserializerImpl">
-		<property name="resourceDeserializer" ref="commonResourceDeserializer" />
-	</bean>
+	<bean id="bytejtaResourceDeserializer" class="org.bytesoft.bytejta.supports.resource.serialize.XAResourceDeserializerImpl" />
 
 	<bean id="bytejtaBeanFactory" class="org.bytesoft.bytejta.TransactionBeanFactoryImpl">
 		<property name="transactionManager" ref="transactionManager" />
@@ -47,5 +42,11 @@
 		<property name="archiveDeserializer" ref="bytejtaArchiveDeserializer" />
 		<property name="resourceDeserializer" ref="bytejtaResourceDeserializer" />
 	</bean>
+
+	<bean id="jtaTransactionManager" class="org.springframework.transaction.jta.JtaTransactionManager">
+		<property name="userTransaction" ref="bytejtaUserTransaction" />
+		<property name="transactionManager" ref="transactionManager" />
+	</bean>
+	<tx:annotation-driven transaction-manager="jtaTransactionManager" />
 
 </beans>
