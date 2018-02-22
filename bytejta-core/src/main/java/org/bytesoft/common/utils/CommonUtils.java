@@ -15,8 +15,6 @@
  */
 package org.bytesoft.common.utils;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
@@ -26,9 +24,6 @@ import java.net.UnknownHostException;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.caucho.hessian.io.HessianInput;
-import com.caucho.hessian.io.HessianOutput;
 
 public class CommonUtils {
 	static final Logger logger = LoggerFactory.getLogger(CommonUtils.class);
@@ -66,27 +61,18 @@ public class CommonUtils {
 		}
 	}
 
-	public static byte[] serializeObject(Serializable obj) throws IOException {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		HessianOutput ho = new HessianOutput(baos);
-		try {
-			ho.writeObject(obj);
-			return baos.toByteArray();
-		} finally {
-			CommonUtils.closeQuietly(baos);
-		}
-
+	@Deprecated
+	public static byte[] serializeObject(Serializable object) throws IOException {
+		return SerializeUtils.serializeObject(object);
 	}
 
-	public static Serializable deserializeObject(byte[] bytes) throws IOException {
-		ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-		HessianInput hi = new HessianInput(bais);
-		Object result;
+	@Deprecated
+	public static Serializable deserializeObject(byte[] byteArray) throws IOException {
 		try {
-			result = hi.readObject();
-			return (Serializable) result;
-		} finally {
-			CommonUtils.closeQuietly(bais);
+			return SerializeUtils.deserializeObject(byteArray);
+		} catch (Exception ex) {
+			// Hessian was the only serializer before 0.4.1
+			return SerializeUtils.hessianDeserialize(byteArray);
 		}
 	}
 
