@@ -41,14 +41,10 @@ import com.netflix.loadbalancer.Server;
 import com.netflix.loadbalancer.Server.MetaInfo;
 import com.netflix.niws.loadbalancer.DiscoveryEnabledServer;
 
-import feign.InvocationHandlerFactory.MethodHandler;
-import feign.Target;
-
 public class TransactionFeignHandler implements InvocationHandler {
 	static final Logger logger = LoggerFactory.getLogger(TransactionFeignHandler.class);
 
-	private Target<?> target;
-	private Map<Method, MethodHandler> handlers;
+	private InvocationHandler delegate;
 
 	public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 		if (Object.class.equals(method.getDeclaringClass())) {
@@ -62,7 +58,7 @@ public class TransactionFeignHandler implements InvocationHandler {
 			TransactionImpl transaction = //
 					(TransactionImpl) transactionManager.getTransactionQuietly();
 			if (transaction == null) {
-				return this.handlers.get(method).invoke(args);
+				return this.delegate.invoke(proxy, method, args);
 			}
 
 			final TransactionContext transactionContext = transaction.getTransactionContext();
@@ -158,12 +154,7 @@ public class TransactionFeignHandler implements InvocationHandler {
 			});
 
 			try {
-				return this.handlers.get(method).invoke(args);
-
-				// catch (feign.RetryableException ex) {
-				// // Throwable cause = ex.getCause();
-				// // boolean participantDelistFlag = cause != null && java.net.ConnectException.class.isInstance(cause);
-				// // response.setParticipantDelistFlag(participantDelistFlag);
+				return this.delegate.invoke(proxy, method, args);
 			} finally {
 				if (response.isIntercepted() == false) {
 					response.setTransactionContext(transactionContext);
@@ -179,20 +170,12 @@ public class TransactionFeignHandler implements InvocationHandler {
 		}
 	}
 
-	public Target<?> getTarget() {
-		return target;
+	public InvocationHandler getDelegate() {
+		return delegate;
 	}
 
-	public void setTarget(Target<?> target) {
-		this.target = target;
-	}
-
-	public Map<Method, MethodHandler> getHandlers() {
-		return handlers;
-	}
-
-	public void setHandlers(Map<Method, MethodHandler> handlers) {
-		this.handlers = handlers;
+	public void setDelegate(InvocationHandler delegate) {
+		this.delegate = delegate;
 	}
 
 }
