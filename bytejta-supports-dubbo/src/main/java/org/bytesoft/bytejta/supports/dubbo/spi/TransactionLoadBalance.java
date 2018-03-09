@@ -16,39 +16,57 @@
 package org.bytesoft.bytejta.supports.dubbo.spi;
 
 import java.util.List;
-import java.util.Random;
 
 import org.apache.commons.lang3.StringUtils;
 import org.bytesoft.bytejta.TransactionImpl;
 import org.bytesoft.bytejta.supports.dubbo.InvocationContext;
 import org.bytesoft.bytejta.supports.dubbo.InvocationContextRegistry;
 import org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry;
+import org.bytesoft.bytejta.supports.dubbo.ext.ILoadBalancer;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.archive.XAResourceArchive;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
+import org.springframework.core.env.Environment;
 
 import com.alibaba.dubbo.common.URL;
+import com.alibaba.dubbo.common.extension.ExtensionLoader;
 import com.alibaba.dubbo.rpc.Invocation;
 import com.alibaba.dubbo.rpc.Invoker;
 import com.alibaba.dubbo.rpc.RpcException;
 import com.alibaba.dubbo.rpc.cluster.LoadBalance;
 
 public final class TransactionLoadBalance implements LoadBalance {
-	static final Random random = new Random();
+	static final String CONSTANT_LOADBALANCE_KEY = "org.bytesoft.bytejta.loadbalance";
+
+	private ILoadBalancer loadBalancer;
+
+	private void fireInitializeIfNecessary() {
+		if (this.loadBalancer == null) {
+			this.initializeIfNecessary();
+		}
+	}
+
+	private synchronized void initializeIfNecessary() {
+		if (this.loadBalancer == null) {
+			Environment environment = TransactionBeanRegistry.getInstance().getEnvironment();
+			String loadBalanceKey = environment.getProperty(CONSTANT_LOADBALANCE_KEY, "default");
+			ExtensionLoader<ILoadBalancer> extensionLoader = ExtensionLoader.getExtensionLoader(ILoadBalancer.class);
+			this.loadBalancer = extensionLoader.getExtension(loadBalanceKey);
+		}
+	}
 
 	public <T> Invoker<T> select(List<Invoker<T>> invokers, URL url, Invocation invocation) throws RpcException {
 		InvocationContextRegistry registry = InvocationContextRegistry.getInstance();
 		InvocationContext invocationContext = registry.getInvocationContext();
 		if (invocationContext == null) {
-			return this.selectRandomInvoker(invokers, url, invocation);
+			return this.selectConfigedInvoker(invokers, url, invocation);
 		} else {
 			return this.selectSpecificInvoker(invokers, url, invocation, invocationContext);
 		}
 	}
 
-	public <T> Invoker<T> selectRandomInvoker(List<Invoker<T>> invokers, URL url, Invocation invocation) throws RpcException {
-		int lengthOfInvokerList = invokers == null ? 0 : invokers.size();
+	public <T> Invoker<T> selectConfigedInvoker(List<Invoker<T>> invokers, URL url, Invocation invocation) throws RpcException {
 		if (invokers == null || invokers.isEmpty()) {
 			throw new RpcException("No invoker is found!");
 		}
@@ -80,7 +98,14 @@ public final class TransactionLoadBalance implements LoadBalance {
 			}
 		}
 
-		return invokers.get(random.nextInt(lengthOfInvokerList));
+		this.fireInitializeIfNecessary();
+
+		if (this.loadBalancer == null) {
+			throw new RpcException("No org.bytesoft.bytejta.supports.dubbo.ext.ILoadBalancer is found!");
+		} else {
+			return this.loadBalancer.select(invokers, url, invocation);
+		}
+
 	}
 
 	public <T> Invoker<T> selectSpecificInvoker(List<Invoker<T>> invokers, URL url, Invocation invocation,
@@ -98,4 +123,5 @@ public final class TransactionLoadBalance implements LoadBalance {
 		}
 		throw new RpcException(String.format("Invoker(%s:%s) is not found!", serverHost, serverPort));
 	}
+
 }

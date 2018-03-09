@@ -541,10 +541,13 @@ public class TransactionServiceFilter implements Filter {
 
 		TransactionResponseImpl response = new TransactionResponseImpl();
 		response.setSourceTransactionCoordinator(remoteCoordinator);
-		boolean success = true;
+
+		RpcResult result = null;
+		RpcException invokeError = null;
+		Throwable serverError = null;
 		try {
 			this.beforeConsumerInvokeForSVC(invocation, request, response);
-			RpcResult result = (RpcResult) invoker.invoke(invocation);
+			result = (RpcResult) invoker.invoke(invocation);
 			Object value = result.getValue();
 			if (InvocationResult.class.isInstance(value)) {
 				InvocationResult wrapped = (InvocationResult) value;
@@ -553,6 +556,7 @@ public class TransactionServiceFilter implements Filter {
 
 				if (wrapped.isFailure()) {
 					result.setException(wrapped.getError());
+					serverError = wrapped.getError();
 				} else {
 					result.setValue(wrapped.getValue());
 				}
@@ -563,40 +567,39 @@ public class TransactionServiceFilter implements Filter {
 				response.setParticipantDelistFlag(participantDelistRequired);
 				response.setParticipantEnlistFlag(request.isParticipantEnlistFlag());
 			}
-			return result;
 		} catch (RpcException rex) {
-			success = false;
-
-			RpcResult result = new RpcResult();
-			result.setException(rex);
-			return result;
+			invokeError = rex;
 		} catch (Throwable rex) {
-			success = false;
 			logger.error("Error occurred in remote call!", rex);
-
-			RpcResult result = new RpcResult();
-			result.setException(new RpcException("Error occurred in remote call!", rex));
-			return result;
+			invokeError = new RpcException(rex.getMessage());
 		} finally {
 			try {
 				this.afterConsumerInvokeForSVC(invocation, request, response);
 			} catch (RpcException rex) {
-				if (success) {
-					RpcResult result = new RpcResult();
-					result.setException(rex);
-					return result;
+				if (invokeError == null) {
+					throw rex;
 				} else {
 					logger.error("Error occurred in remote call!", rex);
+					throw invokeError;
 				}
 			} catch (RuntimeException rex) {
-				if (success) {
-					RpcResult result = new RpcResult();
-					result.setException(new RpcException("Error occurred in remote call!", rex));
-					return result;
+				if (invokeError == null) {
+					throw new RpcException(rex.getMessage());
 				} else {
 					logger.error("Error occurred in remote call!", rex);
+					throw invokeError;
 				}
 			}
+		}
+
+		if (serverError == null && invokeError == null) {
+			return result;
+		} else if (serverError == null && invokeError != null) {
+			throw invokeError;
+		} else if (RpcException.class.isInstance(serverError)) {
+			throw (RpcException) serverError;
+		} else {
+			return result;
 		}
 
 	}
