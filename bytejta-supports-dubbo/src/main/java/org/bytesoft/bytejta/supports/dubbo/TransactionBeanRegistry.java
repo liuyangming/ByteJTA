@@ -25,13 +25,16 @@ import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.EnvironmentAware;
+import org.springframework.core.env.Environment;
 
-public class TransactionBeanRegistry implements TransactionBeanFactoryAware {
+public class TransactionBeanRegistry implements TransactionBeanFactoryAware, EnvironmentAware {
 	static final Logger logger = LoggerFactory.getLogger(TransactionBeanRegistry.class);
 
 	private static final TransactionBeanRegistry instance = new TransactionBeanRegistry();
 
 	private RemoteCoordinator consumeCoordinator;
+	private Environment environment;
 	@javax.inject.Inject
 	private TransactionBeanFactory beanFactory;
 
@@ -87,6 +90,14 @@ public class TransactionBeanRegistry implements TransactionBeanFactoryAware {
 		} finally {
 			this.lock.unlock();
 		}
+	}
+
+	public Environment getEnvironment() {
+		return environment;
+	}
+
+	public void setEnvironment(Environment environment) {
+		this.environment = environment;
 	}
 
 	public void setBeanFactory(TransactionBeanFactory tbf) {
