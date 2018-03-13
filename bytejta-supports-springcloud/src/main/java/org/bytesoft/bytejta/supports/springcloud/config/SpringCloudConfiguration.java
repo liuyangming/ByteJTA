@@ -15,25 +15,23 @@
  */
 package org.bytesoft.bytejta.supports.springcloud.config;
 
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 import org.bytesoft.bytejta.supports.springcloud.SpringCloudBeanRegistry;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionClientRegistry;
+import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignBeanPostProcessor;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignContract;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignDecoder;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignErrorDecoder;
-import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignHandler;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignInterceptor;
 import org.bytesoft.bytejta.supports.springcloud.hystrix.TransactionHystrixBeanPostProcessor;
 import org.bytesoft.bytejta.supports.springcloud.property.TransactionPropertySourceFactory;
 import org.bytesoft.bytejta.supports.springcloud.web.TransactionHandlerInterceptor;
 import org.bytesoft.bytejta.supports.springcloud.web.TransactionRequestInterceptor;
+import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.aware.TransactionEndpointAware;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.MutablePropertyValues;
@@ -79,19 +77,17 @@ public class SpringCloudConfiguration extends WebMvcConfigurerAdapter
 	private Environment environment;
 	private transient final Set<String> transientClientSet = new HashSet<String>();
 
-	@org.springframework.context.annotation.Primary
+	public void afterPropertiesSet() throws Exception {
+		String host = CommonUtils.getInetAddress();
+		String name = this.environment.getProperty("spring.application.name");
+		String port = this.environment.getProperty("server.port");
+		this.identifier = String.format("%s:%s:%s", host, name, port);
+	}
+
 	@org.springframework.context.annotation.Bean
 	@ConditionalOnProperty(name = "feign.hystrix.enabled", havingValue = "false", matchIfMissing = true)
-	public feign.Feign.Builder transactionFeignBuilder() {
-		return feign.Feign.builder().invocationHandlerFactory(new feign.InvocationHandlerFactory() {
-			@SuppressWarnings("rawtypes")
-			public InvocationHandler create(feign.Target target, Map<Method, MethodHandler> dispatch) {
-				TransactionFeignHandler handler = new TransactionFeignHandler();
-				handler.setTarget(target);
-				handler.setHandlers(dispatch);
-				return handler;
-			}
-		});
+	public TransactionFeignBeanPostProcessor feignPostProcessor() {
+		return new TransactionFeignBeanPostProcessor();
 	}
 
 	@org.springframework.context.annotation.Bean

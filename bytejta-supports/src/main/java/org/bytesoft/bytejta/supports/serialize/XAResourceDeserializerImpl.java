@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.bytejta.supports.resource.serialize;
+package org.bytesoft.bytejta.supports.serialize;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

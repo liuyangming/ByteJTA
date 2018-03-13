@@ -24,3 +24,5 @@ target
 /bytejta-supports-springcloud/.project
 /bytejta-logger/.classpath
 /bytejta-logger/.project
+/bytejta-transaction-logger/.classpath
+/bytejta-transaction-logger/.project

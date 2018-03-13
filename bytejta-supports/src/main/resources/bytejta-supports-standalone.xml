@@ -27,7 +27,7 @@
 		<property name="xaResourceArchiveDeserializer" ref="bytejtaXAResourceDeserializer" />
 	</bean>
 
-	<bean id="bytejtaResourceDeserializer" class="org.bytesoft.bytejta.supports.resource.serialize.XAResourceDeserializerImpl" />
+	<bean id="bytejtaResourceDeserializer" class="org.bytesoft.bytejta.supports.serialize.XAResourceDeserializerImpl" />
 
 	<bean id="bytejtaBeanFactory" class="org.bytesoft.bytejta.TransactionBeanFactoryImpl">
 		<property name="transactionManager" ref="transactionManager" />

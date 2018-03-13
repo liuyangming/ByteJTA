@@ -245,6 +245,7 @@
 		<module>bytejta-supports</module>
 		<module>bytejta-supports-springcloud</module>
 		<module>bytejta-supports-dubbo</module>
+		<module>bytejta-transaction-logger</module>
 	</modules>
 
 </project>
