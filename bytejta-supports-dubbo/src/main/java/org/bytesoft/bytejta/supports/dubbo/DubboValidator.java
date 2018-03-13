@@ -17,7 +17,7 @@ package org.bytesoft.bytejta.supports.dubbo;
 
 import org.springframework.beans.BeansException;
 
-public interface DubboConfigValidator {
+public interface DubboValidator {
 
 	public void validate() throws BeansException;
 

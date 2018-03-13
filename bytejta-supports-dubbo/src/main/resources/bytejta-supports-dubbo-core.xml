@@ -14,11 +14,12 @@
 	<import resource="classpath:bytejta-supports-core.xml" />
 	<import resource="classpath:bytejta-supports-task.xml" />
 
-	<bean class="org.bytesoft.bytejta.supports.dubbo.TransactionEndpointPostProcessor" />
-	<bean class="org.bytesoft.bytejta.supports.dubbo.DubboConfigPostProcessor" />
-	<bean class="org.bytesoft.bytejta.supports.dubbo.TransactionConfigPostProcessor" />
+	<bean class="org.bytesoft.bytejta.supports.dubbo.DubboValidationPostProcessor" />
+	<bean class="org.bytesoft.bytejta.supports.dubbo.config.DubboSupportConfiguration" />
+	<bean class="org.bytesoft.bytejta.supports.dubbo.DubboEndpointPostProcessor" />
 
-	<bean class="org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry" factory-method="getInstance" />
+	<!-- <bean class="org.bytesoft.bytejta.supports.dubbo.TransactionConfigPostProcessor" /> -->
+	<!-- <bean class="org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry" factory-method="getInstance" /> -->
 
 	<bean id="bytejtaXAResourceDeserializer" class="org.bytesoft.bytejta.logging.deserializer.XAResourceArchiveDeserializer" />
 	<bean id="bytejtaTransactionDeserializer" class="org.bytesoft.bytejta.logging.deserializer.TransactionArchiveDeserializer">
@@ -34,7 +35,7 @@
 		<property name="resourceDeserializer" ref="commonResourceDeserializer" />
 	</bean>
 
-	<bean id="bytejtaBeanFactory" class="org.bytesoft.bytejta.TransactionBeanFactoryImpl">
+	<bean id="bytejtaBeanFactory" class="org.bytesoft.bytejta.TransactionBeanFactoryImpl" factory-method="getInstance">
 		<property name="transactionManager" ref="transactionManager" />
 		<property name="xidFactory" ref="bytejtaXidFactory" />
 		<property name="transactionTimer" ref="transactionManager" />

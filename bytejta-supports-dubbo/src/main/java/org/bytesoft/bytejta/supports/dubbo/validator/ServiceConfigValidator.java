@@ -15,7 +15,7 @@
  */
 package org.bytesoft.bytejta.supports.dubbo.validator;
 
-import org.bytesoft.bytejta.supports.dubbo.DubboConfigValidator;
+import org.bytesoft.bytejta.supports.dubbo.DubboValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
@@ -24,7 +24,7 @@ import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.PropertyValue;
 import org.springframework.beans.factory.config.BeanDefinition;
 
-public class ServiceConfigValidator implements DubboConfigValidator {
+public class ServiceConfigValidator implements DubboValidator {
 	static final Logger logger = LoggerFactory.getLogger(ServiceConfigValidator.class);
 
 	private String beanName;
@@ -52,10 +52,10 @@ public class ServiceConfigValidator implements DubboConfigValidator {
 			throw new FatalBeanException(
 					String.format("The value of attr 'filter'(beanId= %s) should be 'transaction'.", this.beanName));
 		} else if (group == null || group.getValue() == null //
-				|| ("org.bytesoft.bytejta".equals(group.getValue())
-						|| String.valueOf(group.getValue()).startsWith("org.bytesoft.bytejta-")) == false) {
+				|| ("org-bytesoft-bytejta".equals(group.getValue())
+						|| String.valueOf(group.getValue()).startsWith("org-bytesoft-bytejta-")) == false) {
 			throw new FatalBeanException(String.format(
-					"The value of attr 'group'(beanId= %s) should be 'org.bytesoft.bytejta' or starts with 'org.bytesoft.bytejta-'.",
+					"The value of attr 'group'(beanId= %s) should be 'org-bytesoft-bytejta' or starts with 'org-bytesoft-bytejta-'.",
 					this.beanName));
 		}
 	}

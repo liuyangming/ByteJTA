@@ -17,9 +17,21 @@ package org.bytesoft.bytejta.supports.config;
 
 import org.bytesoft.bytejta.TransactionBeanFactoryImpl;
 import org.bytesoft.bytejta.TransactionManagerImpl;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
+import org.springframework.transaction.annotation.TransactionManagementConfigurer;
 
 @org.springframework.context.annotation.Configuration
-public class TransactionConfiguration {
+@EnableTransactionManagement
+public class TransactionConfiguration implements TransactionManagementConfigurer {
+
+	public PlatformTransactionManager annotationDrivenTransactionManager() {
+		org.bytesoft.transaction.TransactionManager transactionManager = this.transactionManager();
+		org.springframework.transaction.jta.JtaTransactionManager jtaTransactionManager //
+				= new org.springframework.transaction.jta.JtaTransactionManager();
+		jtaTransactionManager.setTransactionManager(transactionManager);
+		return jtaTransactionManager;
+	}
 
 	@org.springframework.context.annotation.Bean
 	public org.bytesoft.bytejta.supports.spring.ManagedConnectionFactoryPostProcessor managedConnectionFactoryPostProcessor() {
@@ -27,8 +39,8 @@ public class TransactionConfiguration {
 	}
 
 	@org.springframework.context.annotation.Bean
-	public org.bytesoft.transaction.TransactionManager bytejtaTransactionManager() {
-		TransactionManagerImpl transactionManager = new org.bytesoft.bytejta.TransactionManagerImpl();
+	public org.bytesoft.transaction.TransactionManager transactionManager() {
+		TransactionManagerImpl transactionManager = new TransactionManagerImpl();
 		TransactionBeanFactoryImpl.getInstance().setTransactionManager(transactionManager);
 		TransactionBeanFactoryImpl.getInstance().setTransactionTimer(transactionManager);
 		return transactionManager;

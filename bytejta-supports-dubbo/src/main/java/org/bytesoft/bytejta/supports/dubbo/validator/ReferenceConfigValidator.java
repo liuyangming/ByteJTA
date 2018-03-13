@@ -17,7 +17,7 @@ package org.bytesoft.bytejta.supports.dubbo.validator;
 
 import java.lang.reflect.Method;
 
-import org.bytesoft.bytejta.supports.dubbo.DubboConfigValidator;
+import org.bytesoft.bytejta.supports.dubbo.DubboValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
@@ -28,7 +28,7 @@ import org.springframework.beans.factory.config.BeanDefinition;
 
 import com.alibaba.dubbo.remoting.RemotingException;
 
-public class ReferenceConfigValidator implements DubboConfigValidator {
+public class ReferenceConfigValidator implements DubboValidator {
 	static final Logger logger = LoggerFactory.getLogger(ReferenceConfigValidator.class);
 
 	private String beanName;
@@ -43,10 +43,10 @@ public class ReferenceConfigValidator implements DubboConfigValidator {
 		PropertyValue filter = mpv.getPropertyValue("filter");
 
 		if (group == null || group.getValue() == null //
-				|| ("org.bytesoft.bytejta".equals(group.getValue())
-						|| String.valueOf(group.getValue()).startsWith("org.bytesoft.bytejta-")) == false) {
+				|| ("org-bytesoft-bytejta".equals(group.getValue())
+						|| String.valueOf(group.getValue()).startsWith("org-bytesoft-bytejta-")) == false) {
 			throw new FatalBeanException(String.format(
-					"The value of attr 'group'(beanId= %s) should be 'org.bytesoft.bytejta' or starts with 'org.bytesoft.bytejta-'.",
+					"The value of attr 'group'(beanId= %s) should be 'org-bytesoft-bytejta' or starts with 'org-bytesoft-bytejta-'.",
 					this.beanName));
 		} else if (retries == null || retries.getValue() == null || "0".equals(retries.getValue()) == false) {
 			throw new FatalBeanException(

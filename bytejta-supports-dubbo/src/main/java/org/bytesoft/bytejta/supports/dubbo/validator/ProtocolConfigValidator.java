@@ -15,14 +15,14 @@
  */
 package org.bytesoft.bytejta.supports.dubbo.validator;
 
-import org.bytesoft.bytejta.supports.dubbo.DubboConfigValidator;
+import org.bytesoft.bytejta.supports.dubbo.DubboValidator;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.FatalBeanException;
 import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.PropertyValue;
 import org.springframework.beans.factory.config.BeanDefinition;
 
-public class ProtocolConfigValidator implements DubboConfigValidator {
+public class ProtocolConfigValidator implements DubboValidator {
 
 	private BeanDefinition beanDefinition;
 

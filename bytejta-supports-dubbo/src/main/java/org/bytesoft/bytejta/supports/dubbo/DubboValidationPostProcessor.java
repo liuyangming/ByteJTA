@@ -35,11 +35,20 @@ import org.springframework.beans.FatalBeanException;
 import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.PropertyValue;
 import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.beans.factory.config.RuntimeBeanReference;
 
-public class DubboConfigPostProcessor implements BeanFactoryPostProcessor {
-	static final Logger logger = LoggerFactory.getLogger(DubboConfigPostProcessor.class);
+public class DubboValidationPostProcessor implements BeanPostProcessor /* , BeanFactoryPostProcessor */ {
+	static final Logger logger = LoggerFactory.getLogger(DubboValidationPostProcessor.class);
+
+	public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+		return bean;
+	}
+
+	public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+		return bean;
+	}
 
 	public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
 		ClassLoader cl = Thread.currentThread().getContextClassLoader();
@@ -93,8 +102,8 @@ public class DubboConfigPostProcessor implements BeanFactoryPostProcessor {
 				MutablePropertyValues mpv = beanDef.getPropertyValues();
 				PropertyValue group = mpv.getPropertyValue("group");
 				if (group == null || group.getValue() == null //
-						|| ("org.bytesoft.bytejta".equals(group.getValue())
-								|| String.valueOf(group.getValue()).startsWith("org.bytesoft.bytejta-")) == false) {
+						|| ("org-bytesoft-bytejta".equals(group.getValue())
+								|| String.valueOf(group.getValue()).startsWith("org-bytesoft-bytejta-")) == false) {
 					continue;
 				}
 
@@ -103,8 +112,8 @@ public class DubboConfigPostProcessor implements BeanFactoryPostProcessor {
 				MutablePropertyValues mpv = beanDef.getPropertyValues();
 				PropertyValue group = mpv.getPropertyValue("group");
 				if (group == null || group.getValue() == null //
-						|| ("org.bytesoft.bytejta".equals(group.getValue())
-								|| String.valueOf(group.getValue()).startsWith("org.bytesoft.bytejta-")) == false) {
+						|| ("org-bytesoft-bytejta".equals(group.getValue())
+								|| String.valueOf(group.getValue()).startsWith("org-bytesoft-bytejta-")) == false) {
 					continue;
 				}
 
@@ -135,7 +144,8 @@ public class DubboConfigPostProcessor implements BeanFactoryPostProcessor {
 				}
 			}
 
-			String protocolValue = protocol == null ? null : String.valueOf(protocol.getValue());
+			RuntimeBeanReference protocolRef = protocol == null ? null : (RuntimeBeanReference) protocol.getValue();
+			String protocolValue = protocolRef == null ? null : protocolRef.getBeanName();
 			if (protocolValue == null) {
 				if (protocolList.size() > 0) {
 					protocolSet.add(protocolList.get(0));

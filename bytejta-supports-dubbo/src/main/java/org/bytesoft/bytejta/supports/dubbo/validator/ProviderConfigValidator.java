@@ -15,11 +15,11 @@
  */
 package org.bytesoft.bytejta.supports.dubbo.validator;
 
-import org.bytesoft.bytejta.supports.dubbo.DubboConfigValidator;
+import org.bytesoft.bytejta.supports.dubbo.DubboValidator;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanDefinition;
 
-public class ProviderConfigValidator implements DubboConfigValidator {
+public class ProviderConfigValidator implements DubboValidator {
 	private BeanDefinition beanDefinition;
 
 	public void validate() throws BeansException {

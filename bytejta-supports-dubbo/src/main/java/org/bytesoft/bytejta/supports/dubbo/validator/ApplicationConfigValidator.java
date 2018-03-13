@@ -17,12 +17,12 @@ package org.bytesoft.bytejta.supports.dubbo.validator;
 
 import java.util.List;
 
-import org.bytesoft.bytejta.supports.dubbo.DubboConfigValidator;
+import org.bytesoft.bytejta.supports.dubbo.DubboValidator;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.FatalBeanException;
 import org.springframework.beans.factory.config.BeanDefinition;
 
-public class ApplicationConfigValidator implements DubboConfigValidator {
+public class ApplicationConfigValidator implements DubboValidator {
 
 	private List<BeanDefinition> definitionList;
 

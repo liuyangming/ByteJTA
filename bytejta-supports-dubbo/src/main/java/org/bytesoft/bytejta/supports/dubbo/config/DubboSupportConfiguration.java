@@ -16,48 +16,146 @@
 package org.bytesoft.bytejta.supports.dubbo.config;
 
 import org.bytesoft.bytejta.TransactionBeanFactoryImpl;
+import org.bytesoft.bytejta.TransactionCoordinator;
 import org.bytesoft.bytejta.supports.config.ScheduleWorkConfiguration;
 import org.bytesoft.bytejta.supports.config.TransactionConfiguration;
+import org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry;
+import org.bytesoft.bytejta.supports.dubbo.serialize.XAResourceDeserializerImpl;
+import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
+import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.annotation.EnableTransactionManagement;
-import org.springframework.transaction.annotation.TransactionManagementConfigurer;
 
-@EnableTransactionManagement
+import com.alibaba.dubbo.config.ApplicationConfig;
+import com.alibaba.dubbo.config.ProtocolConfig;
+import com.alibaba.dubbo.config.ReferenceConfig;
+import com.alibaba.dubbo.config.RegistryConfig;
+import com.alibaba.dubbo.config.ServiceConfig;
+
 @Import({ TransactionConfiguration.class, ScheduleWorkConfiguration.class })
 @Configuration
-public class DubboSupportConfiguration implements TransactionManagementConfigurer, ApplicationContextAware {
+public class DubboSupportConfiguration implements ApplicationContextAware {
+	static final Logger logger = LoggerFactory.getLogger(XAResourceDeserializerImpl.class);
+
 	private ApplicationContext applicationContext;
 
-	public PlatformTransactionManager annotationDrivenTransactionManager() {
-		org.springframework.transaction.jta.JtaTransactionManager jtaTransactionManager //
-				= new org.springframework.transaction.jta.JtaTransactionManager();
-		jtaTransactionManager.setTransactionManager(TransactionBeanFactoryImpl.getInstance().getTransactionManager());
-		return jtaTransactionManager;
+	@Bean("skeleton@org.bytesoft.bytejta.supports.wire.RemoteCoordinator")
+	public ServiceConfig<RemoteCoordinator> skeletonRemoteCoordinator(
+			@Autowired TransactionCoordinator transactionCoordinator) {
+		ServiceConfig<RemoteCoordinator> serviceConfig = new ServiceConfig<RemoteCoordinator>();
+		serviceConfig.setInterface(RemoteCoordinator.class);
+		serviceConfig.setRef(transactionCoordinator);
+		serviceConfig.setCluster("failfast");
+		serviceConfig.setLoadbalance("transaction");
+		serviceConfig.setFilter("transaction");
+		serviceConfig.setGroup("org-bytesoft-bytejta");
+		serviceConfig.setRetries(0);
+		serviceConfig.setTimeout(6000);
+
+		try {
+			serviceConfig.setRegistry(this.applicationContext.getBean(RegistryConfig.class));
+		} catch (NoUniqueBeanDefinitionException ex) {
+			throw ex;
+		} catch (NoSuchBeanDefinitionException ex) {
+			logger.debug("Error occurred while creating ServiceConfig!", ex);
+		} catch (BeansException ex) {
+			logger.debug("Error occurred while creating ServiceConfig!", ex);
+		}
+
+		try {
+			serviceConfig.setApplication(this.applicationContext.getBean(ApplicationConfig.class));
+		} catch (NoUniqueBeanDefinitionException ex) {
+			throw ex;
+		} catch (NoSuchBeanDefinitionException ex) {
+			logger.debug("Error occurred while creating ServiceConfig!", ex);
+		} catch (BeansException ex) {
+			logger.debug("Error occurred while creating ServiceConfig!", ex);
+		}
+
+		try {
+			serviceConfig.setProtocol(this.applicationContext.getBean(ProtocolConfig.class));
+		} catch (NoUniqueBeanDefinitionException ex) {
+			throw ex;
+		} catch (NoSuchBeanDefinitionException ex) {
+			logger.debug("Error occurred while creating ServiceConfig!", ex);
+		} catch (BeansException ex) {
+			logger.debug("Error occurred while creating ServiceConfig!", ex);
+		}
+
+		serviceConfig.export();
+		return serviceConfig;
+	}
+
+	@Bean("stub@org.bytesoft.bytejta.supports.wire.RemoteCoordinator")
+	public Object stubRemoteCoordinator() {
+		ReferenceConfig<RemoteCoordinator> referenceConfig = new ReferenceConfig<RemoteCoordinator>();
+
+		referenceConfig.setInterface(RemoteCoordinator.class);
+		referenceConfig.setCluster("failfast");
+		referenceConfig.setLoadbalance("transaction");
+		referenceConfig.setFilter("transaction");
+		referenceConfig.setGroup("org-bytesoft-bytejta");
+		referenceConfig.setRetries(0);
+		referenceConfig.setTimeout(6000);
+		referenceConfig.setCheck(false);
+
+		try {
+			referenceConfig.setRegistry(this.applicationContext.getBean(RegistryConfig.class));
+		} catch (NoUniqueBeanDefinitionException ex) {
+			throw ex;
+		} catch (NoSuchBeanDefinitionException ex) {
+			logger.debug("Error occurred while creating ReferenceConfig!", ex);
+		} catch (BeansException ex) {
+			logger.debug("Error occurred while creating ReferenceConfig!", ex);
+		}
+
+		try {
+			referenceConfig.setApplication(this.applicationContext.getBean(ApplicationConfig.class));
+		} catch (NoUniqueBeanDefinitionException ex) {
+			throw ex;
+		} catch (NoSuchBeanDefinitionException ex) {
+			logger.debug("Error occurred while creating ReferenceConfig!", ex);
+		} catch (BeansException ex) {
+			logger.debug("Error occurred while creating ReferenceConfig!", ex);
+		}
+
+		try {
+			ProtocolConfig protocolConfig = this.applicationContext.getBean(ProtocolConfig.class);
+			referenceConfig.setProtocol(protocolConfig.getName());
+		} catch (NoUniqueBeanDefinitionException ex) {
+			throw ex;
+		} catch (NoSuchBeanDefinitionException ex) {
+			logger.debug("Error occurred while creating ReferenceConfig!", ex);
+		} catch (BeansException ex) {
+			logger.debug("Error occurred while creating ReferenceConfig!", ex);
+		}
+
+		return referenceConfig;
 	}
 
 	@org.springframework.context.annotation.Bean
-	public org.bytesoft.bytejta.supports.dubbo.TransactionEndpointPostProcessor transactionEndpointPostProcessor() {
-		return new org.bytesoft.bytejta.supports.dubbo.TransactionEndpointPostProcessor();
+	public Object transactionBeanRegistry(@Autowired RemoteCoordinator stubRemoteCoordinator) {
+		TransactionBeanRegistry transactionBeanRegistry = TransactionBeanRegistry.getInstance();
+		transactionBeanRegistry.setConsumeCoordinator(stubRemoteCoordinator);
+		return transactionBeanRegistry;
 	}
 
 	@org.springframework.context.annotation.Bean
-	public org.bytesoft.bytejta.supports.dubbo.DubboConfigPostProcessor dubboConfigPostProcessor() {
-		return new org.bytesoft.bytejta.supports.dubbo.DubboConfigPostProcessor();
+	public org.bytesoft.bytejta.supports.dubbo.DubboEndpointPostProcessor transactionEndpointPostProcessor() {
+		return new org.bytesoft.bytejta.supports.dubbo.DubboEndpointPostProcessor();
 	}
 
 	@org.springframework.context.annotation.Bean
-	public org.bytesoft.bytejta.supports.dubbo.TransactionConfigPostProcessor transactionConfigPostProcessor() {
-		return new org.bytesoft.bytejta.supports.dubbo.TransactionConfigPostProcessor();
-	}
-
-	@org.springframework.context.annotation.Bean
-	public org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry springCloudBeanRegistry() {
-		return org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry.getInstance();
+	public org.bytesoft.bytejta.supports.dubbo.DubboValidationPostProcessor dubboConfigPostProcessor() {
+		return new org.bytesoft.bytejta.supports.dubbo.DubboValidationPostProcessor();
 	}
 
 	@org.springframework.context.annotation.Bean
