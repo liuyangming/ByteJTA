@@ -20,7 +20,6 @@ import org.bytesoft.bytejta.TransactionCoordinator;
 import org.bytesoft.bytejta.supports.config.ScheduleWorkConfiguration;
 import org.bytesoft.bytejta.supports.config.TransactionConfiguration;
 import org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry;
-import org.bytesoft.bytejta.supports.dubbo.serialize.XAResourceDeserializerImpl;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +42,7 @@ import com.alibaba.dubbo.config.ServiceConfig;
 @Import({ TransactionConfiguration.class, ScheduleWorkConfiguration.class })
 @Configuration
 public class DubboSupportConfiguration implements ApplicationContextAware {
-	static final Logger logger = LoggerFactory.getLogger(XAResourceDeserializerImpl.class);
+	static final Logger logger = LoggerFactory.getLogger(DubboSupportConfiguration.class);
 
 	private ApplicationContext applicationContext;
 
@@ -149,13 +148,13 @@ public class DubboSupportConfiguration implements ApplicationContextAware {
 	}
 
 	@org.springframework.context.annotation.Bean
-	public org.bytesoft.bytejta.supports.dubbo.DubboEndpointPostProcessor transactionEndpointPostProcessor() {
-		return new org.bytesoft.bytejta.supports.dubbo.DubboEndpointPostProcessor();
+	public org.bytesoft.bytejta.supports.dubbo.internal.DubboEndpointPostProcessor transactionEndpointPostProcessor() {
+		return new org.bytesoft.bytejta.supports.dubbo.internal.DubboEndpointPostProcessor();
 	}
 
 	@org.springframework.context.annotation.Bean
-	public org.bytesoft.bytejta.supports.dubbo.DubboValidationPostProcessor dubboConfigPostProcessor() {
-		return new org.bytesoft.bytejta.supports.dubbo.DubboValidationPostProcessor();
+	public org.bytesoft.bytejta.supports.dubbo.internal.DubboValidationPostProcessor dubboConfigPostProcessor() {
+		return new org.bytesoft.bytejta.supports.dubbo.internal.DubboValidationPostProcessor();
 	}
 
 	@org.springframework.context.annotation.Bean
