@@ -46,6 +46,7 @@ public class TransactionHandlerInterceptor implements HandlerInterceptor, Transa
 	private String identifier;
 	private ApplicationContext applicationContext;
 
+	@SuppressWarnings("deprecation")
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 		HandlerMethod hm = (HandlerMethod) handler;
 		Class<?> clazz = hm.getBeanType();
@@ -84,6 +85,13 @@ public class TransactionHandlerInterceptor implements HandlerInterceptor, Transa
 
 		transactionInterceptor.afterReceiveRequest(req);
 
+		TransactionManager transactionManager = beanFactory.getTransactionManager();
+		Transaction transaction = transactionManager.getTransactionQuietly();
+		byte[] responseByteArray = CommonUtils.serializeObject(transaction.getTransactionContext());
+		String responseTransactionStr = ByteUtils.byteArrayToString(responseByteArray);
+		response.setHeader(HEADER_TRANCACTION_KEY, responseTransactionStr);
+		response.setHeader(HEADER_PROPAGATION_KEY, this.identifier);
+
 		return true;
 	}
 
@@ -114,10 +122,10 @@ public class TransactionHandlerInterceptor implements HandlerInterceptor, Transa
 		Transaction transaction = transactionManager.getTransactionQuietly();
 		TransactionContext transactionContext = transaction.getTransactionContext();
 
-		byte[] byteArray = CommonUtils.serializeObject(transactionContext);
-		String transactionStr = ByteUtils.byteArrayToString(byteArray);
-		response.addHeader(HEADER_TRANCACTION_KEY, transactionStr);
-		response.addHeader(HEADER_PROPAGATION_KEY, this.identifier);
+		// byte[] byteArray = CommonUtils.serializeObject(transactionContext);
+		// String transactionStr = ByteUtils.byteArrayToString(byteArray);
+		// response.addHeader(HEADER_TRANCACTION_KEY, transactionStr);
+		// response.addHeader(HEADER_PROPAGATION_KEY, this.identifier);
 
 		TransactionResponseImpl resp = new TransactionResponseImpl();
 		resp.setTransactionContext(transactionContext);

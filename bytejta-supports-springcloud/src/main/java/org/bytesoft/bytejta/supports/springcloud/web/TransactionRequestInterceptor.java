@@ -212,6 +212,7 @@ public class TransactionRequestInterceptor
 		transactionInterceptor.beforeSendRequest(request);
 	}
 
+	@SuppressWarnings("deprecation")
 	private void invokeAfterRecvResponse(ClientHttpResponse httpResponse, boolean serverFlag) throws IOException {
 		SpringCloudBeanRegistry beanRegistry = SpringCloudBeanRegistry.getInstance();
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
