@@ -33,8 +33,8 @@ import org.springframework.context.ApplicationContextAware;
 
 public class TransactionFeignInterceptor
 		implements feign.RequestInterceptor, TransactionEndpointAware, ApplicationContextAware {
-	static final String HEADER_TRANCACTION_KEY = "org.bytesoft.bytejta.transaction";
-	static final String HEADER_PROPAGATION_KEY = "org.bytesoft.bytejta.propagation";
+	static final String HEADER_TRANCACTION_KEY = "X-BYTEJTA-TRANSACTION"; // org.bytesoft.bytejta.transaction
+	static final String HEADER_PROPAGATION_KEY = "X-BYTEJTA-PROPAGATION"; // org.bytesoft.bytejta.propagation
 
 	private String identifier;
 	private ApplicationContext applicationContext;

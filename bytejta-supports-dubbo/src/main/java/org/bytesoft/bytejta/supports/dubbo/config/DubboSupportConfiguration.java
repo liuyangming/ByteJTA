@@ -53,9 +53,9 @@ public class DubboSupportConfiguration implements ApplicationContextAware {
 		serviceConfig.setInterface(RemoteCoordinator.class);
 		serviceConfig.setRef(transactionCoordinator);
 		serviceConfig.setCluster("failfast");
-		serviceConfig.setLoadbalance("transaction");
-		serviceConfig.setFilter("transaction");
-		serviceConfig.setGroup("org-bytesoft-bytejta");
+		serviceConfig.setLoadbalance("bytejta");
+		serviceConfig.setFilter("bytejta");
+		serviceConfig.setGroup("bytejta");
 		serviceConfig.setRetries(0);
 		serviceConfig.setTimeout(6000);
 
@@ -99,9 +99,9 @@ public class DubboSupportConfiguration implements ApplicationContextAware {
 
 		referenceConfig.setInterface(RemoteCoordinator.class);
 		referenceConfig.setCluster("failfast");
-		referenceConfig.setLoadbalance("transaction");
-		referenceConfig.setFilter("transaction");
-		referenceConfig.setGroup("org-bytesoft-bytejta");
+		referenceConfig.setLoadbalance("bytejta");
+		referenceConfig.setFilter("bytejta");
+		referenceConfig.setGroup("bytejta");
 		referenceConfig.setRetries(0);
 		referenceConfig.setTimeout(6000);
 		referenceConfig.setCheck(false);

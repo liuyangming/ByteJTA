@@ -1,1 +1,1 @@
-transaction=org.bytesoft.bytejta.supports.dubbo.spi.TransactionLoadBalance
+bytejta=org.bytesoft.bytejta.supports.dubbo.spi.TransactionLoadBalance

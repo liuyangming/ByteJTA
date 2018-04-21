@@ -1,1 +1,1 @@
-transaction=org.bytesoft.bytejta.supports.dubbo.spi.TransactionServiceFilter
+bytejta=org.bytesoft.bytejta.supports.dubbo.spi.TransactionServiceFilter

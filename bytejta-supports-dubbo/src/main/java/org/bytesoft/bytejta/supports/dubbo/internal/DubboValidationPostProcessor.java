@@ -73,22 +73,33 @@ public class DubboValidationPostProcessor implements BeanPostProcessor, BeanFact
 
 		if (StringUtils.isBlank(group)) {
 			return;
-		} else if (StringUtils.equals("org-bytesoft-bytejta", group) == false
-				|| group.startsWith("org-bytesoft-bytejta-") == false) {
+		} else if (StringUtils.equalsIgnoreCase("x-bytejta", group) == false
+				|| StringUtils.lowerCase(group).startsWith("x-bytejta-") == false) {
 			return;
 		}
 
 		if (retries == null || retries.intValue() != 0) {
 			throw new FatalBeanException(String.format("The value of attr 'retries'(beanId= %s) should be '0'.", beanName));
-		} else if (loadbalance == null || StringUtils.equals("transaction", loadbalance) == false) {
+		} else if (loadbalance == null || StringUtils.equals("bytejta", loadbalance) == false) {
 			throw new FatalBeanException(
-					String.format("The value of attr 'loadbalance'(beanId= %s) should be 'transaction'.", beanName));
+					String.format("The value of attr 'loadbalance'(beanId= %s) should be 'bytejta'.", beanName));
 		} else if (cluster == null || StringUtils.equals("failfast", cluster) == false) {
 			throw new FatalBeanException(
 					String.format("The value of attribute 'cluster' (beanId= %s) must be 'failfast'.", beanName));
-		} else if (filter == null || StringUtils.equals("transaction", filter) == false) {
-			throw new FatalBeanException(
-					String.format("The value of attr 'filter'(beanId= %s) should be 'transaction'.", beanName));
+		} else if (filter == null) {
+			throw new FatalBeanException(String.format("The value of attr 'filter'(beanId= %s) must be null.", beanName));
+		} else {
+			String[] filterArray = filter.split("\\s*,\\s*");
+			int filters = 0;
+			for (int i = 0; i < filterArray.length; i++) {
+				String element = filterArray[i];
+				filters = StringUtils.equalsIgnoreCase("bytejta", element) ? filters + 1 : filters;
+			}
+
+			if (filters != 1) {
+				throw new FatalBeanException(
+						String.format("The value of attr 'filter'(beanId= %s) should contains 'bytejta'.", beanName));
+			}
 		}
 	}
 
@@ -101,17 +112,15 @@ public class DubboValidationPostProcessor implements BeanPostProcessor, BeanFact
 		PropertyValue filter = mpv.getPropertyValue("filter");
 
 		if (group == null || group.getValue() == null //
-				|| ("org-bytesoft-bytejta".equals(group.getValue())
-						|| String.valueOf(group.getValue()).startsWith("org-bytesoft-bytejta-")) == false) {
+				|| ("x-bytejta".equals(group.getValue())
+						|| String.valueOf(group.getValue()).startsWith("x-bytejta-")) == false) {
 			throw new FatalBeanException(String.format(
-					"The value of attr 'group'(beanId= %s) should be 'org-bytesoft-bytejta' or starts with 'org-bytesoft-bytejta-'.",
-					beanName));
+					"The value of attr 'group'(beanId= %s) should be 'x-bytejta' or starts with 'x-bytejta-'.", beanName));
 		} else if (retries == null || retries.getValue() == null || "0".equals(retries.getValue()) == false) {
 			throw new FatalBeanException(String.format("The value of attr 'retries'(beanId= %s) should be '0'.", beanName));
-		} else if (loadbalance == null || loadbalance.getValue() == null
-				|| "transaction".equals(loadbalance.getValue()) == false) {
+		} else if (loadbalance == null || loadbalance.getValue() == null || "bytejta".equals(loadbalance.getValue()) == false) {
 			throw new FatalBeanException(
-					String.format("The value of attr 'loadbalance'(beanId= %s) should be 'transaction'.", beanName));
+					String.format("The value of attr 'loadbalance'(beanId= %s) should be 'bytejta'.", beanName));
 		} else if (cluster == null || cluster.getValue() == null || "failfast".equals(cluster.getValue()) == false) {
 			throw new FatalBeanException(
 					String.format("The value of attribute 'cluster' (beanId= %s) must be 'failfast'.", beanName));
@@ -124,12 +133,12 @@ public class DubboValidationPostProcessor implements BeanPostProcessor, BeanFact
 			int filters = 0;
 			for (int i = 0; i < filterArray.length; i++) {
 				String element = filterArray[i];
-				filters = "transaction".equals(element) ? filters + 1 : filters;
+				filters = StringUtils.equalsIgnoreCase("bytejta", element) ? filters + 1 : filters;
 			}
 
 			if (filters != 1) {
 				throw new FatalBeanException(
-						String.format("The value of attr 'filter'(beanId= %s) should contains 'transaction'.", beanName));
+						String.format("The value of attr 'filter'(beanId= %s) should contains 'bytejta'.", beanName));
 			}
 		}
 
@@ -208,9 +217,10 @@ public class DubboValidationPostProcessor implements BeanPostProcessor, BeanFact
 					continue;
 				}
 
-				if ("org-bytesoft-bytejta".equals(group.getValue())) {
+				String groupValue = String.valueOf(group.getValue());
+				if (StringUtils.equalsIgnoreCase("x-bytejta", groupValue)) {
 					referenceMap.put(beanName, beanDef);
-				} else if (String.valueOf(group.getValue()).startsWith("org-bytesoft-bytejta-")) {
+				} else if (StringUtils.lowerCase(groupValue).startsWith("x-bytejta-")) {
 					referenceMap.put(beanName, beanDef);
 				}
 			}
