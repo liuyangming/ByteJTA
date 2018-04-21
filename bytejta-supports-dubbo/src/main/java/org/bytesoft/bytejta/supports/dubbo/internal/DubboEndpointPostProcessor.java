@@ -62,8 +62,10 @@ public class DubboEndpointPostProcessor implements BeanPostProcessor, SmartIniti
 		try {
 			protocolConfig = this.applicationContext.getBean(ProtocolConfig.class);
 		} catch (NoUniqueBeanDefinitionException ex) {
-			logger.error("There are more than one protocol config specified!");
-			throw ex;
+			logger.debug("There are more than one protocol config specified!");
+			ServiceConfig<RemoteCoordinator> serviceConfig = //
+					(ServiceConfig<RemoteCoordinator>) this.applicationContext.getBean(KEY_REMOTE_COORDINATOR);
+			protocolConfig = serviceConfig.getProtocol();
 		} catch (NoSuchBeanDefinitionException ex) {
 			logger.debug("There is no protocol config specified!");
 			ServiceConfig<RemoteCoordinator> serviceConfig = //

@@ -205,7 +205,7 @@ public class SampleTransactionLogger extends VirtualLoggingSystemImpl
 	}
 
 	public int getMinorVersion() {
-		return 3;
+		return 4;
 	}
 
 	public String getLoggingFilePrefix() {

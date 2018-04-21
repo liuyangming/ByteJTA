@@ -78,6 +78,8 @@ public class DubboValidationPostProcessor implements BeanPostProcessor, BeanFact
 			return;
 		}
 
+		String[] filterArray = filter == null ? new String[0] : filter.split("\\s*,\\s*");
+
 		if (retries == null || retries.intValue() != 0) {
 			throw new FatalBeanException(String.format("The value of attr 'retries'(beanId= %s) should be '0'.", beanName));
 		} else if (loadbalance == null || StringUtils.equals("bytejta", loadbalance) == false) {
@@ -86,20 +88,11 @@ public class DubboValidationPostProcessor implements BeanPostProcessor, BeanFact
 		} else if (cluster == null || StringUtils.equals("failfast", cluster) == false) {
 			throw new FatalBeanException(
 					String.format("The value of attribute 'cluster' (beanId= %s) must be 'failfast'.", beanName));
-		} else if (filter == null) {
+		} else if (filterArray.length == 0) {
 			throw new FatalBeanException(String.format("The value of attr 'filter'(beanId= %s) must be null.", beanName));
-		} else {
-			String[] filterArray = filter.split("\\s*,\\s*");
-			int filters = 0;
-			for (int i = 0; i < filterArray.length; i++) {
-				String element = filterArray[i];
-				filters = StringUtils.equalsIgnoreCase("bytejta", element) ? filters + 1 : filters;
-			}
-
-			if (filters != 1) {
-				throw new FatalBeanException(
-						String.format("The value of attr 'filter'(beanId= %s) should contains 'bytejta'.", beanName));
-			}
+		} else if (StringUtils.equalsIgnoreCase(filterArray[0], "bytejta") == false) {
+			throw new FatalBeanException(
+					String.format("The first value of attr 'filter'(beanId= %s) should be 'bytejta'.", beanName));
 		}
 	}
 
@@ -110,6 +103,9 @@ public class DubboValidationPostProcessor implements BeanPostProcessor, BeanFact
 		PropertyValue loadbalance = mpv.getPropertyValue("loadbalance");
 		PropertyValue cluster = mpv.getPropertyValue("cluster");
 		PropertyValue filter = mpv.getPropertyValue("filter");
+
+		String filterValue = filter == null || filter.getValue() == null ? null : String.valueOf(filter.getValue());
+		String[] filterArray = filter == null ? new String[0] : filterValue.split("\\s*,\\s*");
 
 		if (group == null || group.getValue() == null //
 				|| ("x-bytejta".equals(group.getValue())
@@ -127,19 +123,9 @@ public class DubboValidationPostProcessor implements BeanPostProcessor, BeanFact
 		} else if (filter == null || filter.getValue() == null || String.class.isInstance(filter.getValue()) == false) {
 			throw new FatalBeanException(String
 					.format("The value of attr 'filter'(beanId= %s) must be java.lang.String and cannot be null.", beanName));
-		} else {
-			String filterValue = String.valueOf(filter.getValue());
-			String[] filterArray = filterValue.split("\\s*,\\s*");
-			int filters = 0;
-			for (int i = 0; i < filterArray.length; i++) {
-				String element = filterArray[i];
-				filters = StringUtils.equalsIgnoreCase("bytejta", element) ? filters + 1 : filters;
-			}
-
-			if (filters != 1) {
-				throw new FatalBeanException(
-						String.format("The value of attr 'filter'(beanId= %s) should contains 'bytejta'.", beanName));
-			}
+		} else if (StringUtils.equalsIgnoreCase(filterArray[filterArray.length - 1], "bytejta")) {
+			throw new FatalBeanException(
+					String.format("The last value of attr 'filter'(beanId= %s) should be 'bytejta'.", beanName));
 		}
 
 		PropertyValue pv = mpv.getPropertyValue("interface");

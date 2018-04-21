@@ -15,6 +15,10 @@
  */
 package org.bytesoft.bytejta.supports.dubbo.config;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 import org.bytesoft.bytejta.TransactionBeanFactoryImpl;
 import org.bytesoft.bytejta.TransactionCoordinator;
 import org.bytesoft.bytejta.supports.config.ScheduleWorkConfiguration;
@@ -60,33 +64,37 @@ public class DubboSupportConfiguration implements ApplicationContextAware {
 		serviceConfig.setTimeout(6000);
 
 		try {
-			serviceConfig.setRegistry(this.applicationContext.getBean(RegistryConfig.class));
-		} catch (NoUniqueBeanDefinitionException ex) {
-			throw ex;
-		} catch (NoSuchBeanDefinitionException ex) {
-			logger.debug("Error occurred while creating ServiceConfig!", ex);
-		} catch (BeansException ex) {
-			logger.debug("Error occurred while creating ServiceConfig!", ex);
-		}
-
-		try {
 			serviceConfig.setApplication(this.applicationContext.getBean(ApplicationConfig.class));
 		} catch (NoUniqueBeanDefinitionException ex) {
 			throw ex;
 		} catch (NoSuchBeanDefinitionException ex) {
 			logger.debug("Error occurred while creating ServiceConfig!", ex);
 		} catch (BeansException ex) {
-			logger.debug("Error occurred while creating ServiceConfig!", ex);
+			throw new RuntimeException("Error occurred while creating ServiceConfig!", ex);
 		}
 
 		try {
-			serviceConfig.setProtocol(this.applicationContext.getBean(ProtocolConfig.class));
-		} catch (NoUniqueBeanDefinitionException ex) {
-			throw ex;
+			Map<String, ProtocolConfig> protocolMap = this.applicationContext.getBeansOfType(ProtocolConfig.class);
+			List<ProtocolConfig> protocols = new ArrayList<ProtocolConfig>();
+			protocols.addAll(protocolMap.values());
+
+			serviceConfig.setProtocols(protocols);
 		} catch (NoSuchBeanDefinitionException ex) {
 			logger.debug("Error occurred while creating ServiceConfig!", ex);
 		} catch (BeansException ex) {
+			throw new RuntimeException("Error occurred while creating ServiceConfig!", ex);
+		}
+
+		try {
+			Map<String, RegistryConfig> registryMap = this.applicationContext.getBeansOfType(RegistryConfig.class);
+			List<RegistryConfig> registries = new ArrayList<RegistryConfig>();
+			registries.addAll(registryMap.values());
+
+			serviceConfig.setRegistries(registries);
+		} catch (NoSuchBeanDefinitionException ex) {
 			logger.debug("Error occurred while creating ServiceConfig!", ex);
+		} catch (BeansException ex) {
+			throw new RuntimeException("Error occurred while creating ServiceConfig!", ex);
 		}
 
 		serviceConfig.export();
@@ -107,34 +115,25 @@ public class DubboSupportConfiguration implements ApplicationContextAware {
 		referenceConfig.setCheck(false);
 
 		try {
-			referenceConfig.setRegistry(this.applicationContext.getBean(RegistryConfig.class));
-		} catch (NoUniqueBeanDefinitionException ex) {
-			throw ex;
-		} catch (NoSuchBeanDefinitionException ex) {
-			logger.debug("Error occurred while creating ReferenceConfig!", ex);
-		} catch (BeansException ex) {
-			logger.debug("Error occurred while creating ReferenceConfig!", ex);
-		}
-
-		try {
 			referenceConfig.setApplication(this.applicationContext.getBean(ApplicationConfig.class));
 		} catch (NoUniqueBeanDefinitionException ex) {
 			throw ex;
 		} catch (NoSuchBeanDefinitionException ex) {
 			logger.debug("Error occurred while creating ReferenceConfig!", ex);
 		} catch (BeansException ex) {
-			logger.debug("Error occurred while creating ReferenceConfig!", ex);
+			throw new RuntimeException("Error occurred while creating ReferenceConfig!", ex);
 		}
 
 		try {
-			ProtocolConfig protocolConfig = this.applicationContext.getBean(ProtocolConfig.class);
-			referenceConfig.setProtocol(protocolConfig.getName());
-		} catch (NoUniqueBeanDefinitionException ex) {
-			throw ex;
+			Map<String, RegistryConfig> registryMap = this.applicationContext.getBeansOfType(RegistryConfig.class);
+			List<RegistryConfig> registries = new ArrayList<RegistryConfig>();
+			registries.addAll(registryMap.values());
+
+			referenceConfig.setRegistries(registries);
 		} catch (NoSuchBeanDefinitionException ex) {
 			logger.debug("Error occurred while creating ReferenceConfig!", ex);
 		} catch (BeansException ex) {
-			logger.debug("Error occurred while creating ReferenceConfig!", ex);
+			throw new RuntimeException("Error occurred while creating ReferenceConfig!", ex);
 		}
 
 		return referenceConfig;
