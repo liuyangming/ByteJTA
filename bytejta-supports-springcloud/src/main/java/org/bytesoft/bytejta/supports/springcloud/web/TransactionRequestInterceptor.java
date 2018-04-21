@@ -29,6 +29,7 @@ import org.bytesoft.bytejta.supports.springcloud.loadbalancer.TransactionLoadBal
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.common.utils.CommonUtils;
+import org.bytesoft.common.utils.SerializeUtils;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.TransactionManager;
@@ -197,7 +198,7 @@ public class TransactionRequestInterceptor
 
 		TransactionContext transactionContext = transaction.getTransactionContext();
 
-		byte[] reqByteArray = CommonUtils.serializeObject(transactionContext);
+		byte[] reqByteArray = SerializeUtils.serializeObject(transactionContext);
 		String reqTransactionStr = ByteUtils.byteArrayToString(reqByteArray);
 
 		HttpHeaders reqHeaders = httpRequest.getHeaders();
@@ -222,7 +223,7 @@ public class TransactionRequestInterceptor
 		String respPropagationStr = respHeaders.getFirst(HEADER_PROPAGATION_KEY);
 
 		byte[] byteArray = ByteUtils.stringToByteArray(StringUtils.trimToNull(respTransactionStr));
-		TransactionContext serverContext = (TransactionContext) CommonUtils.deserializeObject(byteArray);
+		TransactionContext serverContext = (TransactionContext) SerializeUtils.deserializeObject(byteArray);
 
 		TransactionResponseImpl txResp = new TransactionResponseImpl();
 		txResp.setTransactionContext(serverContext);

@@ -25,7 +25,7 @@ import org.bytesoft.bytejta.supports.rpc.TransactionResponseImpl;
 import org.bytesoft.bytejta.supports.springcloud.SpringCloudBeanRegistry;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.common.utils.ByteUtils;
-import org.bytesoft.common.utils.CommonUtils;
+import org.bytesoft.common.utils.SerializeUtils;
 import org.bytesoft.transaction.TransactionContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,7 +110,7 @@ public class TransactionFeignDecoder implements feign.codec.Decoder, Initializin
 			String propagationStr = StringUtils.isBlank(respPropagationStr) ? reqPropagationStr : respPropagationStr;
 
 			byte[] byteArray = ByteUtils.stringToByteArray(transactionStr);
-			TransactionContext transactionContext = (TransactionContext) CommonUtils.deserializeObject(byteArray);
+			TransactionContext transactionContext = (TransactionContext) SerializeUtils.deserializeObject(byteArray);
 
 			SpringCloudBeanRegistry beanRegistry = SpringCloudBeanRegistry.getInstance();
 			RemoteCoordinator remoteCoordinator = beanRegistry.getConsumeCoordinator(propagationStr);

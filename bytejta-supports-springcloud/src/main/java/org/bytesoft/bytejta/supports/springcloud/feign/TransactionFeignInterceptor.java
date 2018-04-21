@@ -21,7 +21,7 @@ import java.util.Map;
 
 import org.bytesoft.bytejta.supports.springcloud.SpringCloudBeanRegistry;
 import org.bytesoft.common.utils.ByteUtils;
-import org.bytesoft.common.utils.CommonUtils;
+import org.bytesoft.common.utils.SerializeUtils;
 import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
@@ -50,7 +50,7 @@ public class TransactionFeignInterceptor
 
 		try {
 			TransactionContext transactionContext = transaction.getTransactionContext();
-			byte[] byteArray = CommonUtils.serializeObject(transactionContext);
+			byte[] byteArray = SerializeUtils.serializeObject(transactionContext);
 
 			String transactionText = ByteUtils.byteArrayToString(byteArray);
 

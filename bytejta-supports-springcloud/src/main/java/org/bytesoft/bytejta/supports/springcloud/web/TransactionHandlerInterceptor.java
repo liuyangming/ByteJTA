@@ -24,7 +24,7 @@ import org.bytesoft.bytejta.supports.rpc.TransactionResponseImpl;
 import org.bytesoft.bytejta.supports.springcloud.SpringCloudBeanRegistry;
 import org.bytesoft.bytejta.supports.springcloud.controller.TransactionCoordinatorController;
 import org.bytesoft.common.utils.ByteUtils;
-import org.bytesoft.common.utils.CommonUtils;
+import org.bytesoft.common.utils.SerializeUtils;
 import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
@@ -73,7 +73,7 @@ public class TransactionHandlerInterceptor implements HandlerInterceptor, Transa
 
 		TransactionContext transactionContext = null;
 		if (byteArray != null && byteArray.length > 0) {
-			transactionContext = (TransactionContext) CommonUtils.deserializeObject(byteArray);
+			transactionContext = (TransactionContext) SerializeUtils.deserializeObject(byteArray);
 			transactionContext.setPropagated(true);
 			transactionContext.setPropagatedBy(propagationText);
 		}
@@ -114,7 +114,7 @@ public class TransactionHandlerInterceptor implements HandlerInterceptor, Transa
 		Transaction transaction = transactionManager.getTransactionQuietly();
 		TransactionContext transactionContext = transaction.getTransactionContext();
 
-		byte[] byteArray = CommonUtils.serializeObject(transactionContext);
+		byte[] byteArray = SerializeUtils.serializeObject(transactionContext);
 		String transactionStr = ByteUtils.byteArrayToString(byteArray);
 		response.addHeader(HEADER_TRANCACTION_KEY, transactionStr);
 		response.addHeader(HEADER_PROPAGATION_KEY, this.identifier);
