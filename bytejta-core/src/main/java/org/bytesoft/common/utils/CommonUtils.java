@@ -18,8 +18,11 @@ package org.bytesoft.common.utils;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.net.UnknownHostException;
+import java.util.Enumeration;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -88,9 +91,37 @@ public class CommonUtils {
 
 	public static String getInetAddress() {
 		try {
+			Enumeration<NetworkInterface> enumeration = NetworkInterface.getNetworkInterfaces();
+			while (enumeration.hasMoreElements()) {
+				NetworkInterface ni = enumeration.nextElement();
+				if (ni.isLoopback()) {
+					continue;
+				} else if (ni.isUp() == false) {
+					continue;
+				}
+
+				Enumeration<InetAddress> inetAddrList = ni.getInetAddresses();
+				while (inetAddrList.hasMoreElements()) {
+					InetAddress inetAddr = inetAddrList.nextElement();
+
+					if (inetAddr.isLoopbackAddress()) {
+						continue;
+					} else if (inetAddr.isMulticastAddress()) {
+						continue;
+					} else if (inetAddr.isAnyLocalAddress()) {
+						continue;
+					} else if (Inet4Address.class.isInstance(inetAddr) == false) {
+						continue;
+					}
+
+					return inetAddr.getHostAddress();
+				}
+
+			}
+
 			InetAddress inetAddr = InetAddress.getLocalHost();
 			return inetAddr.getHostAddress();
-		} catch (UnknownHostException ex) {
+		} catch (Exception ex) {
 			logger.error("Error occurred while getting ip address.", ex);
 			return "127.0.0.1";
 		}
