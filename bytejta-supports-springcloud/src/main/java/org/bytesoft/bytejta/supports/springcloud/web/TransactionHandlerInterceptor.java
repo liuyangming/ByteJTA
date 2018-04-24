@@ -31,6 +31,8 @@ import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.aware.TransactionEndpointAware;
 import org.bytesoft.transaction.supports.rpc.TransactionInterceptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.boot.autoconfigure.web.ErrorController;
 import org.springframework.context.ApplicationContext;
@@ -40,6 +42,8 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 
 public class TransactionHandlerInterceptor implements HandlerInterceptor, TransactionEndpointAware, ApplicationContextAware {
+	private static final Logger logger = LoggerFactory.getLogger(TransactionHandlerInterceptor.class);
+
 	static final String HEADER_TRANCACTION_KEY = "X-BYTEJTA-TRANSACTION"; // org.bytesoft.bytejta.transaction
 	static final String HEADER_PROPAGATION_KEY = "X-BYTEJTA-PROPAGATION"; // org.bytesoft.bytejta.propagation
 
@@ -47,6 +51,12 @@ public class TransactionHandlerInterceptor implements HandlerInterceptor, Transa
 	private ApplicationContext applicationContext;
 
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+		if (HandlerMethod.class.isInstance(handler) == false) {
+			logger.warn("CompensableHandlerInterceptor cannot handle current request(uri= {}, handler= {}) correctly.",
+					request.getRequestURI(), handler);
+			return true;
+		}
+
 		HandlerMethod hm = (HandlerMethod) handler;
 		Class<?> clazz = hm.getBeanType();
 		if (TransactionCoordinatorController.class.equals(clazz)) {
@@ -100,6 +110,10 @@ public class TransactionHandlerInterceptor implements HandlerInterceptor, Transa
 
 	public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex)
 			throws Exception {
+		if (HandlerMethod.class.isInstance(handler) == false) {
+			return;
+		}
+
 		HandlerMethod hm = (HandlerMethod) handler;
 		Class<?> clazz = hm.getBeanType();
 		if (TransactionCoordinatorController.class.equals(clazz)) {
