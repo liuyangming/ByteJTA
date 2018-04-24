@@ -53,7 +53,7 @@ public class TransactionHandlerInterceptor implements HandlerInterceptor, Transa
 	@SuppressWarnings("deprecation")
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 		if (HandlerMethod.class.isInstance(handler) == false) {
-			logger.warn("CompensableHandlerInterceptor cannot handle current request(uri= {}, handler= {}) correctly.",
+			logger.warn("TransactionHandlerInterceptor cannot handle current request(uri= {}, handler= {}) correctly.",
 					request.getRequestURI(), handler);
 			return true;
 		}
