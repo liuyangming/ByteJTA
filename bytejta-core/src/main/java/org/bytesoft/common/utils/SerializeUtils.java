@@ -24,6 +24,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
+import org.nustaq.serialization.FSTConfiguration;
+import org.objenesis.strategy.InstantiatorStrategy;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,11 +45,16 @@ public class SerializeUtils {
 	static final int SERIALIZER_DEFAULT = 0x0;
 	static final int SERIALIZER_KRYO = 0x1;
 	static final int SERIALIZER_HESSIAN = 0x2;
+	static final int SERIALIZER_FST = 0x3;
 
-	static KryoPool kryoPool = new KryoPool.Builder(new KryoFactory() {
+	static final FSTConfiguration fstConfig = FSTConfiguration.createDefaultConfiguration();
+
+	static final KryoPool kryoPool = new KryoPool.Builder(new KryoFactory() {
 		public Kryo create() {
 			Kryo kryo = new Kryo();
-			kryo.setInstantiatorStrategy(new StdInstantiatorStrategy());
+			StdInstantiatorStrategy stdInstantiatorStrategy = new StdInstantiatorStrategy();
+			InstantiatorStrategy instantiatorStrategy = new Kryo.DefaultInstantiatorStrategy(stdInstantiatorStrategy);
+			kryo.setInstantiatorStrategy(instantiatorStrategy);
 			return kryo;
 		}
 	}).softReferences().build();
@@ -84,12 +91,23 @@ public class SerializeUtils {
 		} else if (serializer == SERIALIZER_HESSIAN) {
 			System.arraycopy(bytes, 1, byteArray, 0, byteArray.length);
 			return hessianDeserialize(byteArray);
+		} else if (serializer == SERIALIZER_FST) {
+			System.arraycopy(bytes, 1, byteArray, 0, byteArray.length);
+			return fstDeserialize(byteArray);
 		} else if (serializer == SERIALIZER_DEFAULT) {
 			System.arraycopy(bytes, 1, byteArray, 0, byteArray.length);
 			return javaDeserialize(byteArray);
 		} else {
 			throw new IllegalArgumentException();
 		}
+	}
+
+	public static byte[] fstSerialize(final Serializable obj) throws IOException {
+		return fstConfig.asByteArray(obj);
+	}
+
+	public static Serializable fstDeserialize(byte[] byteArray) throws IOException {
+		return (Serializable) fstConfig.asObject(byteArray);
 	}
 
 	public static byte[] javaSerialize(final Serializable obj) throws IOException {
