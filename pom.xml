@@ -4,7 +4,7 @@
 
 	<groupId>org.bytesoft</groupId>
 	<artifactId>bytejta-parent</artifactId>
-	<version>0.4.4</version>
+	<version>0.4.5</version>
 
 	<packaging>pom</packaging>
 
@@ -36,6 +36,65 @@
 		<system>Github Issue</system>
 		<url>https://github.com/liuyangming/ByteJTA/issues</url>
 	</issueManagement>
+
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>2.2.1</version>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>2.9.1</version>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>1.5</version>
+                        <executions>
+                            <execution>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+            <distributionManagement>
+                <snapshotRepository>
+                    <id>oss</id>
+                    <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+                </snapshotRepository>
+                <repository>
+                    <id>oss</id>
+                    <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+                </repository>
+            </distributionManagement>
+        </profile>
+    </profiles>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -118,22 +177,22 @@
 			<dependency>
 				<groupId>org.bytesoft</groupId>
 				<artifactId>bytejta-core</artifactId>
-				<version>0.4.4</version>
+				<version>0.4.5</version>
 			</dependency>
 			<dependency>
 				<groupId>org.bytesoft</groupId>
 				<artifactId>bytejta-supports</artifactId>
-				<version>0.4.4</version>
+				<version>0.4.5</version>
 			</dependency>
 			<dependency>
 				<groupId>org.bytesoft</groupId>
 				<artifactId>bytejta-supports-springcloud</artifactId>
-				<version>0.4.4</version>
+				<version>0.4.5</version>
 			</dependency>
 			<dependency>
 				<groupId>org.bytesoft</groupId>
 				<artifactId>bytejta-supports-dubbo</artifactId>
-				<version>0.4.4</version>
+				<version>0.4.5</version>
 			</dependency>
 
 			<!-- logger -->
