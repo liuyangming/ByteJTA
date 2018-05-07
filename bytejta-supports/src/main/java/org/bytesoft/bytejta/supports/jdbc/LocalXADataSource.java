@@ -19,6 +19,7 @@ import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.util.concurrent.Callable;
 import java.util.logging.Logger;
 
 import javax.sql.DataSource;
@@ -31,6 +32,7 @@ import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 import org.springframework.beans.factory.BeanNameAware;
+import org.springframework.jdbc.datasource.IsolationLevelDataSourceAdapter;
 
 public class LocalXADataSource /* extends TransactionListenerAdapter */
 		implements XADataSource, DataSource, DataSourceHolder, BeanNameAware {
@@ -49,25 +51,11 @@ public class LocalXADataSource /* extends TransactionListenerAdapter */
 				return this.dataSource.getConnection();
 			}
 
-			XAResourceDescriptor descriptor = transaction.getResourceDescriptor(this.beanName);
-			LocalXAResource resource = descriptor == null ? null : (LocalXAResource) descriptor.getDelegate();
-			LocalXAConnection xacon = resource == null ? null : resource.getManagedConnection();
-
-			if (xacon != null) {
-				return xacon.getConnection();
-			}
-
-			xacon = this.getXAConnection();
-			LogicalConnection connection = xacon.getConnection();
-			descriptor = xacon.getXAResource();
-			LocalXAResource localXARes = (LocalXAResource) descriptor.getDelegate();
-			TransactionContext transactionContext = transaction.getTransactionContext();
-			boolean loggingRequired = LocalXACompatible.class.isInstance(transactionContext) //
-					? ((LocalXACompatible) transactionContext).compatibleLoggingLRO() : false;
-			localXARes.setLoggingRequired(loggingRequired);
-			transaction.enlistResource(descriptor);
-
-			return connection;
+			return getConnectionWithTransaction(transaction, new Callable<LocalXAConnection>() {
+				@Override public LocalXAConnection call() throws Exception {
+					return getXAConnection();
+				}
+			});
 		} catch (SystemException ex) {
 			throw new SQLException(ex);
 		} catch (RollbackException ex) {
@@ -78,32 +66,18 @@ public class LocalXADataSource /* extends TransactionListenerAdapter */
 
 	}
 
-	public Connection getConnection(String username, String password) throws SQLException {
+	public Connection getConnection(final String username, final String password) throws SQLException {
 		try {
 			Transaction transaction = (Transaction) this.transactionManager.getTransaction();
 			if (transaction == null) {
 				return this.dataSource.getConnection(username, password);
 			}
 
-			XAResourceDescriptor descriptor = transaction.getResourceDescriptor(this.beanName);
-			LocalXAResource resource = descriptor == null ? null : (LocalXAResource) descriptor.getDelegate();
-			LocalXAConnection xacon = resource == null ? null : resource.getManagedConnection();
-
-			if (xacon != null) {
-				return xacon.getConnection();
-			}
-
-			xacon = this.getXAConnection(username, password);
-			LogicalConnection connection = xacon.getConnection();
-			descriptor = xacon.getXAResource();
-			LocalXAResource localXARes = (LocalXAResource) descriptor.getDelegate();
-			TransactionContext transactionContext = transaction.getTransactionContext();
-			boolean loggingRequired = LocalXACompatible.class.isInstance(transactionContext) //
-					? ((LocalXACompatible) transactionContext).compatibleLoggingLRO() : false;
-			localXARes.setLoggingRequired(loggingRequired);
-			transaction.enlistResource(descriptor);
-
-			return connection;
+			return getConnectionWithTransaction(transaction, new Callable<LocalXAConnection>() {
+				@Override public LocalXAConnection call() throws Exception {
+					return getXAConnection(username, password);
+				}
+			});
 		} catch (SystemException ex) {
 			throw new SQLException(ex);
 		} catch (RollbackException ex) {
@@ -112,6 +86,32 @@ public class LocalXADataSource /* extends TransactionListenerAdapter */
 			throw new SQLException(ex);
 		}
 
+	}
+
+	private Connection getConnectionWithTransaction(Transaction transaction, Callable<LocalXAConnection> callable) throws SQLException, RollbackException, SystemException {
+		XAResourceDescriptor descriptor = transaction.getResourceDescriptor(this.beanName);
+		LocalXAResource resource = descriptor == null ? null : (LocalXAResource) descriptor.getDelegate();
+		LocalXAConnection xacon = resource == null ? null : resource.getManagedConnection();
+
+		if (xacon != null) {
+			return xacon.getConnection();
+		}
+
+		try {
+			// user/pwd or not
+			xacon = callable.call();
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+		LogicalConnection connection = xacon.getConnection();
+		descriptor = xacon.getXAResource();
+		LocalXAResource localXARes = (LocalXAResource) descriptor.getDelegate();
+		TransactionContext transactionContext = transaction.getTransactionContext();
+		boolean loggingRequired = LocalXACompatible.class.isInstance(transactionContext) && ((LocalXACompatible) transactionContext).compatibleLoggingLRO();
+		localXARes.setLoggingRequired(loggingRequired);
+		transaction.enlistResource(descriptor);
+
+		return connection;
 	}
 
 	public boolean isWrapperFor(Class<?> iface) {
@@ -177,6 +177,12 @@ public class LocalXADataSource /* extends TransactionListenerAdapter */
 
 	public void setDataSource(DataSource dataSource) {
 		this.dataSource = dataSource;
+		//support connection.setTransactionIsolation
+		if (dataSource != null && !(dataSource instanceof IsolationLevelDataSourceAdapter)) {
+			IsolationLevelDataSourceAdapter dataSourceAdapter = new IsolationLevelDataSourceAdapter();
+			dataSourceAdapter.setTargetDataSource(dataSource);
+			this.dataSource = dataSourceAdapter;
+		}
 	}
 
 	public TransactionManager getTransactionManager() {
