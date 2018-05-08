@@ -16,6 +16,7 @@
 	<!-- <bean class="org.bytesoft.bytejta.supports.spring.TransactionBeanFactoryPostProcessor" /> -->
 	<!-- <bean class="org.bytesoft.bytejta.supports.spring.TransactionManagerPostProcessor" /> -->
 	<bean class="org.bytesoft.bytejta.supports.spring.ManagedConnectionFactoryPostProcessor" />
+	<bean class="org.bytesoft.bytejta.supports.spring.JtaTransactionManagerPostProcessor" />
 
 	<bean id="bytejtaUserTransaction" class="org.bytesoft.bytejta.UserTransactionImpl" />
 
