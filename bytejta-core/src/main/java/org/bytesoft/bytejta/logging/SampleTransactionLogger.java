@@ -192,7 +192,10 @@ public class SampleTransactionLogger extends VirtualLoggingSystemImpl
 		File directory = new File(String.format("bytejta/%s", address.replaceAll("[^a-zA-Z_0-9]", "_")));
 		if (directory.exists() == false) {
 			try {
-				directory.mkdirs();
+				boolean created = directory.mkdirs();
+				if (created == false) {
+					logger.error("Failed to create directory {}!", directory.getAbsolutePath());
+				} // end-if (created == false)
 			} catch (SecurityException ex) {
 				logger.error("Error occurred while creating directory {}!", directory.getAbsolutePath(), ex);
 			}

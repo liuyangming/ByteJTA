@@ -62,9 +62,10 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 
 		if (this.directory.exists() == false) {
 			if (this.directory.mkdirs() == false) {
-				throw new RuntimeException();
+				throw new RuntimeException(String.format("Failed to create directory %s!", this.directory.getAbsolutePath()));
 			}
 		}
+
 		File fmaster = new File(this.directory, String.format("%s1.log", this.getLoggingFilePrefix()));
 		File fslaver = new File(this.directory, String.format("%s2.log", this.getLoggingFilePrefix()));
 
