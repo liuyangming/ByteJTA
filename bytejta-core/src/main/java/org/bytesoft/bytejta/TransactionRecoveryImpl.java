@@ -101,7 +101,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 
 	}
 
-	private void recoverCoordinator(Transaction transaction)
+	protected void recoverCoordinator(Transaction transaction)
 			throws CommitRequiredException, RollbackRequiredException, SystemException {
 
 		switch (transaction.getTransactionStatus()) {
@@ -127,7 +127,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		}
 	}
 
-	private void recoverParticipant(Transaction transaction)
+	protected void recoverParticipant(Transaction transaction)
 			throws CommitRequiredException, RollbackRequiredException, SystemException {
 
 		TransactionImpl transactionImpl = (TransactionImpl) transaction;
@@ -176,7 +176,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		transactionCoordinator.markParticipantReady();
 	}
 
-	private TransactionImpl reconstructTransaction(TransactionArchive archive) throws IllegalStateException {
+	protected TransactionImpl reconstructTransaction(TransactionArchive archive) throws IllegalStateException {
 		XidFactory xidFactory = this.beanFactory.getXidFactory();
 		TransactionContext transactionContext = new TransactionContext();
 		TransactionXid xid = (TransactionXid) archive.getXid();
@@ -227,6 +227,10 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		}
 
 		return transaction;
+	}
+
+	public TransactionBeanFactory getBeanFactory() {
+		return beanFactory;
 	}
 
 	public void setBeanFactory(TransactionBeanFactory tbf) {

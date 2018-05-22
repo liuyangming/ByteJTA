@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.bytejta.supports.logging;
+package org.bytesoft.bytejta.supports.mongo;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -58,9 +58,10 @@ public class MongoTransactionLogger
 	static Logger logger = LoggerFactory.getLogger(MongoTransactionLogger.class);
 	static final String CONSTANTS_DB_NAME = "bytejta";
 
-	private Environment environment;
-	private String endpoint;
+	@javax.inject.Inject
 	private TransactionBeanFactory beanFactory;
+	private String endpoint;
+	private Environment environment;
 
 	public void createTransaction(TransactionArchive archive) {
 		MongoClient mongoClient = MongoClientRegistry.getInstance().getMongoClient();
