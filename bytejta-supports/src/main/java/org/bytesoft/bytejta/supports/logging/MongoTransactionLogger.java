@@ -1,5 +1,5 @@
 /**
- * Copyright 2014-2017 yangming.liu<bytefox@126.com>.
+ * Copyright 2014-2018 yangming.liu<bytefox@126.com>.
  *
  * This copyrighted material is made available to anyone wishing to use, modify,
  * copy, or redistribute it subject to the terms and conditions of the GNU
@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.bytejta.logging.mongo;
+package org.bytesoft.bytejta.supports.logging;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -40,6 +40,8 @@ import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.EnvironmentAware;
+import org.springframework.core.env.Environment;
 
 import com.mongodb.BasicDBObject;
 import com.mongodb.MongoClient;
@@ -51,10 +53,12 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.UpdateResult;
 
-public class MongoTransactionLogger implements TransactionLogger, TransactionEndpointAware, TransactionBeanFactoryAware {
+public class MongoTransactionLogger
+		implements TransactionLogger, EnvironmentAware, TransactionEndpointAware, TransactionBeanFactoryAware {
 	static Logger logger = LoggerFactory.getLogger(MongoTransactionLogger.class);
-	static final String CONSTANTS_DB_NAME = "test";
+	static final String CONSTANTS_DB_NAME = "bytejta";
 
+	private Environment environment;
 	private String endpoint;
 	private TransactionBeanFactory beanFactory;
 
@@ -369,6 +373,14 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionEnd
 			callback.recover(archive);
 		}
 
+	}
+
+	public Environment getEnvironment() {
+		return environment;
+	}
+
+	public void setEnvironment(Environment environment) {
+		this.environment = environment;
 	}
 
 	public void setEndpoint(String identifier) {
