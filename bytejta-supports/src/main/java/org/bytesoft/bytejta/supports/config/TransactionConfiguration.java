@@ -27,9 +27,13 @@ public class TransactionConfiguration implements TransactionManagementConfigurer
 
 	public PlatformTransactionManager annotationDrivenTransactionManager() {
 		org.bytesoft.transaction.TransactionManager transactionManager = this.transactionManager();
+		javax.transaction.UserTransaction userTransaction = this.bytejtaUserTransaction();
+
 		org.springframework.transaction.jta.JtaTransactionManager jtaTransactionManager //
 				= new org.springframework.transaction.jta.JtaTransactionManager();
+		jtaTransactionManager.setUserTransaction(userTransaction);
 		jtaTransactionManager.setTransactionManager(transactionManager);
+
 		return jtaTransactionManager;
 	}
 

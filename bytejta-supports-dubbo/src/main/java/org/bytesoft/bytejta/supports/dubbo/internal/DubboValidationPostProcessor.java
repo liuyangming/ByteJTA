@@ -66,7 +66,7 @@ public class DubboValidationPostProcessor implements BeanPostProcessor, BeanFact
 
 	private void validateServiceBean(String beanName, ServiceBean<?> serviceBean) throws BeansException {
 		Integer retries = serviceBean.getRetries();
-		String loadbalance = serviceBean.getLoadbalance();
+		// String loadbalance = serviceBean.getLoadbalance();
 		String cluster = serviceBean.getCluster();
 		String filter = serviceBean.getFilter();
 		String group = serviceBean.getGroup();
@@ -74,7 +74,7 @@ public class DubboValidationPostProcessor implements BeanPostProcessor, BeanFact
 		if (StringUtils.isBlank(group)) {
 			return;
 		} else if (StringUtils.equalsIgnoreCase("x-bytejta", group) == false
-				|| StringUtils.lowerCase(group).startsWith("x-bytejta-") == false) {
+				&& StringUtils.lowerCase(group).startsWith("x-bytejta-") == false) {
 			return;
 		}
 
@@ -82,9 +82,9 @@ public class DubboValidationPostProcessor implements BeanPostProcessor, BeanFact
 
 		if (retries == null || retries.intValue() != 0) {
 			throw new FatalBeanException(String.format("The value of attr 'retries'(beanId= %s) should be '0'.", beanName));
-		} else if (loadbalance == null || StringUtils.equals("bytejta", loadbalance) == false) {
-			throw new FatalBeanException(
-					String.format("The value of attr 'loadbalance'(beanId= %s) should be 'bytejta'.", beanName));
+			// } else if (loadbalance == null || StringUtils.equals("bytejta", loadbalance) == false) {
+			// throw new FatalBeanException(
+			// String.format("The value of attr 'loadbalance'(beanId= %s) should be 'bytejta'.", beanName));
 		} else if (cluster == null || StringUtils.equals("failfast", cluster) == false) {
 			throw new FatalBeanException(
 					String.format("The value of attribute 'cluster' (beanId= %s) must be 'failfast'.", beanName));
@@ -100,7 +100,7 @@ public class DubboValidationPostProcessor implements BeanPostProcessor, BeanFact
 		MutablePropertyValues mpv = beanDef.getPropertyValues();
 		PropertyValue group = mpv.getPropertyValue("group");
 		PropertyValue retries = mpv.getPropertyValue("retries");
-		PropertyValue loadbalance = mpv.getPropertyValue("loadbalance");
+		// PropertyValue loadbalance = mpv.getPropertyValue("loadbalance");
 		PropertyValue cluster = mpv.getPropertyValue("cluster");
 		PropertyValue filter = mpv.getPropertyValue("filter");
 
@@ -114,16 +114,17 @@ public class DubboValidationPostProcessor implements BeanPostProcessor, BeanFact
 					"The value of attr 'group'(beanId= %s) should be 'x-bytejta' or starts with 'x-bytejta-'.", beanName));
 		} else if (retries == null || retries.getValue() == null || "0".equals(retries.getValue()) == false) {
 			throw new FatalBeanException(String.format("The value of attr 'retries'(beanId= %s) should be '0'.", beanName));
-		} else if (loadbalance == null || loadbalance.getValue() == null || "bytejta".equals(loadbalance.getValue()) == false) {
-			throw new FatalBeanException(
-					String.format("The value of attr 'loadbalance'(beanId= %s) should be 'bytejta'.", beanName));
+			// } else if (loadbalance == null || loadbalance.getValue() == null || "bytejta".equals(loadbalance.getValue()) ==
+			// false) {
+			// throw new FatalBeanException(
+			// String.format("The value of attr 'loadbalance'(beanId= %s) should be 'bytejta'.", beanName));
 		} else if (cluster == null || cluster.getValue() == null || "failfast".equals(cluster.getValue()) == false) {
 			throw new FatalBeanException(
 					String.format("The value of attribute 'cluster' (beanId= %s) must be 'failfast'.", beanName));
 		} else if (filter == null || filter.getValue() == null || String.class.isInstance(filter.getValue()) == false) {
 			throw new FatalBeanException(String
 					.format("The value of attr 'filter'(beanId= %s) must be java.lang.String and cannot be null.", beanName));
-		} else if (StringUtils.equalsIgnoreCase(filterArray[filterArray.length - 1], "bytejta")) {
+		} else if (StringUtils.equalsIgnoreCase(filterArray[filterArray.length - 1], "bytejta") == false) {
 			throw new FatalBeanException(
 					String.format("The last value of attr 'filter'(beanId= %s) should be 'bytejta'.", beanName));
 		}

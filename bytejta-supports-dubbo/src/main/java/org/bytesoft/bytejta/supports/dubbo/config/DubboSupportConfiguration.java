@@ -48,9 +48,12 @@ import com.alibaba.dubbo.config.ServiceConfig;
 public class DubboSupportConfiguration implements ApplicationContextAware {
 	static final Logger logger = LoggerFactory.getLogger(DubboSupportConfiguration.class);
 
+	static final String CONSTANTS_SKEN_ID = "skeleton@org.bytesoft.bytejta.supports.wire.RemoteCoordinator";
+	static final String CONSTANTS_STUB_ID = "stub@org.bytesoft.bytejta.supports.wire.RemoteCoordinator";
+
 	private ApplicationContext applicationContext;
 
-	@Bean("skeleton@org.bytesoft.bytejta.supports.wire.RemoteCoordinator")
+	@Bean(CONSTANTS_SKEN_ID)
 	public ServiceConfig<RemoteCoordinator> skeletonRemoteCoordinator(
 			@Autowired TransactionCoordinator transactionCoordinator) {
 		ServiceConfig<RemoteCoordinator> serviceConfig = new ServiceConfig<RemoteCoordinator>();
@@ -101,7 +104,7 @@ public class DubboSupportConfiguration implements ApplicationContextAware {
 		return serviceConfig;
 	}
 
-	@Bean("stub@org.bytesoft.bytejta.supports.wire.RemoteCoordinator")
+	@Bean(CONSTANTS_STUB_ID)
 	public Object stubRemoteCoordinator() {
 		ReferenceConfig<RemoteCoordinator> referenceConfig = new ReferenceConfig<RemoteCoordinator>();
 
@@ -110,6 +113,7 @@ public class DubboSupportConfiguration implements ApplicationContextAware {
 		referenceConfig.setLoadbalance("bytejta");
 		referenceConfig.setFilter("bytejta");
 		referenceConfig.setGroup("bytejta");
+		referenceConfig.setScope("remote");
 		referenceConfig.setRetries(0);
 		referenceConfig.setTimeout(6000);
 		referenceConfig.setCheck(false);
@@ -139,9 +143,13 @@ public class DubboSupportConfiguration implements ApplicationContextAware {
 		return referenceConfig;
 	}
 
+	@SuppressWarnings("unchecked")
 	@org.springframework.context.annotation.Bean
-	public Object transactionBeanRegistry(@Autowired RemoteCoordinator stubRemoteCoordinator) {
+	public Object transactionBeanRegistry() {
 		TransactionBeanRegistry transactionBeanRegistry = TransactionBeanRegistry.getInstance();
+		ReferenceConfig<RemoteCoordinator> reference = //
+				(ReferenceConfig<RemoteCoordinator>) this.applicationContext.getBean(CONSTANTS_STUB_ID);
+		RemoteCoordinator stubRemoteCoordinator = reference.get();
 		transactionBeanRegistry.setConsumeCoordinator(stubRemoteCoordinator);
 		return transactionBeanRegistry;
 	}
