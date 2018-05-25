@@ -63,7 +63,37 @@ public class MongoTransactionRepository
 	private String endpoint;
 	private Environment environment;
 
-	public void putTransaction(TransactionXid xid, Transaction transaction) {
+	public void putTransaction(TransactionXid transactionXid, Transaction transaction) {
+		MongoClient mongoClient = MongoClientRegistry.getInstance().getMongoClient();
+		try {
+			boolean coordinator = transaction.getTransactionContext().isCoordinator();
+			Object propagatedBy = transaction.getTransactionContext().getPropagatedBy();
+			int vote = transaction.getTransactionVote();
+			int status = transaction.getTransactionStatus();
+			// boolean propagated = archive.isPropagated();
+
+			MongoDatabase mdb = mongoClient.getDatabase(CONSTANTS_DB_NAME);
+			MongoCollection<Document> collection = mdb.getCollection("transaction");
+
+			String[] values = this.endpoint.split(":");
+			String application = values[1];
+
+			Document document = new Document();
+			byte[] globalTransactionId = transactionXid.getGlobalTransactionId();
+			document.put("gxid", ByteUtils.byteArrayToString(globalTransactionId));
+			document.put("application", application);
+			document.put("created", this.endpoint);
+			document.put("modified", this.endpoint);
+			document.put("propagatedBy", propagatedBy);
+			document.put("coordinator", coordinator);
+			document.put("status", status);
+			document.put("vote", vote);
+			document.put("version", 0L);
+
+			collection.insertOne(document);
+		} catch (RuntimeException rex) {
+			logger.error("Error occurred while creating transaction.", rex);
+		}
 	}
 
 	public Transaction getTransaction(TransactionXid xid) {

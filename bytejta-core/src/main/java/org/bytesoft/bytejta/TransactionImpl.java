@@ -85,7 +85,6 @@ public class TransactionImpl implements Transaction {
 	private final TransactionResourceListenerList resourceListenerList = new TransactionResourceListenerList();
 
 	private final Map<String, XAResourceArchive> applicationMap = new HashMap<String, XAResourceArchive>();
-	private final Map<String, XAResourceArchive> participantMap = new HashMap<String, XAResourceArchive>();
 	private XAResourceArchive participant; // last resource
 	private final List<XAResourceArchive> participantList = new ArrayList<XAResourceArchive>();
 	private final List<XAResourceArchive> nativeParticipantList = new ArrayList<XAResourceArchive>();
@@ -99,7 +98,8 @@ public class TransactionImpl implements Transaction {
 	}
 
 	public XAResourceDescriptor getResourceDescriptor(String identifier) {
-		XAResourceArchive archive = this.participantMap.get(identifier);
+		String application = CommonUtils.getApplication(identifier);
+		XAResourceArchive archive = this.applicationMap.get(application);
 		return archive == null ? null : archive.getDescriptor();
 	}
 
@@ -498,7 +498,8 @@ public class TransactionImpl implements Transaction {
 
 			if (this.participantList.size() == 0) {
 				this.skipOnePhaseCommit();
-			} else if (this.participantList.size() == 1) {
+			} else if (this.participantList.size() == 1
+					&& (this.nativeParticipantList.size() == 1 || this.participant != null)) {
 				this.fireOnePhaseCommit();
 			} else {
 				this.fireTwoPhaseCommit();
@@ -677,11 +678,12 @@ public class TransactionImpl implements Transaction {
 		String self = transactionCoordinator.getIdentifier();
 		String parent = String.valueOf(this.transactionContext.getPropagatedBy());
 
-		if (StringUtils.equalsIgnoreCase(identifier, self) || CommonUtils.instanceEquals(parent, identifier)) {
+		if (StringUtils.equalsIgnoreCase(identifier, self) || CommonUtils.applicationEquals(parent, identifier)) {
 			return true;
 		}
 
-		XAResourceArchive archive = this.participantMap.get(identifier);
+		String application = CommonUtils.getApplication(identifier);
+		XAResourceArchive archive = this.applicationMap.get(application);
 		if (archive == null) {
 			throw new SystemException();
 		}
@@ -781,31 +783,6 @@ public class TransactionImpl implements Transaction {
 
 	public boolean enlistResource(XAResourceDescriptor descriptor)
 			throws RollbackException, IllegalStateException, SystemException {
-		XAResourceArchive archive = null;
-
-		XAResourceArchive element = this.participantMap.get(descriptor.getIdentifier()); // dubbo: old identifier
-		if (element != null) {
-			XAResourceDescriptor xard = element.getDescriptor();
-			try {
-				archive = xard.isSameRM(descriptor) ? element : archive;
-			} catch (Exception ex) {
-				logger.debug(ex.getMessage(), ex);
-			}
-		}
-
-		int flags = XAResource.TMNOFLAGS;
-		if (archive == null) {
-			archive = new XAResourceArchive();
-			archive.setDescriptor(descriptor);
-			archive.setIdentified(true);
-			TransactionXid globalXid = this.transactionContext.getXid();
-			XidFactory xidFactory = this.beanFactory.getXidFactory();
-			archive.setXid(xidFactory.createBranchXid(globalXid));
-		} else {
-			flags = XAResource.TMJOIN;
-		}
-
-		descriptor.setTransactionTimeoutQuietly(this.transactionTimeout);
 
 		if (this.participant != null && (LocalXAResourceDescriptor.class.isInstance(descriptor)
 				|| UnidentifiedResourceDescriptor.class.isInstance(descriptor))) {
@@ -823,47 +800,81 @@ public class TransactionImpl implements Transaction {
 			}
 		}
 
-		boolean success = false;
-		try {
-			success = this.enlistResource(archive, flags);
-		} finally {
-			if (success) {
-				String identifier = descriptor.getIdentifier(); // dubbo: new identifier
+		// Here must get the application name for dubbo!
+		String application = null;
+		if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
+			RemoteResourceDescriptor resourceDescriptor = (RemoteResourceDescriptor) descriptor;
+			RemoteCoordinator remoteCoordinator = resourceDescriptor.getDelegate();
 
-				boolean resourceValid = true;
-				if (CommonResourceDescriptor.class.isInstance(descriptor)) {
-					this.nativeParticipantList.add(archive);
-				} else if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
-					RemoteCoordinator transactionCoordinator = this.beanFactory.getTransactionCoordinator();
-					String self = transactionCoordinator.getIdentifier();
-					String parent = String.valueOf(this.transactionContext.getPropagatedBy());
+			application = remoteCoordinator.getApplication();
+		}
 
-					resourceValid = StringUtils.equalsIgnoreCase(identifier, self) == false
-							&& CommonUtils.instanceEquals(parent, identifier) == false;
+		XAResourceArchive archive = null;
 
-					if (resourceValid) {
-						RemoteResourceDescriptor resourceDescriptor = (RemoteResourceDescriptor) descriptor;
-						RemoteCoordinator remoteCoordinator = resourceDescriptor.getDelegate();
-
-						this.remoteParticipantList.add(archive);
-						this.applicationMap.put(remoteCoordinator.getApplication(), archive);
-					} else {
-						logger.warn("Endpoint {} can not be its own remote branch!", identifier);
-					}
-				} else if (this.participant == null) {
-					// this.participant = this.participant == null ? archive : this.participant;
-					this.participant = archive;
+		String identifier = descriptor.getIdentifier();
+		XAResourceArchive element = this.applicationMap.get(application); // this.participantMap.get(identifier);
+		if (element != null) {
+			XAResourceDescriptor xard = element.getDescriptor();
+			try {
+				archive = xard.isSameRM(descriptor) ? element : archive;
+			} catch (XAException xaex) {
+				if (RemoteResourceDescriptor.X_SAME_CLUSTER == xaex.errorCode) {
+					archive = element;
 				} else {
-					throw new SystemException("There already has a local-resource exists!");
+					logger.debug(xaex.getMessage(), xaex);
 				}
-
-				if (resourceValid) {
-					this.participantList.add(archive);
-					this.participantMap.put(identifier, archive);
-
-					this.resourceListenerList.onEnlistResource(archive.getXid(), descriptor);
-				} // end-if (resourceValid)
+			} catch (Exception ex) {
+				logger.debug(ex.getMessage(), ex);
 			}
+		}
+
+		descriptor.setTransactionTimeoutQuietly(this.transactionTimeout);
+
+		int flags = XAResource.TMNOFLAGS;
+		if (archive == null) {
+			archive = new XAResourceArchive();
+			archive.setDescriptor(descriptor);
+			archive.setIdentified(true);
+			TransactionXid globalXid = this.transactionContext.getXid();
+			XidFactory xidFactory = this.beanFactory.getXidFactory();
+			archive.setXid(xidFactory.createBranchXid(globalXid));
+		} else {
+			flags = XAResource.TMJOIN;
+		}
+
+		boolean success = this.enlistResource(archive, flags);
+		if (success == false) {
+			return true;
+		} // end-if (success == false)
+
+		if (CommonResourceDescriptor.class.isInstance(descriptor)) {
+			this.nativeParticipantList.add(archive);
+			this.participantList.add(archive);
+			this.resourceListenerList.onEnlistResource(archive.getXid(), descriptor);
+		} else if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
+			RemoteCoordinator transactionCoordinator = this.beanFactory.getTransactionCoordinator();
+			String self = transactionCoordinator.getIdentifier();
+			String parent = String.valueOf(this.transactionContext.getPropagatedBy());
+
+			boolean resourceValid = StringUtils.equalsIgnoreCase(identifier, self) == false
+					&& CommonUtils.applicationEquals(parent, identifier) == false;
+
+			if (resourceValid) {
+				this.remoteParticipantList.add(archive);
+				this.applicationMap.put(application, archive);
+				this.participantList.add(archive);
+
+				this.resourceListenerList.onEnlistResource(archive.getXid(), descriptor);
+
+			} else {
+				logger.warn("Endpoint {} can not be its own remote branch!", identifier);
+			}
+		} else if (this.participant == null) {
+			this.participantList.add(archive);
+			this.participant = archive;
+			this.resourceListenerList.onEnlistResource(archive.getXid(), descriptor);
+		} else {
+			throw new SystemException("There already has a local-resource exists!");
 		}
 
 		return true;
@@ -1639,16 +1650,20 @@ public class TransactionImpl implements Transaction {
 		this.transactionTimeout = transactionTimeout;
 	}
 
+	public int getTransactionVote() {
+		return transactionVote;
+	}
+
+	public void setTransactionVote(int transactionVote) {
+		this.transactionVote = transactionVote;
+	}
+
 	public XAResourceArchive getParticipant() {
 		return participant;
 	}
 
 	public Map<String, XAResourceArchive> getApplicationMap() {
 		return applicationMap;
-	}
-
-	public Map<String, XAResourceArchive> getParticipantMap() {
-		return participantMap;
 	}
 
 	public List<XAResourceArchive> getParticipantList() {

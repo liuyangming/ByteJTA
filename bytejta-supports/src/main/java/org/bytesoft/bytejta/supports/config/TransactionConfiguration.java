@@ -64,14 +64,14 @@ public class TransactionConfiguration implements TransactionManagementConfigurer
 
 	@org.springframework.context.annotation.Bean
 	public org.bytesoft.transaction.TransactionRecovery bytejtaTransactionRecovery() {
-		org.bytesoft.bytejta.TransactionRecoveryImpl transactionRecovery = new org.bytesoft.bytejta.TransactionRecoveryImpl();
+		org.bytesoft.bytejta.supports.mongo.MongoTransactionRecovery transactionRecovery = new org.bytesoft.bytejta.supports.mongo.MongoTransactionRecovery();
 		TransactionBeanFactoryImpl.getInstance().setTransactionRecovery(transactionRecovery);
 		return transactionRecovery;
 	}
 
 	@org.springframework.context.annotation.Bean
 	public org.bytesoft.transaction.TransactionRepository bytejtaTransactionRepository() {
-		org.bytesoft.bytejta.TransactionRepositoryImpl transactionRepository = new org.bytesoft.bytejta.TransactionRepositoryImpl();
+		org.bytesoft.bytejta.supports.mongo.MongoTransactionRepository transactionRepository = new org.bytesoft.bytejta.supports.mongo.MongoTransactionRepository();
 		TransactionBeanFactoryImpl.getInstance().setTransactionRepository(transactionRepository);
 		return transactionRepository;
 	}
@@ -90,9 +90,9 @@ public class TransactionConfiguration implements TransactionManagementConfigurer
 		return transactionInterceptor;
 	}
 
-	@org.springframework.context.annotation.Bean(initMethod = "construct")
+	@org.springframework.context.annotation.Bean // (initMethod = "construct")
 	public org.bytesoft.transaction.logging.TransactionLogger bytejtaTransactionLogger() {
-		org.bytesoft.bytejta.logging.SampleTransactionLogger transactionLogger = new org.bytesoft.bytejta.logging.SampleTransactionLogger();
+		org.bytesoft.bytejta.supports.mongo.MongoTransactionLogger transactionLogger = new org.bytesoft.bytejta.supports.mongo.MongoTransactionLogger();
 		TransactionBeanFactoryImpl.getInstance().setTransactionLogger(transactionLogger);
 		return transactionLogger;
 	}

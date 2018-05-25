@@ -30,11 +30,10 @@ public class ScheduleWorkConfiguration {
 
 	@org.springframework.context.annotation.Bean
 	public org.bytesoft.transaction.adapter.ResourceAdapterImpl transactionResourceAdapter(
-			@org.springframework.beans.factory.annotation.Autowired org.bytesoft.bytejta.work.TransactionWork transactionWork,
-			@org.springframework.beans.factory.annotation.Autowired org.bytesoft.bytejta.logging.SampleTransactionLogger transactionLogger) {
+			@org.springframework.beans.factory.annotation.Autowired org.bytesoft.bytejta.work.TransactionWork transactionWork) {
 		org.bytesoft.transaction.adapter.ResourceAdapterImpl resourceAdapter = new org.bytesoft.transaction.adapter.ResourceAdapterImpl();
 		resourceAdapter.getWorkList().add(transactionWork);
-		resourceAdapter.getWorkList().add(transactionLogger);
+		// resourceAdapter.getWorkList().add(transactionLogger);
 		return resourceAdapter;
 	}
 

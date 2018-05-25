@@ -30,6 +30,7 @@ import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.archive.TransactionArchive;
+import org.bytesoft.transaction.logging.TransactionLogger;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,9 +84,12 @@ public class MongoTransactionRecovery extends TransactionRecoveryImpl {
 	}
 
 	public Transaction reconstructTransactionForRecovery(TransactionArchive archive) {
+		TransactionBeanFactory beanFactory = this.getBeanFactory();
+		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		try {
 			return super.reconstructTransaction(archive);
 		} catch (IllegalStateException ex) {
+			transactionLogger.deleteTransaction(archive);
 			return null;
 		} catch (RuntimeException rex) {
 			logger.error("Error occurred while reconstructing transaction from archive!", rex);

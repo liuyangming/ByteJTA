@@ -33,9 +33,11 @@ import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.EnvironmentAware;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.env.Environment;
 
 import com.alibaba.dubbo.config.ApplicationConfig;
 import com.alibaba.dubbo.config.ProtocolConfig;
@@ -45,17 +47,23 @@ import com.alibaba.dubbo.config.ServiceConfig;
 
 @Import({ TransactionConfiguration.class, ScheduleWorkConfiguration.class })
 @Configuration
-public class DubboSupportConfiguration implements ApplicationContextAware {
+public class DubboSupportConfiguration implements ApplicationContextAware, EnvironmentAware {
 	static final Logger logger = LoggerFactory.getLogger(DubboSupportConfiguration.class);
 
 	static final String CONSTANTS_SKEN_ID = "skeleton@org.bytesoft.bytejta.supports.wire.RemoteCoordinator";
 	static final String CONSTANTS_STUB_ID = "stub@org.bytesoft.bytejta.supports.wire.RemoteCoordinator";
 
+	static final int CONSTANTS_TIMEOUT_MILLIS = 6000;
+	static final String CONSTANTS_TIMEOUT_KEY = "org.bytesoft.bytejta.timeout";
+
+	private Environment environment;
 	private ApplicationContext applicationContext;
 
 	@Bean(CONSTANTS_SKEN_ID)
 	public ServiceConfig<RemoteCoordinator> skeletonRemoteCoordinator(
 			@Autowired TransactionCoordinator transactionCoordinator) {
+		int timeout = this.environment.getProperty(CONSTANTS_TIMEOUT_KEY, Integer.TYPE, CONSTANTS_TIMEOUT_MILLIS);
+
 		ServiceConfig<RemoteCoordinator> serviceConfig = new ServiceConfig<RemoteCoordinator>();
 		serviceConfig.setInterface(RemoteCoordinator.class);
 		serviceConfig.setRef(transactionCoordinator);
@@ -64,7 +72,7 @@ public class DubboSupportConfiguration implements ApplicationContextAware {
 		serviceConfig.setFilter("bytejta");
 		serviceConfig.setGroup("bytejta");
 		serviceConfig.setRetries(0);
-		serviceConfig.setTimeout(6000);
+		serviceConfig.setTimeout(timeout);
 
 		try {
 			serviceConfig.setApplication(this.applicationContext.getBean(ApplicationConfig.class));
@@ -106,8 +114,9 @@ public class DubboSupportConfiguration implements ApplicationContextAware {
 
 	@Bean(CONSTANTS_STUB_ID)
 	public Object stubRemoteCoordinator() {
-		ReferenceConfig<RemoteCoordinator> referenceConfig = new ReferenceConfig<RemoteCoordinator>();
+		int timeout = this.environment.getProperty(CONSTANTS_TIMEOUT_KEY, Integer.TYPE, CONSTANTS_TIMEOUT_MILLIS);
 
+		ReferenceConfig<RemoteCoordinator> referenceConfig = new ReferenceConfig<RemoteCoordinator>();
 		referenceConfig.setInterface(RemoteCoordinator.class);
 		referenceConfig.setCluster("failfast");
 		referenceConfig.setLoadbalance("bytejta");
@@ -115,7 +124,7 @@ public class DubboSupportConfiguration implements ApplicationContextAware {
 		referenceConfig.setGroup("bytejta");
 		referenceConfig.setScope("remote");
 		referenceConfig.setRetries(0);
-		referenceConfig.setTimeout(6000);
+		referenceConfig.setTimeout(timeout);
 		referenceConfig.setCheck(false);
 
 		try {
@@ -199,8 +208,22 @@ public class DubboSupportConfiguration implements ApplicationContextAware {
 	}
 
 	@org.springframework.context.annotation.Bean
+	public org.bytesoft.bytejta.supports.dubbo.election.DubboElectionManager electionManager() {
+		org.bytesoft.bytejta.supports.dubbo.election.DubboElectionManager electionManager = new org.bytesoft.bytejta.supports.dubbo.election.DubboElectionManager();
+		return electionManager;
+	}
+
+	@org.springframework.context.annotation.Bean
 	public org.bytesoft.transaction.TransactionBeanFactory transactionBeanFactory() {
 		return TransactionBeanFactoryImpl.getInstance();
+	}
+
+	public Environment getEnvironment() {
+		return environment;
+	}
+
+	public void setEnvironment(Environment environment) {
+		this.environment = environment;
 	}
 
 	public ApplicationContext getApplicationContext() {

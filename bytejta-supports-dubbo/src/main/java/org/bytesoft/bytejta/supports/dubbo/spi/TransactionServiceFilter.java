@@ -119,6 +119,7 @@ public class TransactionServiceFilter implements Filter {
 
 			remoteCoordinator = (RemoteCoordinator) Proxy.newProxyInstance(DubboRemoteCoordinator.class.getClassLoader(),
 					new Class[] { RemoteCoordinator.class }, dubboCoordinator);
+			dubboCoordinator.setProxyCoordinator(remoteCoordinator);
 
 			coordinatorRegistry.putApplication(remoteAddr, targetName);
 			coordinatorRegistry.putRemoteAddr(instanceId, remoteAddr);
@@ -224,6 +225,7 @@ public class TransactionServiceFilter implements Filter {
 
 			remoteCoordinator = (RemoteCoordinator) Proxy.newProxyInstance(DubboRemoteCoordinator.class.getClassLoader(),
 					new Class[] { RemoteCoordinator.class }, dubboCoordinator);
+			dubboCoordinator.setProxyCoordinator(remoteCoordinator);
 
 			coordinatorRegistry.putApplication(remoteAddr, targetName);
 			coordinatorRegistry.putRemoteAddr(instanceId, remoteAddr);
@@ -458,6 +460,7 @@ public class TransactionServiceFilter implements Filter {
 
 				remoteCoordinator = (RemoteCoordinator) Proxy.newProxyInstance(DubboRemoteCoordinator.class.getClassLoader(),
 						new Class[] { RemoteCoordinator.class }, dubboCoordinator);
+				dubboCoordinator.setProxyCoordinator(remoteCoordinator);
 
 				coordinatorRegistry.putRemoteCoordinatorByAddr(remoteAddr, remoteCoordinator);
 				coordinatorRegistry.putRemoteCoordinator(instanceId, remoteCoordinator);
@@ -532,6 +535,8 @@ public class TransactionServiceFilter implements Filter {
 
 			remoteCoordinator = (RemoteCoordinator) Proxy.newProxyInstance(DubboRemoteCoordinator.class.getClassLoader(),
 					new Class[] { RemoteCoordinator.class }, dubboCoordinator);
+			dubboCoordinator.setProxyCoordinator(remoteCoordinator);
+
 			coordinatorRegistry.putRemoteCoordinatorByAddr(remoteAddr, remoteCoordinator);
 		}
 

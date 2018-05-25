@@ -66,6 +66,7 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 
 				coordinator = (RemoteCoordinator) Proxy.newProxyInstance(DubboRemoteCoordinator.class.getClassLoader(),
 						new Class[] { RemoteCoordinator.class }, dubboCoordinator);
+				dubboCoordinator.setProxyCoordinator(coordinator);
 				registry.putRemoteCoordinator(identifier, coordinator);
 			}
 

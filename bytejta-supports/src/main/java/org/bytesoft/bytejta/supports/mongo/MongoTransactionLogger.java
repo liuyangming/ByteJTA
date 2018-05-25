@@ -64,49 +64,114 @@ public class MongoTransactionLogger
 	private Environment environment;
 
 	public void createTransaction(TransactionArchive archive) {
+	}
+
+	public void updateTransaction(TransactionArchive archive) {
 		MongoClient mongoClient = MongoClientRegistry.getInstance().getMongoClient();
 		try {
 			TransactionXid transactionXid = (TransactionXid) archive.getXid();
-			boolean coordinator = archive.isCoordinator();
-			Object propagatedBy = archive.getPropagatedBy();
 			int vote = archive.getVote();
 			int status = archive.getStatus();
-			// boolean propagated = archive.isPropagated();
 
 			MongoDatabase mdb = mongoClient.getDatabase(CONSTANTS_DB_NAME);
 			MongoCollection<Document> collection = mdb.getCollection("transaction");
 
+			Document variables = new Document();
+			variables.append("modified", this.endpoint);
+			variables.append("vote", vote);
+			variables.append("status", status);
+
+			Document document = new Document();
+			document.append("$set", variables);
+			document.append("$inc", new BasicDBObject("version", 1));
+
 			String[] values = this.endpoint.split(":");
 			String application = values[1];
 
-			Document document = new Document();
 			byte[] globalTransactionId = transactionXid.getGlobalTransactionId();
-			document.put("gxid", ByteUtils.byteArrayToString(globalTransactionId));
-			document.put("application", application);
-			document.put("created", this.endpoint);
-			document.put("modified", this.endpoint);
-			document.put("propagatedBy", propagatedBy);
-			document.put("coordinator", coordinator);
-			document.put("status", status);
-			document.put("vote", vote);
-			document.put("version", 0L);
+			Bson xidBson = Filters.eq("gxid", ByteUtils.byteArrayToString(globalTransactionId));
+			Bson created = Filters.eq("application", application);
 
-			collection.insertOne(document);
+			UpdateResult result = collection.updateOne(Filters.and(xidBson, created), document);
+			if (result.getModifiedCount() != 1) {
+				throw new IllegalStateException(
+						String.format("Error occurred while updating transaction(matched= %s, modified= %s).",
+								result.getMatchedCount(), result.getModifiedCount()));
+			}
 
 			List<XAResourceArchive> nativeResourceList = archive.getNativeResources();
 			for (int i = 0; nativeResourceList != null && i < nativeResourceList.size(); i++) {
 				XAResourceArchive resourceArchive = nativeResourceList.get(i);
-				this.createResource(mongoClient, resourceArchive);
+				this.createOrUpdateResource(mongoClient, resourceArchive);
 			}
 
 			List<XAResourceArchive> remoteResourceList = archive.getRemoteResources();
 			for (int i = 0; remoteResourceList != null && i < remoteResourceList.size(); i++) {
 				XAResourceArchive resourceArchive = remoteResourceList.get(i);
-				this.createResource(mongoClient, resourceArchive);
+				this.createOrUpdateResource(mongoClient, resourceArchive);
 			}
 
 		} catch (RuntimeException rex) {
-			logger.error("Error occurred while creating transaction.", rex);
+			logger.error("Error occurred while updating transaction.", rex);
+		}
+	}
+
+	private void createOrUpdateResource(MongoClient mongoClient, XAResourceArchive archive) {
+		try {
+			this.updateResource(mongoClient, archive);
+		} catch (IllegalStateException ex) {
+			this.createResource(mongoClient, archive);
+		}
+	}
+
+	private void updateResource(MongoClient mongoClient, XAResourceArchive archive) {
+		TransactionXid transactionXid = (TransactionXid) archive.getXid();
+
+		MongoDatabase mdb = mongoClient.getDatabase(CONSTANTS_DB_NAME);
+		MongoCollection<Document> collection = mdb.getCollection("participant");
+
+		byte[] globalTransactionId = transactionXid.getGlobalTransactionId();
+		byte[] branchQualifier = transactionXid.getBranchQualifier();
+
+		XAResourceDescriptor descriptor = archive.getDescriptor();
+		String descriptorType = descriptor.getClass().getName();
+		String descriptorName = descriptor.getIdentifier();
+
+		int branchVote = archive.getVote();
+		boolean readonly = archive.isReadonly();
+		boolean committed = archive.isCommitted();
+		boolean rolledback = archive.isRolledback();
+		boolean completed = archive.isCompleted();
+		boolean heuristic = archive.isHeuristic();
+
+		String[] values = this.endpoint.split(":");
+		String application = values[1];
+
+		Document variables = new Document();
+		variables.append("type", descriptorType);
+		variables.append("name", descriptorName);
+
+		variables.append("vote", branchVote);
+		variables.append("committed", committed);
+		variables.append("rolledback", rolledback);
+		variables.append("readonly", readonly);
+		variables.append("completed", completed);
+		variables.append("heuristic", heuristic);
+
+		variables.append("created", this.endpoint);
+		variables.append("modified", this.endpoint);
+
+		Bson gxidBson = Filters.eq("gxid", ByteUtils.byteArrayToString(globalTransactionId));
+		Bson bxidBson = Filters.eq("bxid", ByteUtils.byteArrayToString(branchQualifier));
+		Bson nameBson = Filters.eq("application", application);
+
+		Document document = new Document();
+		document.append("$set", variables);
+
+		UpdateResult result = collection.updateOne(Filters.and(gxidBson, bxidBson, nameBson), document);
+		if (result.getModifiedCount() != 1) {
+			throw new IllegalStateException(String.format("Error occurred while updating resource(matched= %s, modified= %s).",
+					result.getMatchedCount(), result.getModifiedCount()));
 		}
 	}
 
@@ -152,43 +217,6 @@ public class MongoTransactionLogger
 		document.put("modified", this.endpoint);
 
 		collection.insertOne(document);
-	}
-
-	public void updateTransaction(TransactionArchive archive) {
-		MongoClient mongoClient = MongoClientRegistry.getInstance().getMongoClient();
-		try {
-			TransactionXid transactionXid = (TransactionXid) archive.getXid();
-			int vote = archive.getVote();
-			int status = archive.getStatus();
-
-			MongoDatabase mdb = mongoClient.getDatabase(CONSTANTS_DB_NAME);
-			MongoCollection<Document> collection = mdb.getCollection("transaction");
-
-			Document variables = new Document();
-			variables.append("modified", this.endpoint);
-			variables.append("vote", vote);
-			variables.append("status", status);
-
-			Document document = new Document();
-			document.append("$set", variables);
-			document.append("$inc", new BasicDBObject("version", 1));
-
-			String[] values = this.endpoint.split(":");
-			String application = values[1];
-
-			byte[] globalTransactionId = transactionXid.getGlobalTransactionId();
-			Bson xidBson = Filters.eq("gxid", ByteUtils.byteArrayToString(globalTransactionId));
-			Bson created = Filters.eq("application", application);
-
-			UpdateResult result = collection.updateOne(Filters.and(xidBson, created), document);
-			if (result.getModifiedCount() != 1) {
-				throw new IllegalStateException(
-						String.format("Error occurred while updating transaction(matched= %s, modified= %s).",
-								result.getMatchedCount(), result.getModifiedCount()));
-			}
-		} catch (RuntimeException rex) {
-			logger.error("Error occurred while updating transaction.", rex);
-		}
 	}
 
 	public void deleteTransaction(TransactionArchive archive) {

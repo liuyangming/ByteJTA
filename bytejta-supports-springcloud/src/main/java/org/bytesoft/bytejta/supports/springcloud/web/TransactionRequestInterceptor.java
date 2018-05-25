@@ -84,7 +84,7 @@ public class TransactionRequestInterceptor
 			return execution.execute(httpRequest, body);
 		}
 
-		final Map<String, XAResourceArchive> participants = transaction.getParticipantMap();
+		final Map<String, XAResourceArchive> participants = transaction.getApplicationMap(); // .getParticipantMap();
 		beanRegistry.setLoadBalancerInterceptor(new TransactionLoadBalancerInterceptor() {
 			public List<Server> beforeCompletion(List<Server> servers) {
 				final List<Server> readyServerList = new ArrayList<Server>();

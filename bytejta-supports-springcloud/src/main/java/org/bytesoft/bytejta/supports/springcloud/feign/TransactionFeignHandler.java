@@ -66,7 +66,7 @@ public class TransactionFeignHandler implements InvocationHandler {
 			final TransactionRequestImpl request = new TransactionRequestImpl();
 			final TransactionResponseImpl response = new TransactionResponseImpl();
 
-			final Map<String, XAResourceArchive> participants = transaction.getParticipantMap();
+			final Map<String, XAResourceArchive> participants = transaction.getApplicationMap(); // .getParticipantMap();
 			beanRegistry.setLoadBalancerInterceptor(new TransactionLoadBalancerInterceptor() {
 				public List<Server> beforeCompletion(List<Server> servers) {
 					final List<Server> readyServerList = new ArrayList<Server>();

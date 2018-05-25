@@ -27,19 +27,24 @@ import org.apache.curator.framework.state.ConnectionState;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.NodeExistsException;
 import org.bytesoft.common.utils.ByteUtils;
+import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.TransactionLock;
+import org.bytesoft.transaction.aware.TransactionEndpointAware;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 
-public abstract class AbstractElectionManager implements InitializingBean, TransactionLock, LeaderSelectorListener {
+public abstract class AbstractElectionManager
+		implements InitializingBean, TransactionEndpointAware, TransactionLock, LeaderSelectorListener {
 	static final Logger logger = LoggerFactory.getLogger(AbstractElectionManager.class);
 
 	static final String CONSTANTS_ROOT_PATH = "/org/bytesoft/bytejta";
 
 	private Lock lock = new ReentrantLock();
 	private Condition condition = this.lock.newCondition();
+
+	private String endpoint;
 
 	private volatile ConnectionState state;
 	private LeaderSelector leadSelector;
@@ -120,8 +125,14 @@ public abstract class AbstractElectionManager implements InitializingBean, Trans
 		}
 	}
 
-	public abstract String getApplication();
+	private String getApplication() {
+		return CommonUtils.getApplication(this.endpoint);
+	}
 
 	public abstract CuratorFramework getCuratorFramework();
+
+	public void setEndpoint(String identifier) {
+		this.endpoint = identifier;
+	}
 
 }
