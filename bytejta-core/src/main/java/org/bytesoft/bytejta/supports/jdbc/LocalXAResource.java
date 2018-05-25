@@ -78,6 +78,8 @@ public class LocalXAResource implements XAResource {
 			if (rs.next() == false) {
 				throw new XAException(XAException.XAER_NOTA);
 			}
+		} catch (XAException xaex) {
+			throw xaex;
 		} catch (Exception ex) {
 			logger.warn("Error occurred while recovering local-xa-resource.", ex);
 			throw new XAException(XAException.XAER_RMERR);
@@ -89,7 +91,7 @@ public class LocalXAResource implements XAResource {
 
 	public synchronized void start(Xid xid, int flags) throws XAException {
 		if (xid == null) {
-			throw new XAException();
+			throw new XAException(XAException.XAER_INVAL);
 		} else if (flags == XAResource.TMRESUME && this.suspendXid != null) {
 			if (this.suspendXid.equals(xid)) {
 				this.suspendXid = null;
@@ -98,16 +100,16 @@ public class LocalXAResource implements XAResource {
 				this.suspendAutoCommit = true;
 				return;
 			} else {
-				throw new XAException();
+				throw new XAException(XAException.XAER_PROTO);
 			}
 		} else if (flags == XAResource.TMJOIN) {
 			if (this.currentXid == null) {
-				throw new XAException();
+				throw new XAException(XAException.XAER_PROTO);
 			}
 		} else if (flags != XAResource.TMNOFLAGS) {
-			throw new XAException();
+			throw new XAException(XAException.XAER_PROTO);
 		} else if (this.currentXid != null) {
-			throw new XAException();
+			throw new XAException(XAException.XAER_PROTO);
 		} else {
 			Connection connection = this.managedConnection.getPhysicalConnection();
 
@@ -120,7 +122,7 @@ public class LocalXAResource implements XAResource {
 			try {
 				connection.setAutoCommit(false);
 			} catch (Exception ex) {
-				XAException xae = new XAException();
+				XAException xae = new XAException(XAException.XAER_RMERR);
 				xae.initCause(ex);
 				throw xae;
 			}
@@ -131,11 +133,11 @@ public class LocalXAResource implements XAResource {
 
 	public synchronized void end(Xid xid, int flags) throws XAException {
 		if (xid == null) {
-			throw new XAException();
+			throw new XAException(XAException.XAER_INVAL);
 		} else if (this.currentXid == null) {
-			throw new XAException();
+			throw new XAException(XAException.XAER_PROTO);
 		} else if (!this.currentXid.equals(xid)) {
-			throw new XAException();
+			throw new XAException(XAException.XAER_PROTO);
 		} else if (flags == XAResource.TMSUSPEND) {
 			this.suspendXid = xid;
 			this.suspendAutoCommit = this.originalAutoCommit;
@@ -194,7 +196,7 @@ public class LocalXAResource implements XAResource {
 		} else if (flags == XAResource.TMFAIL) {
 			logger.debug("Error occurred while ending local-xa-resource.");
 		} else {
-			throw new XAException();
+			throw new XAException(XAException.XAER_PROTO);
 		}
 	}
 
@@ -214,18 +216,18 @@ public class LocalXAResource implements XAResource {
 	public synchronized void commit(Xid xid, boolean onePhase) throws XAException {
 		try {
 			if (xid == null) {
-				throw new XAException();
+				throw new XAException(XAException.XAER_INVAL);
 			} else if (this.currentXid == null) {
-				throw new XAException();
+				throw new XAException(XAException.XAER_PROTO);
 			} else if (!this.currentXid.equals(xid)) {
-				throw new XAException();
+				throw new XAException(XAException.XAER_PROTO);
 			}
 
 			this.managedConnection.commitLocalTransaction();
 		} catch (XAException xae) {
 			throw xae;
 		} catch (Exception ex) {
-			XAException xae = new XAException();
+			XAException xae = new XAException(XAException.XAER_RMERR);
 			xae.initCause(ex);
 			throw xae;
 		} finally {
@@ -236,18 +238,18 @@ public class LocalXAResource implements XAResource {
 	public synchronized void rollback(Xid xid) throws XAException {
 		try {
 			if (xid == null) {
-				throw new XAException();
+				throw new XAException(XAException.XAER_INVAL);
 			} else if (this.currentXid == null) {
-				throw new XAException();
+				throw new XAException(XAException.XAER_PROTO);
 			} else if (!this.currentXid.equals(xid)) {
-				throw new XAException();
+				throw new XAException(XAException.XAER_PROTO);
 			}
 
 			this.managedConnection.rollbackLocalTransaction();
 		} catch (XAException xae) {
 			throw xae;
 		} catch (Exception ex) {
-			XAException xae = new XAException();
+			XAException xae = new XAException(XAException.XAER_RMERR);
 			xae.initCause(ex);
 			throw xae;
 		} finally {
