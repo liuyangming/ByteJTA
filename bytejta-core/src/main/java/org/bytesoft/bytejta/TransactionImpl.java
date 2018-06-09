@@ -688,13 +688,9 @@ public class TransactionImpl implements Transaction {
 			throw new SystemException();
 		}
 
-		boolean success = false;
-		try {
-			success = this.delistResource(archive, flag);
-		} finally {
-			if (success) {
-				this.resourceListenerList.onDelistResource(archive.getXid(), descriptor);
-			}
+		boolean success = this.delistResource(archive, flag);
+		if (success) {
+			this.resourceListenerList.onDelistResource(archive.getXid(), archive);
 		}
 
 		return true;
@@ -1159,7 +1155,7 @@ public class TransactionImpl implements Transaction {
 				} catch (RuntimeException ex) {
 					errorExists = true;
 				} finally {
-					this.resourceListenerList.onDelistResource(xares.getXid(), xares.getDescriptor());
+					this.resourceListenerList.onDelistResource(xares.getXid(), xares);
 				}
 			}
 		} // end-for

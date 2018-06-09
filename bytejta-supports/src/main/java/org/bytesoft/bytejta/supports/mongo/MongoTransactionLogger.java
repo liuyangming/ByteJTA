@@ -20,6 +20,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
 import org.apache.commons.lang3.StringUtils;
@@ -34,6 +35,7 @@ import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.aware.TransactionEndpointAware;
 import org.bytesoft.transaction.logging.TransactionLogger;
 import org.bytesoft.transaction.recovery.TransactionRecoveryCallback;
+import org.bytesoft.transaction.supports.TransactionResourceListener;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 import org.bytesoft.transaction.supports.serialize.XAResourceDeserializer;
 import org.bytesoft.transaction.xa.TransactionXid;
@@ -53,8 +55,8 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.UpdateResult;
 
-public class MongoTransactionLogger
-		implements TransactionLogger, EnvironmentAware, TransactionEndpointAware, TransactionBeanFactoryAware {
+public class MongoTransactionLogger implements TransactionLogger, TransactionResourceListener, EnvironmentAware,
+		TransactionEndpointAware, TransactionBeanFactoryAware {
 	static Logger logger = LoggerFactory.getLogger(MongoTransactionLogger.class);
 	static final String CONSTANTS_DB_NAME = "bytejta";
 
@@ -63,7 +65,16 @@ public class MongoTransactionLogger
 	private String endpoint;
 	private Environment environment;
 
+	public void onEnlistResource(Xid xid, XAResource xares) {
+	}
+
+	public void onDelistResource(Xid xid, XAResource xares) {
+		MongoClient mongoClient = MongoClientRegistry.getInstance().getMongoClient();
+		this.createOrUpdateResource(mongoClient, (XAResourceArchive) xares);
+	}
+
 	public void createTransaction(TransactionArchive archive) {
+		this.updateTransaction(archive);
 	}
 
 	public void updateTransaction(TransactionArchive archive) {
