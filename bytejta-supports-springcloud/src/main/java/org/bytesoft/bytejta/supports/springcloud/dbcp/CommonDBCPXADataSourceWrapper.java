@@ -1,0 +1,41 @@
+/**
+ * Copyright 2014-2018 yangming.liu<bytefox@126.com>.
+ *
+ * This copyrighted material is made available to anyone wishing to use, modify,
+ * copy, or redistribute it subject to the terms and conditions of the GNU
+ * Lesser General Public License, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License
+ * for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
+ */
+package org.bytesoft.bytejta.supports.springcloud.dbcp;
+
+import javax.sql.DataSource;
+import javax.sql.XADataSource;
+
+import org.apache.commons.dbcp2.managed.BasicManagedDataSource;
+import org.bytesoft.transaction.TransactionBeanFactory;
+import org.bytesoft.transaction.TransactionManager;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.jta.XADataSourceWrapper;
+
+public class CommonDBCPXADataSourceWrapper implements XADataSourceWrapper {
+	@Autowired
+	private TransactionBeanFactory beanFactory;
+
+	public DataSource wrapDataSource(XADataSource xaDataSource) throws Exception {
+		TransactionManager transactionManager = this.beanFactory.getTransactionManager();
+
+		BasicManagedDataSource bds = new BasicManagedDataSource();
+		bds.setXaDataSourceInstance(xaDataSource);
+		bds.setTransactionManager(transactionManager);
+
+		return bds;
+	}
+
+}
