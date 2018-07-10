@@ -39,6 +39,15 @@ public class CommonUtils {
 		}
 	}
 
+	public static String getInstanceKey(String identifier) {
+		if (StringUtils.isBlank(identifier)) {
+			return null;
+		} else {
+			String[] values = identifier.split("\\s*:\\s*");
+			return values.length == 3 ? values[1] : String.format("%s:%s", values[0], values[2]);
+		}
+	}
+
 	public static boolean applicationEquals(String source, String target) {
 		if (StringUtils.isBlank(source) && StringUtils.isNotBlank(target)) {
 			return false;
@@ -61,7 +70,7 @@ public class CommonUtils {
 		}
 	}
 
-	public static boolean instanceEquals(String source, String target) {
+	public static boolean instanceKeyEquals(String source, String target) {
 		if (StringUtils.isBlank(source) && StringUtils.isNotBlank(target)) {
 			return false;
 		} else if (StringUtils.isBlank(target) && StringUtils.isNotBlank(source)) {

@@ -84,7 +84,9 @@ public class TransactionImpl implements Transaction {
 
 	private final TransactionResourceListenerList resourceListenerList = new TransactionResourceListenerList();
 
+	/* only for participants */
 	private final Map<String, XAResourceArchive> applicationMap = new HashMap<String, XAResourceArchive>();
+
 	private XAResourceArchive participant; // last resource
 	private final List<XAResourceArchive> participantList = new ArrayList<XAResourceArchive>();
 	private final List<XAResourceArchive> nativeParticipantList = new ArrayList<XAResourceArchive>();
@@ -777,9 +779,8 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	public boolean enlistResource(XAResourceDescriptor descriptor)
+	private void throwErrorIfLocalResourceDisallowed(XAResourceDescriptor descriptor)
 			throws RollbackException, IllegalStateException, SystemException {
-
 		if (this.participant != null && (LocalXAResourceDescriptor.class.isInstance(descriptor)
 				|| UnidentifiedResourceDescriptor.class.isInstance(descriptor))) {
 			XAResourceDescriptor lro = this.participant.getDescriptor();
@@ -795,34 +796,58 @@ public class TransactionImpl implements Transaction {
 				throw new IllegalStateException(ex);
 			}
 		}
+	}
 
-		// Here must get the application name for dubbo!
-		String application = null;
+	/**
+	 * if coordinator didn't holds the id of the participant, then get the id from the remote instance.
+	 * 
+	 * @param descriptor
+	 *            participant
+	 * @return application name
+	 */
+	private String getParticipantsApplication(XAResourceDescriptor descriptor) {
 		if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
 			RemoteResourceDescriptor resourceDescriptor = (RemoteResourceDescriptor) descriptor;
 			RemoteCoordinator remoteCoordinator = resourceDescriptor.getDelegate();
 
-			application = remoteCoordinator.getApplication();
+			return remoteCoordinator.getApplication();
 		}
 
-		XAResourceArchive archive = null;
+		return null;
+	}
 
-		String identifier = descriptor.getIdentifier();
-		XAResourceArchive element = this.applicationMap.get(application); // this.participantMap.get(identifier);
-		if (element != null) {
-			XAResourceDescriptor xard = element.getDescriptor();
-			try {
-				archive = xard.isSameRM(descriptor) ? element : archive;
-			} catch (XAException xaex) {
-				if (RemoteResourceDescriptor.X_SAME_CLUSTER == xaex.errorCode) {
-					archive = element;
-				} else {
-					logger.debug(xaex.getMessage(), xaex);
+	private XAResourceArchive getParticipantArchive(XAResourceDescriptor descriptor) {
+		if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
+			String application = CommonUtils.getApplication(descriptor.getIdentifier());
+			XAResourceArchive element = this.applicationMap.get(application);
+			if (element != null) {
+				XAResourceDescriptor xard = element.getDescriptor();
+				try {
+					return xard.isSameRM(descriptor) ? element : null;
+				} catch (XAException xaex) {
+					if (RemoteResourceDescriptor.X_SAME_CLUSTER == xaex.errorCode) {
+						return element;
+					} else {
+						logger.debug(xaex.getMessage(), xaex);
+					}
+				} catch (Exception ex) {
+					logger.debug(ex.getMessage(), ex);
 				}
-			} catch (Exception ex) {
-				logger.debug(ex.getMessage(), ex);
 			}
 		}
+
+		return null;
+	}
+
+	public boolean enlistResource(XAResourceDescriptor descriptor)
+			throws RollbackException, IllegalStateException, SystemException {
+
+		this.throwErrorIfLocalResourceDisallowed(descriptor);
+
+		// Here must get the application name for dubbo!
+		String application = this.getParticipantsApplication(descriptor);
+
+		XAResourceArchive archive = this.getParticipantArchive(descriptor);
 
 		descriptor.setTransactionTimeoutQuietly(this.transactionTimeout);
 
@@ -851,6 +876,8 @@ public class TransactionImpl implements Transaction {
 			RemoteCoordinator transactionCoordinator = this.beanFactory.getTransactionCoordinator();
 			String self = transactionCoordinator.getIdentifier();
 			String parent = String.valueOf(this.transactionContext.getPropagatedBy());
+
+			String identifier = descriptor.getIdentifier();
 
 			boolean resourceValid = StringUtils.equalsIgnoreCase(identifier, self) == false
 					&& CommonUtils.applicationEquals(parent, identifier) == false;

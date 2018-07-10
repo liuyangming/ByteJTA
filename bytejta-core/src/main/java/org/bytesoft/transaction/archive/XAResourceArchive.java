@@ -41,6 +41,7 @@ public class XAResourceArchive implements XAResource {
 	private Xid xid;
 	private int vote = DEFAULT_VOTE;
 	private XAResourceDescriptor descriptor;
+	private XAResourceDescriptor stickiness;
 
 	public void commit(Xid ignore, boolean onePhase) throws XAException {
 		if (this.readonly) {
@@ -120,6 +121,14 @@ public class XAResourceArchive implements XAResource {
 
 	public String toString() {
 		return String.format("xa-res-archive[descriptor: %s]", this.descriptor);
+	}
+
+	public XAResourceDescriptor getStickiness() {
+		return stickiness;
+	}
+
+	public void setStickiness(XAResourceDescriptor stickiness) {
+		this.stickiness = stickiness;
 	}
 
 	public XAResourceDescriptor getDescriptor() {
