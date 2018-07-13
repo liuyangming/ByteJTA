@@ -26,6 +26,7 @@ import org.apache.curator.framework.recipes.leader.LeaderSelectorListener;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.NodeExistsException;
+import org.bytesoft.bytejta.supports.internal.TransactionEndpointInitializer;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.TransactionLock;
@@ -33,10 +34,10 @@ import org.bytesoft.transaction.aware.TransactionEndpointAware;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 
 public abstract class AbstractElectionManager
-		implements InitializingBean, TransactionEndpointAware, TransactionLock, LeaderSelectorListener {
+		implements SmartInitializingSingleton, TransactionEndpointAware, TransactionLock, LeaderSelectorListener {
 	static final Logger logger = LoggerFactory.getLogger(AbstractElectionManager.class);
 
 	static final String CONSTANTS_ROOT_PATH = "/org/bytesoft/bytejta";
@@ -48,6 +49,8 @@ public abstract class AbstractElectionManager
 
 	private volatile ConnectionState state;
 	private LeaderSelector leadSelector;
+
+	private TransactionEndpointInitializer initializer;
 
 	public boolean lockTransaction(TransactionXid transactionXid, String identifier) {
 		byte[] globalTransactionId = transactionXid.getGlobalTransactionId();
@@ -107,9 +110,15 @@ public abstract class AbstractElectionManager
 		return this.leadSelector == null ? false : this.leadSelector.hasLeadership();
 	}
 
-	public void afterPropertiesSet() throws Exception {
+	public void afterSingletonsInstantiated() {
+		this.initializer.initializeImmediately();
+
 		String basePath = String.format("%s/%s", CONSTANTS_ROOT_PATH, this.getApplication());
-		this.createPersistentPathIfNecessary(basePath);
+		try {
+			this.createPersistentPathIfNecessary(basePath);
+		} catch (Exception ex) {
+			throw new IllegalStateException(ex);
+		}
 
 		String masterPath = String.format("%s/master", basePath);
 		this.leadSelector = new LeaderSelector(this.getCuratorFramework(), masterPath, this);
@@ -133,6 +142,10 @@ public abstract class AbstractElectionManager
 
 	public void setEndpoint(String identifier) {
 		this.endpoint = identifier;
+	}
+
+	public void setInitializer(TransactionEndpointInitializer initializer) {
+		this.initializer = initializer;
 	}
 
 }

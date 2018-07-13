@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.bytesoft.bytejta.supports.dubbo.config.DubboSupportConfiguration;
+import org.bytesoft.bytejta.supports.internal.TransactionEndpointInitializer;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.aware.TransactionEndpointAware;
@@ -37,14 +38,23 @@ import com.alibaba.dubbo.config.ApplicationConfig;
 import com.alibaba.dubbo.config.ProtocolConfig;
 import com.alibaba.dubbo.config.ServiceConfig;
 
-public class DubboEndpointPostProcessor implements BeanPostProcessor, SmartInitializingSingleton, ApplicationContextAware {
+public class DubboEndpointPostProcessor
+		implements BeanPostProcessor, SmartInitializingSingleton, TransactionEndpointInitializer, ApplicationContextAware {
 	static final String KEY_REMOTE_COORDINATOR = "skeleton@org.bytesoft.bytejta.supports.wire.RemoteCoordinator";
 	static final Logger logger = LoggerFactory.getLogger(DubboSupportConfiguration.class);
 	private final List<TransactionEndpointAware> beanList = new ArrayList<TransactionEndpointAware>();
 	private ApplicationContext applicationContext;
 
-	@SuppressWarnings("unchecked")
+	public void initializeImmediately() {
+		this.configureEndpointIfNecessary();
+	}
+
 	public void afterSingletonsInstantiated() {
+		this.configureEndpointIfNecessary();
+	}
+
+	@SuppressWarnings("unchecked")
+	private void configureEndpointIfNecessary() {
 		ApplicationConfig applicationConfig = null;
 		try {
 			applicationConfig = this.applicationContext.getBean(ApplicationConfig.class);

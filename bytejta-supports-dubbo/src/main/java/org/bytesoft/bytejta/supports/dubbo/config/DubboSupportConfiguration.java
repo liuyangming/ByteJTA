@@ -24,6 +24,7 @@ import org.bytesoft.bytejta.TransactionCoordinator;
 import org.bytesoft.bytejta.supports.config.ScheduleWorkConfiguration;
 import org.bytesoft.bytejta.supports.config.TransactionConfiguration;
 import org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry;
+import org.bytesoft.bytejta.supports.internal.TransactionEndpointInitializer;
 import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -164,11 +165,6 @@ public class DubboSupportConfiguration implements ApplicationContextAware, Envir
 	}
 
 	@org.springframework.context.annotation.Bean
-	public org.bytesoft.bytejta.supports.dubbo.internal.DubboEndpointPostProcessor transactionEndpointPostProcessor() {
-		return new org.bytesoft.bytejta.supports.dubbo.internal.DubboEndpointPostProcessor();
-	}
-
-	@org.springframework.context.annotation.Bean
 	public org.bytesoft.bytejta.supports.dubbo.internal.DubboValidationPostProcessor dubboConfigPostProcessor() {
 		return new org.bytesoft.bytejta.supports.dubbo.internal.DubboValidationPostProcessor();
 	}
@@ -208,8 +204,15 @@ public class DubboSupportConfiguration implements ApplicationContextAware, Envir
 	}
 
 	@org.springframework.context.annotation.Bean
-	public org.bytesoft.bytejta.supports.dubbo.election.DubboElectionManager electionManager() {
+	public org.bytesoft.bytejta.supports.dubbo.internal.DubboEndpointPostProcessor transactionEndpointPostProcessor() {
+		return new org.bytesoft.bytejta.supports.dubbo.internal.DubboEndpointPostProcessor();
+	}
+
+	@org.springframework.context.annotation.Bean
+	public org.bytesoft.bytejta.supports.dubbo.election.DubboElectionManager electionManager(
+			@Autowired TransactionEndpointInitializer configurator) {
 		org.bytesoft.bytejta.supports.dubbo.election.DubboElectionManager electionManager = new org.bytesoft.bytejta.supports.dubbo.election.DubboElectionManager();
+		electionManager.setInitializer(configurator);
 		return electionManager;
 	}
 

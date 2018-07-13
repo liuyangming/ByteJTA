@@ -21,7 +21,7 @@ import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.bytesoft.bytejta.supports.election.AbstractElectionManager;
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.EnvironmentAware;
@@ -30,7 +30,7 @@ import org.springframework.core.env.Environment;
 import com.alibaba.dubbo.config.RegistryConfig;
 
 public class DubboElectionManager extends AbstractElectionManager
-		implements InitializingBean, EnvironmentAware, ApplicationContextAware {
+		implements SmartInitializingSingleton, EnvironmentAware, ApplicationContextAware {
 
 	private CuratorFramework curatorFramework;
 	private Environment environment;
