@@ -291,6 +291,10 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 
 	}
 
+	public List<VirtualLoggingRecord> compressIfNecessary(List<VirtualLoggingRecord> recordList) {
+		return recordList;
+	}
+
 	public void syncStepTwo(Map<Xid, Boolean> recordMap) {
 		List<VirtualLoggingRecord> recordList = new ArrayList<VirtualLoggingRecord>();
 		while (true) {
@@ -308,6 +312,8 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 			byte[] keyByteArray = new byte[XidFactory.GLOBAL_TRANSACTION_LENGTH];
 			System.arraycopy(byteArray, 0, keyByteArray, 0, keyByteArray.length);
 			int operator = byteArray[keyByteArray.length];
+			byte[] valueByteArray = new byte[byteArray.length - XidFactory.GLOBAL_TRANSACTION_LENGTH - 1 - 4];
+			System.arraycopy(byteArray, XidFactory.GLOBAL_TRANSACTION_LENGTH + 1 + 4, valueByteArray, 0, valueByteArray.length);
 
 			VirtualLoggingKey xid = new VirtualLoggingKey();
 			xid.setGlobalTransactionId(keyByteArray);
@@ -316,6 +322,7 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 			record.setIdentifier(xid);
 			record.setOperator(operator);
 			record.setContent(byteArray);
+			record.setValue(valueByteArray);
 
 			if (recordMap.containsKey(xid) == false) {
 				recordList.add(record);
@@ -323,8 +330,10 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 
 		}
 
-		for (int i = 0; i < recordList.size(); i++) {
-			VirtualLoggingRecord record = recordList.get(i);
+		List<VirtualLoggingRecord> records = this.compressIfNecessary(recordList);
+
+		for (int i = 0; records != null && i < records.size(); i++) {
+			VirtualLoggingRecord record = records.get(i);
 			Xid xid = record.getIdentifier();
 			if (recordMap.containsKey(xid) == false) {
 				byte[] byteArray = record.getContent();
