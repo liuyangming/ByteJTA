@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
 
 public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, VirtualLoggingTrigger, Work {
 	static final Logger logger = LoggerFactory.getLogger(VirtualLoggingSystemImpl.class);
+	static final int COMPRESS_BATCH_SIZE = Short.MAX_VALUE;
 
 	private final Lock lock = new ReentrantLock();
 	private final Lock timingLock = new ReentrantLock();
@@ -296,7 +297,7 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 	}
 
 	public void syncStepTwo(Map<Xid, Boolean> recordMap) {
-		List<VirtualLoggingRecord> recordList = new ArrayList<VirtualLoggingRecord>();
+		final List<VirtualLoggingRecord> recordList = new ArrayList<VirtualLoggingRecord>(COMPRESS_BATCH_SIZE);
 		while (true) {
 			byte[] byteArray = null;
 			try {
@@ -318,22 +319,32 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 			VirtualLoggingKey xid = new VirtualLoggingKey();
 			xid.setGlobalTransactionId(keyByteArray);
 
+			if (recordMap.containsKey(xid)) /* deleted */ {
+				continue;
+			}
+
 			VirtualLoggingRecord record = new VirtualLoggingRecord();
 			record.setIdentifier(xid);
 			record.setOperator(operator);
 			record.setContent(byteArray);
 			record.setValue(valueByteArray);
 
-			if (recordMap.containsKey(xid) == false) {
-				recordList.add(record);
+			recordList.add(record);
+
+			if (recordList.size() % COMPRESS_BATCH_SIZE != 0) {
+				continue;
 			}
+
+			List<VirtualLoggingRecord> compressedList = this.compressIfNecessary(recordList);
+			if (compressedList != recordList && compressedList != null) {
+				recordList.clear();
+				recordList.addAll(compressedList);
+			} // end-if (compressedList != recordList && compressedList != null)
 
 		}
 
-		List<VirtualLoggingRecord> records = this.compressIfNecessary(recordList);
-
-		for (int i = 0; records != null && i < records.size(); i++) {
-			VirtualLoggingRecord record = records.get(i);
+		for (int i = 0; recordList != null && i < recordList.size(); i++) {
+			VirtualLoggingRecord record = recordList.get(i);
 			Xid xid = record.getIdentifier();
 			if (recordMap.containsKey(xid) == false) {
 				byte[] byteArray = record.getContent();
