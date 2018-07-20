@@ -15,6 +15,7 @@
 	<import resource="classpath:bytejta-supports-task.xml" />
 
 	<bean class="org.bytesoft.bytejta.supports.dubbo.TransactionEndpointPostProcessor" />
+	<bean class="org.bytesoft.bytejta.supports.spring.TransactionDebuggablePostProcessor" />
 	<bean class="org.bytesoft.bytejta.supports.dubbo.DubboConfigPostProcessor" />
 	<bean class="org.bytesoft.bytejta.supports.dubbo.TransactionConfigPostProcessor" />
 

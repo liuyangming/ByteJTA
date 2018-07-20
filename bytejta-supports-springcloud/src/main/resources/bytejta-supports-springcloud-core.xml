@@ -15,6 +15,7 @@
 	<import resource="classpath:bytejta-supports-task.xml" />
 
 	<bean class="org.bytesoft.bytejta.supports.springcloud.SpringCloudEndpointPostProcessor" />
+	<bean class="org.bytesoft.bytejta.supports.spring.TransactionDebuggablePostProcessor" />
 	<bean class="org.bytesoft.bytejta.supports.springcloud.SpringCloudBeanRegistry" factory-method="getInstance" />
 
 	<bean class="org.bytesoft.bytejta.supports.springcloud.controller.TransactionCoordinatorController" />

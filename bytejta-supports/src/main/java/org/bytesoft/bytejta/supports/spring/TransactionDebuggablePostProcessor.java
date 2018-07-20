@@ -23,7 +23,7 @@ import org.springframework.context.EnvironmentAware;
 import org.springframework.core.env.Environment;
 
 public class TransactionDebuggablePostProcessor implements BeanPostProcessor, EnvironmentAware {
-	static final String KEY_DEBUGGABLE = "org.bytesoft.debuggable";
+	static final String KEY_DEBUGGABLE = "org.bytesoft.bytejta.debuggable";
 
 	private Environment environment;
 
