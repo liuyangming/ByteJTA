@@ -680,7 +680,7 @@ public class TransactionImpl implements Transaction {
 		String self = transactionCoordinator.getIdentifier();
 		String parent = String.valueOf(this.transactionContext.getPropagatedBy());
 
-		if (StringUtils.equalsIgnoreCase(identifier, self) || CommonUtils.instanceEquals(parent, identifier)) {
+		if (StringUtils.equalsIgnoreCase(identifier, self) || CommonUtils.instanceKeyEquals(parent, identifier)) {
 			return true;
 		}
 
@@ -842,7 +842,7 @@ public class TransactionImpl implements Transaction {
 					String parent = String.valueOf(this.transactionContext.getPropagatedBy());
 
 					resourceValid = StringUtils.equalsIgnoreCase(identifier, self) == false
-							&& CommonUtils.instanceEquals(parent, identifier) == false;
+							&& CommonUtils.instanceKeyEquals(parent, identifier) == false;
 
 					if (resourceValid) {
 						RemoteResourceDescriptor resourceDescriptor = (RemoteResourceDescriptor) descriptor;
