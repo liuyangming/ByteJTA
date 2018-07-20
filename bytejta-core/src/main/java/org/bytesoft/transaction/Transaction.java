@@ -31,8 +31,6 @@ public interface Transaction extends javax.transaction.Transaction {
 
 	public void setRollbackOnlyQuietly();
 
-	public int getTransactionVote();
-
 	public int getTransactionStatus();
 
 	public void setTransactionStatus(int status);
@@ -77,5 +75,7 @@ public interface Transaction extends javax.transaction.Transaction {
 	public void recoveryCommit() throws CommitRequiredException, SystemException;
 
 	public void recoveryRollback() throws RollbackRequiredException, SystemException;
+
+	public Exception getCreatedAt();
 
 }

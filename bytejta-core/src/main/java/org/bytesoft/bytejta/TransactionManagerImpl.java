@@ -38,19 +38,22 @@ import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
+import org.bytesoft.transaction.aware.TransactionDebuggable;
 import org.bytesoft.transaction.supports.TransactionTimer;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TransactionManagerImpl implements TransactionManager, TransactionTimer, TransactionBeanFactoryAware {
+public class TransactionManagerImpl
+		implements TransactionManager, TransactionTimer, TransactionBeanFactoryAware, TransactionDebuggable {
 	static final Logger logger = LoggerFactory.getLogger(TransactionManagerImpl.class);
 
 	@javax.inject.Inject
 	private TransactionBeanFactory beanFactory;
 	private int timeoutSeconds = 5 * 60;
 	private final Map<Thread, Transaction> associatedTxMap = new ConcurrentHashMap<Thread, Transaction>();
+	private boolean debuggingEnabled;
 
 	public void begin() throws NotSupportedException, SystemException {
 		if (this.getTransaction() != null) {
@@ -76,6 +79,10 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		TransactionImpl transaction = new TransactionImpl(transactionContext);
 		transaction.setBeanFactory(this.beanFactory);
 		transaction.setTransactionTimeout(this.timeoutSeconds);
+
+		if (this.debuggingEnabled) {
+			transaction.setCreatedAt(new Exception());
+		} // end-if (this.debuggingEnabled)
 
 		this.associateThread(transaction);
 		TransactionRepository transactionRepository = this.beanFactory.getTransactionRepository();
@@ -294,6 +301,14 @@ public class TransactionManagerImpl implements TransactionManager, TransactionTi
 		if (TransactionImpl.class.isInstance(transaction)) {
 			((TransactionImpl) transaction).stopTiming();
 		}
+	}
+
+	public boolean isDebuggingEnabled() {
+		return debuggingEnabled;
+	}
+
+	public void setDebuggingEnabled(boolean debuggingEnabled) {
+		this.debuggingEnabled = debuggingEnabled;
 	}
 
 	public int getTimeoutSeconds() {
