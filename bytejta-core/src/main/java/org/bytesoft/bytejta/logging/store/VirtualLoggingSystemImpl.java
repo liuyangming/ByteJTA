@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
 
 public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, VirtualLoggingTrigger, Work {
 	static final Logger logger = LoggerFactory.getLogger(VirtualLoggingSystemImpl.class);
-	static final int COMPRESS_BATCH_SIZE = Short.MAX_VALUE;
+	static final int COMPRESS_BATCH_SIZE = 10000;
 
 	private final Lock lock = new ReentrantLock();
 	private final Lock timingLock = new ReentrantLock();

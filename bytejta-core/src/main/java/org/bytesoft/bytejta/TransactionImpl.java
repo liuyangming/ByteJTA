@@ -94,6 +94,8 @@ public class TransactionImpl implements Transaction {
 	private final SynchronizationList synchronizationList = new SynchronizationList();
 	private final TransactionListenerList transactionListenerList = new TransactionListenerList();
 
+	private transient Exception createdAt;
+
 	public TransactionImpl(TransactionContext txContext) {
 		this.transactionContext = txContext;
 	}
@@ -1598,6 +1600,14 @@ public class TransactionImpl implements Transaction {
 			this.transactionStrategy = new VacantTransactionStrategy();
 		}
 
+	}
+
+	public Exception getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(Exception createdAt) {
+		this.createdAt = createdAt;
 	}
 
 	public void setTransactionStrategy(TransactionStrategy transactionStrategy) {
