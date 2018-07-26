@@ -251,7 +251,7 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 		this.master.prepareForReading();
 		Map<Xid, Boolean> recordMap = this.syncStepOne();
 		this.master.prepareForReading();
-		this.syncStepTwo(recordMap);
+		this.syncStepTwo(recordMap, true);
 
 		this.flushSlaverIfNecessary();
 	}
@@ -296,7 +296,7 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 		return recordList;
 	}
 
-	public void syncStepTwo(Map<Xid, Boolean> recordMap) {
+	public void syncStepTwo(Map<Xid, Boolean> recordMap, boolean compressRequired) {
 		final List<VirtualLoggingRecord> recordList = new ArrayList<VirtualLoggingRecord>(COMPRESS_BATCH_SIZE);
 		while (true) {
 			byte[] byteArray = null;
@@ -331,7 +331,9 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 
 			recordList.add(record);
 
-			if (recordList.size() % COMPRESS_BATCH_SIZE != 0) {
+			if (compressRequired == false) {
+				continue;
+			} else if (recordList.size() % COMPRESS_BATCH_SIZE != 0) {
 				continue;
 			}
 
@@ -357,7 +359,7 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 	public void swapMasterAndSlaver() {
 		try {
 			this.lock.lock();
-			this.syncStepTwo(new HashMap<Xid, Boolean>());
+			this.syncStepTwo(new HashMap<Xid, Boolean>(), false);
 
 			this.slaver.markAsMaster();
 			this.master.switchToSlaver();
