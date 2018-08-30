@@ -68,7 +68,7 @@ public class MongoTransactionRepository
 		try {
 			boolean coordinator = transaction.getTransactionContext().isCoordinator();
 			Object propagatedBy = transaction.getTransactionContext().getPropagatedBy();
-			int vote = transaction.getTransactionVote();
+			// int vote = transaction.getTransactionVote();
 			int status = transaction.getTransactionStatus();
 			// boolean propagated = archive.isPropagated();
 
@@ -87,7 +87,7 @@ public class MongoTransactionRepository
 			document.put("propagatedBy", propagatedBy);
 			document.put("coordinator", coordinator);
 			document.put("status", status);
-			document.put("vote", vote);
+			// document.put("vote", vote);
 			document.put("version", 0L);
 
 			collection.insertOne(document);

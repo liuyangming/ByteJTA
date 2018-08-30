@@ -16,6 +16,7 @@
 package org.bytesoft.bytejta.xa;
 
 import java.net.NetworkInterface;
+import java.util.Calendar;
 import java.util.Enumeration;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -76,21 +77,13 @@ public class XidFactoryImpl implements XidFactory {
 	}
 
 	public TransactionXid createGlobalXid() {
+		byte[] unique = this.generateUniqueKey();
+		if (unique == null || unique.length != BRANCH_QUALIFIER_LENGTH) {
+			throw new IllegalStateException("The length of branchQulifier not equals to 16.");
+		}
+
 		byte[] global = new byte[GLOBAL_TRANSACTION_LENGTH];
-
-		long millis = System.currentTimeMillis();
-		byte[] millisByteArray = ByteUtils.longToByteArray(millis);
-
-		short value = (short) (atomic.incrementAndGet() % Short.MAX_VALUE);
-		byte[] valueByteArray = ByteUtils.shortToByteArray(value);
-
-		byte[] randomByteArray = new byte[4];
-		random.nextBytes(randomByteArray);
-
-		System.arraycopy(hardwareAddress, 0, global, 0, SIZE_OF_MAC);
-		System.arraycopy(millisByteArray, 0, global, SIZE_OF_MAC, 8);
-		System.arraycopy(valueByteArray, 0, global, SIZE_OF_MAC + 8, 2);
-		System.arraycopy(randomByteArray, 0, global, SIZE_OF_MAC + 10, randomByteArray.length);
+		System.arraycopy(unique, 0, global, 0, global.length);
 
 		return new TransactionXid(XidFactory.JTA_FORMAT_ID, global);
 	}
@@ -118,20 +111,13 @@ public class XidFactoryImpl implements XidFactory {
 		byte[] global = new byte[globalXid.getGlobalTransactionId().length];
 		System.arraycopy(globalXid.getGlobalTransactionId(), 0, global, 0, global.length);
 
+		byte[] unique = this.generateUniqueKey();
+		if (unique == null || unique.length != BRANCH_QUALIFIER_LENGTH) {
+			throw new IllegalStateException("The length of branchQulifier not equals to 16.");
+		}
+
 		byte[] branch = new byte[BRANCH_QUALIFIER_LENGTH];
-		long millis = System.currentTimeMillis();
-		byte[] millisByteArray = ByteUtils.longToByteArray(millis);
-
-		short value = (short) (atomic.incrementAndGet() % Short.MAX_VALUE);
-		byte[] valueByteArray = ByteUtils.shortToByteArray(value);
-
-		byte[] randomByteArray = new byte[4];
-		random.nextBytes(randomByteArray);
-
-		System.arraycopy(hardwareAddress, 0, branch, 0, SIZE_OF_MAC);
-		System.arraycopy(millisByteArray, 0, branch, SIZE_OF_MAC, 8);
-		System.arraycopy(valueByteArray, 0, branch, SIZE_OF_MAC + 8, 2);
-		System.arraycopy(randomByteArray, 0, branch, SIZE_OF_MAC + 10, randomByteArray.length);
+		System.arraycopy(unique, 0, branch, 0, branch.length);
 
 		return new TransactionXid(XidFactory.JTA_FORMAT_ID, global, branch);
 	}
@@ -158,18 +144,43 @@ public class XidFactoryImpl implements XidFactory {
 	}
 
 	public byte[] generateUniqueKey() {
-		byte[] currentByteArray = ByteUtils.longToByteArray(System.currentTimeMillis());
+		byte[] byteArray = new byte[16];
+
+		Calendar calendar = Calendar.getInstance();
+		calendar.setTimeInMillis(System.currentTimeMillis());
+		int year = calendar.get(Calendar.YEAR) - 2014;
+		int month = calendar.get(Calendar.MONTH) + 1;
+		int day = calendar.get(Calendar.DAY_OF_MONTH);
+		int hour = calendar.get(Calendar.HOUR_OF_DAY);
+		int minute = calendar.get(Calendar.MINUTE);
+		int second = calendar.get(Calendar.SECOND);
+		int millis = calendar.get(Calendar.MILLISECOND);
+
+		int value = (year << 28);
+		value = value | (month << 24);
+		value = value | (day << 19);
+		value = value | (hour << 14);
+		value = value | (minute << 8);
+		value = value | (second << 2);
+		value = value | (millis >>> 8);
+
+		byte[] valueByteArray = ByteUtils.longToByteArray(value);
+
+		byte[] timeByteArray = new byte[5];
+		System.arraycopy(valueByteArray, 0, timeByteArray, 0, 4);
+		timeByteArray[4] = (byte) ((millis << 24) >>> 24);
+
+		byte increment = (byte) atomic.incrementAndGet();
 
 		byte[] randomByteArray = new byte[4];
 		random.nextBytes(randomByteArray);
 
-		byte[] uniqueKey = new byte[16];
-		int timeLen = 6;
-		System.arraycopy(currentByteArray, currentByteArray.length - timeLen, uniqueKey, 0, timeLen);
-		System.arraycopy(randomByteArray, 0, uniqueKey, timeLen, randomByteArray.length);
-		System.arraycopy(hardwareAddress, 0, uniqueKey, randomByteArray.length + timeLen, hardwareAddress.length);
+		System.arraycopy(hardwareAddress, 0, byteArray, 0, SIZE_OF_MAC);
+		System.arraycopy(timeByteArray, 0, byteArray, SIZE_OF_MAC, 5);
+		byteArray[SIZE_OF_MAC + 5] = increment;
+		System.arraycopy(randomByteArray, 0, byteArray, SIZE_OF_MAC + 5 + 1, randomByteArray.length);
 
-		return uniqueKey;
+		return byteArray;
 	}
 
 }

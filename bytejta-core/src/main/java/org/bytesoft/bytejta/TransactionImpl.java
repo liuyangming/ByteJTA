@@ -1163,6 +1163,10 @@ public class TransactionImpl implements Transaction {
 		}
 	}
 
+	public boolean isMarkedRollbackOnly() {
+		return this.transactionContext.isRollbackOnly();
+	}
+
 	public void setRollbackOnlyQuietly() {
 		try {
 			this.setRollbackOnly();

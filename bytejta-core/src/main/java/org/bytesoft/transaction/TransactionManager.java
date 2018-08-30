@@ -35,4 +35,6 @@ public interface TransactionManager extends javax.transaction.TransactionManager
 
 	public Transaction suspend() throws SystemException;
 
+	public void setRollbackOnlyQuietly();
+
 }

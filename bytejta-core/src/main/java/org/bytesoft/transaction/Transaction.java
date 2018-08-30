@@ -29,6 +29,8 @@ public interface Transaction extends javax.transaction.Transaction {
 
 	public boolean isLocalTransaction();
 
+	public boolean isMarkedRollbackOnly();
+
 	public void setRollbackOnlyQuietly();
 
 	public int getTransactionStatus();

@@ -236,6 +236,13 @@ public class TransactionManagerImpl
 		return this.associatedTxMap.get(Thread.currentThread());
 	}
 
+	public void setRollbackOnlyQuietly() {
+		Transaction transaction = this.getTransactionQuietly();
+		if (transaction != null) {
+			transaction.setRollbackOnlyQuietly();
+		}
+	}
+
 	public void setRollbackOnly() throws IllegalStateException, SystemException {
 		Transaction transaction = this.getTransaction();
 		if (transaction == null) {

@@ -1,5 +1,5 @@
 /**
- * Copyright 2014-2016 yangming.liu<bytefox@126.com>.
+ * Copyright 2014-2018 yangming.liu<bytefox@126.com>.
  *
  * This copyrighted material is made available to anyone wishing to use, modify,
  * copy, or redistribute it subject to the terms and conditions of the GNU
@@ -13,20 +13,14 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.transaction.xa;
+package org.bytesoft.transaction;
 
-public interface XidFactory {
-	public static final int JTA_FORMAT_ID = 1207;
-	public static final int TCC_FORMAT_ID = 8127;
+import org.bytesoft.transaction.xa.TransactionXid;
 
-	public static final int GLOBAL_TRANSACTION_LENGTH = 16;
-	public static final int BRANCH_QUALIFIER_LENGTH = 16;
+public interface TransactionParticipant {
 
-	public TransactionXid createGlobalXid();
+	public void receiveTransaction(TransactionXid transactionXid, String identifier);
 
-	public TransactionXid createGlobalXid(byte[] globalTransactionId);
+	public void releaseTransaction(TransactionXid transactionXid, String identifier);
 
-	public TransactionXid createBranchXid(TransactionXid globalXid);
-
-	public TransactionXid createBranchXid(TransactionXid globalXid, byte[] branchQualifier);
 }

@@ -30,12 +30,14 @@ public class TransactionContext implements Serializable, Cloneable {
 	protected TransactionXid xid;
 	protected long createdTime;
 	protected long expiredTime;
+	protected boolean rollbackOnly;
 
 	public TransactionContext clone() {
 		TransactionContext that = new TransactionContext();
 		that.xid = this.xid.clone();
 		that.createdTime = System.currentTimeMillis();
 		that.expiredTime = this.expiredTime;
+		that.rollbackOnly = this.rollbackOnly;
 		return that;
 	}
 
@@ -93,6 +95,14 @@ public class TransactionContext implements Serializable, Cloneable {
 
 	public void setPropagatedBy(Object propagatedBy) {
 		this.propagatedBy = propagatedBy;
+	}
+
+	public boolean isRollbackOnly() {
+		return rollbackOnly;
+	}
+
+	public void setRollbackOnly(boolean rollbackOnly) {
+		this.rollbackOnly = rollbackOnly;
 	}
 
 }
