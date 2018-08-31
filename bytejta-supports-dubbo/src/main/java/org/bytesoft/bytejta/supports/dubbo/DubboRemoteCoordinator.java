@@ -23,9 +23,9 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 
 import org.apache.commons.lang3.StringUtils;
-import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
-import org.bytesoft.bytejta.supports.wire.RemoteCoordinatorRegistry;
+import org.bytesoft.bytejta.supports.internal.RemoteCoordinatorRegistry;
 import org.bytesoft.common.utils.CommonUtils;
+import org.bytesoft.transaction.remote.RemoteCoordinator;
 
 public class DubboRemoteCoordinator implements InvocationHandler {
 

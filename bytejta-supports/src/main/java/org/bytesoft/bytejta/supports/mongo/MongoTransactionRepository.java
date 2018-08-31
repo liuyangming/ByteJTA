@@ -57,14 +57,17 @@ public class MongoTransactionRepository
 	static final Logger logger = LoggerFactory.getLogger(MongoTransactionRepository.class);
 
 	static final String CONSTANTS_DB_NAME = "bytejta";
+	static final String CONSTANTS_TB_TRANSACTIONS = "transactions";
+	static final String CONSTANTS_TB_PARTICIPANTS = "participants";
 
 	@javax.inject.Inject
 	private TransactionBeanFactory beanFactory;
 	private String endpoint;
 	private Environment environment;
+	@javax.annotation.Resource(name = "transactionMongoClient")
+	private MongoClient mongoClient;
 
 	public void putTransaction(TransactionXid transactionXid, Transaction transaction) {
-		MongoClient mongoClient = MongoClientRegistry.getInstance().getMongoClient();
 		try {
 			boolean coordinator = transaction.getTransactionContext().isCoordinator();
 			Object propagatedBy = transaction.getTransactionContext().getPropagatedBy();
@@ -72,8 +75,8 @@ public class MongoTransactionRepository
 			int status = transaction.getTransactionStatus();
 			// boolean propagated = archive.isPropagated();
 
-			MongoDatabase mdb = mongoClient.getDatabase(CONSTANTS_DB_NAME);
-			MongoCollection<Document> collection = mdb.getCollection("transaction");
+			MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
+			MongoCollection<Document> collection = mdb.getCollection(CONSTANTS_TB_TRANSACTIONS);
 
 			String[] values = this.endpoint.split(":");
 			String application = values[1];
@@ -84,7 +87,7 @@ public class MongoTransactionRepository
 			document.put("application", application);
 			document.put("created", this.endpoint);
 			document.put("modified", this.endpoint);
-			document.put("propagatedBy", propagatedBy);
+			document.put("propagated_by", propagatedBy);
 			document.put("coordinator", coordinator);
 			document.put("status", status);
 			// document.put("vote", vote);
@@ -97,14 +100,12 @@ public class MongoTransactionRepository
 	}
 
 	public Transaction getTransaction(TransactionXid xid) {
-		MongoClient mongoClient = MongoClientRegistry.getInstance().getMongoClient();
-
 		XidFactory xidFactory = this.beanFactory.getXidFactory();
 
 		try {
-			MongoDatabase mdb = mongoClient.getDatabase(CONSTANTS_DB_NAME);
-			MongoCollection<Document> transactions = mdb.getCollection("transaction");
-			MongoCollection<Document> participants = mdb.getCollection("participant");
+			MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
+			MongoCollection<Document> transactions = mdb.getCollection(CONSTANTS_TB_TRANSACTIONS);
+			MongoCollection<Document> participants = mdb.getCollection(CONSTANTS_TB_PARTICIPANTS);
 
 			byte[] globalTransactionId = xid.getGlobalTransactionId();
 			String gxid = ByteUtils.byteArrayToString(globalTransactionId);
@@ -125,7 +126,7 @@ public class MongoTransactionRepository
 				TransactionXid globalXid = xidFactory.createGlobalXid(globalTransactionId);
 				archive.setXid(globalXid);
 
-				String propagatedBy = document.getString("propagatedBy");
+				String propagatedBy = document.getString("propagated_by");
 				boolean coordinator = document.getBoolean("coordinator");
 				int transactionStatus = document.getInteger("status");
 
@@ -197,11 +198,10 @@ public class MongoTransactionRepository
 	}
 
 	public Transaction removeTransaction(TransactionXid xid) {
-		MongoClient mongoClient = MongoClientRegistry.getInstance().getMongoClient();
 		try {
-			MongoDatabase mdb = mongoClient.getDatabase(CONSTANTS_DB_NAME);
-			MongoCollection<Document> transactions = mdb.getCollection("transaction");
-			MongoCollection<Document> participants = mdb.getCollection("participant");
+			MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
+			MongoCollection<Document> transactions = mdb.getCollection(CONSTANTS_TB_TRANSACTIONS);
+			MongoCollection<Document> participants = mdb.getCollection(CONSTANTS_TB_PARTICIPANTS);
 
 			String[] values = this.endpoint.split(":");
 			String application = values[1];
@@ -236,15 +236,13 @@ public class MongoTransactionRepository
 	}
 
 	public List<Transaction> getActiveTransactionList() {
-		MongoClient mongoClient = MongoClientRegistry.getInstance().getMongoClient();
-
 		XidFactory xidFactory = this.beanFactory.getXidFactory();
 
 		Map<Xid, TransactionArchive> archiveMap = new HashMap<Xid, TransactionArchive>();
 		try {
-			MongoDatabase mdb = mongoClient.getDatabase(CONSTANTS_DB_NAME);
-			MongoCollection<Document> transactions = mdb.getCollection("transaction");
-			MongoCollection<Document> participants = mdb.getCollection("participant");
+			MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
+			MongoCollection<Document> transactions = mdb.getCollection(CONSTANTS_TB_TRANSACTIONS);
+			MongoCollection<Document> participants = mdb.getCollection(CONSTANTS_TB_PARTICIPANTS);
 
 			String[] values = this.endpoint.split(":");
 			String application = values[1];
@@ -261,7 +259,7 @@ public class MongoTransactionRepository
 				TransactionXid globalXid = xidFactory.createGlobalXid(globalTransactionId);
 				archive.setXid(globalXid);
 
-				String propagatedBy = document.getString("propagatedBy");
+				String propagatedBy = document.getString("propagated_by");
 				boolean coordinator = document.getBoolean("coordinator");
 				int transactionStatus = document.getInteger("status");
 

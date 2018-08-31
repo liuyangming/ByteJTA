@@ -21,6 +21,7 @@ import javax.transaction.RollbackException;
 import javax.transaction.SystemException;
 
 import org.bytesoft.transaction.archive.TransactionArchive;
+import org.bytesoft.transaction.remote.RemoteSvc;
 import org.bytesoft.transaction.supports.TransactionListener;
 import org.bytesoft.transaction.supports.TransactionResourceListener;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
@@ -53,7 +54,9 @@ public interface Transaction extends javax.transaction.Transaction {
 
 	public void setTransactionalExtra(Object transactionalExtra);
 
-	public XAResourceDescriptor getResourceDescriptor(String identifier);
+	public XAResourceDescriptor getResourceDescriptor(String beanName);
+
+	public XAResourceDescriptor getRemoteCoordinator(RemoteSvc remoteSvc);
 
 	public XAResourceDescriptor getRemoteCoordinator(String application);
 

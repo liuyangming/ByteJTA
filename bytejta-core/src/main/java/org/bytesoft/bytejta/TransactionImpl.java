@@ -44,7 +44,6 @@ import org.bytesoft.bytejta.supports.resource.CommonResourceDescriptor;
 import org.bytesoft.bytejta.supports.resource.LocalXAResourceDescriptor;
 import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
 import org.bytesoft.bytejta.supports.resource.UnidentifiedResourceDescriptor;
-import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.CommitRequiredException;
@@ -59,6 +58,8 @@ import org.bytesoft.transaction.internal.SynchronizationList;
 import org.bytesoft.transaction.internal.TransactionListenerList;
 import org.bytesoft.transaction.internal.TransactionResourceListenerList;
 import org.bytesoft.transaction.logging.TransactionLogger;
+import org.bytesoft.transaction.remote.RemoteCoordinator;
+import org.bytesoft.transaction.remote.RemoteSvc;
 import org.bytesoft.transaction.supports.TransactionListener;
 import org.bytesoft.transaction.supports.TransactionResourceListener;
 import org.bytesoft.transaction.supports.TransactionTimer;
@@ -84,8 +85,8 @@ public class TransactionImpl implements Transaction {
 
 	private final TransactionResourceListenerList resourceListenerList = new TransactionResourceListenerList();
 
-	private final Map<String, XAResourceArchive> applicationMap = new HashMap<String, XAResourceArchive>();
-	private final Map<String, XAResourceArchive> participantMap = new HashMap<String, XAResourceArchive>();
+	private final Map<RemoteSvc, XAResourceArchive> remoteParticipantMap = new HashMap<RemoteSvc, XAResourceArchive>();
+	private final Map<String, XAResourceArchive> nativeParticipantMap = new HashMap<String, XAResourceArchive>();
 	private XAResourceArchive participant; // last resource
 	private final List<XAResourceArchive> participantList = new ArrayList<XAResourceArchive>();
 	private final List<XAResourceArchive> nativeParticipantList = new ArrayList<XAResourceArchive>();
@@ -98,24 +99,6 @@ public class TransactionImpl implements Transaction {
 
 	public TransactionImpl(TransactionContext txContext) {
 		this.transactionContext = txContext;
-	}
-
-	public XAResourceDescriptor getResourceDescriptor(String identifier) {
-		XAResourceArchive archive = this.participantMap.get(identifier);
-		return archive == null ? null : archive.getDescriptor();
-	}
-
-	public XAResourceDescriptor getRemoteCoordinator(String application) {
-		XAResourceArchive archive = this.applicationMap.get(application);
-		return archive == null ? null : archive.getDescriptor();
-	}
-
-	public void setBeanFactory(TransactionBeanFactory tbf) {
-		this.beanFactory = tbf;
-	}
-
-	public boolean isLocalTransaction() {
-		return this.participantList.size() <= 1;
 	}
 
 	public synchronized int participantPrepare() throws RollbackRequiredException, CommitRequiredException {
@@ -674,17 +657,20 @@ public class TransactionImpl implements Transaction {
 	}
 
 	public boolean delistResource(XAResourceDescriptor descriptor, int flag) throws IllegalStateException, SystemException {
-		String identifier = descriptor.getIdentifier();
-
 		RemoteCoordinator transactionCoordinator = this.beanFactory.getTransactionCoordinator();
-		String self = transactionCoordinator.getIdentifier();
-		String parent = String.valueOf(this.transactionContext.getPropagatedBy());
+		if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
+			RemoteSvc nativeSvc = CommonUtils.getRemoteSvc(transactionCoordinator.getIdentifier());
+			RemoteSvc parentSvc = CommonUtils.getRemoteSvc(String.valueOf(this.transactionContext.getPropagatedBy()));
+			RemoteSvc remoteSvc = ((RemoteResourceDescriptor) descriptor).getRemoteSvc();
 
-		if (StringUtils.equalsIgnoreCase(identifier, self) || CommonUtils.instanceKeyEquals(parent, identifier)) {
-			return true;
+			boolean nativeFlag = StringUtils.equalsIgnoreCase(remoteSvc.getServiceKey(), nativeSvc.getServiceKey());
+			boolean parentFlag = StringUtils.equalsIgnoreCase(remoteSvc.getServiceKey(), parentSvc.getServiceKey());
+			if (nativeFlag || parentFlag) {
+				return true;
+			}
 		}
 
-		XAResourceArchive archive = this.participantMap.get(identifier);
+		XAResourceArchive archive = this.getEnlistedResourceArchive(descriptor);
 		if (archive == null) {
 			throw new SystemException();
 		}
@@ -782,15 +768,35 @@ public class TransactionImpl implements Transaction {
 
 	}
 
+	private XAResourceArchive getEnlistedResourceArchive(XAResourceDescriptor descriptor) {
+		if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
+			RemoteSvc remoteSvc = CommonUtils.getRemoteSvc(descriptor.getIdentifier()); // dubbo: old identifier
+			return this.remoteParticipantMap.get(remoteSvc);
+		} else {
+			return this.nativeParticipantMap.get(descriptor.getIdentifier());
+		}
+	}
+
+	private void putEnlistedResourceArchive(XAResourceArchive archive) {
+		XAResourceDescriptor descriptor = archive.getDescriptor();
+		String identifier = descriptor.getIdentifier();
+		if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
+			RemoteSvc remoteSvc = CommonUtils.getRemoteSvc(identifier);
+			this.remoteParticipantMap.put(remoteSvc, archive);
+		} else {
+			this.nativeParticipantMap.put(identifier, archive);
+		}
+	}
+
 	public boolean enlistResource(XAResourceDescriptor descriptor)
 			throws RollbackException, IllegalStateException, SystemException {
 		XAResourceArchive archive = null;
 
-		XAResourceArchive element = this.participantMap.get(descriptor.getIdentifier()); // dubbo: old identifier
-		if (element != null) {
-			XAResourceDescriptor xard = element.getDescriptor();
+		XAResourceArchive enlisted = this.getEnlistedResourceArchive(descriptor);
+		if (enlisted != null) {
+			XAResourceDescriptor xard = enlisted.getDescriptor();
 			try {
-				archive = xard.isSameRM(descriptor) ? element : archive;
+				archive = xard.isSameRM(descriptor) ? enlisted : archive;
 			} catch (Exception ex) {
 				logger.debug(ex.getMessage(), ex);
 			}
@@ -838,21 +844,20 @@ public class TransactionImpl implements Transaction {
 					this.nativeParticipantList.add(archive);
 				} else if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
 					RemoteCoordinator transactionCoordinator = this.beanFactory.getTransactionCoordinator();
-					String self = transactionCoordinator.getIdentifier();
-					String parent = String.valueOf(this.transactionContext.getPropagatedBy());
 
-					resourceValid = StringUtils.equalsIgnoreCase(identifier, self) == false
-							&& CommonUtils.instanceKeyEquals(parent, identifier) == false;
+					RemoteSvc nativeSvc = CommonUtils.getRemoteSvc(transactionCoordinator.getIdentifier());
+					RemoteSvc parentSvc = CommonUtils.getRemoteSvc(String.valueOf(this.transactionContext.getPropagatedBy()));
+					RemoteSvc remoteSvc = ((RemoteResourceDescriptor) descriptor).getRemoteSvc();
 
-					if (resourceValid) {
-						RemoteResourceDescriptor resourceDescriptor = (RemoteResourceDescriptor) descriptor;
-						RemoteCoordinator remoteCoordinator = resourceDescriptor.getDelegate();
-
-						this.remoteParticipantList.add(archive);
-						this.applicationMap.put(remoteCoordinator.getApplication(), archive);
-					} else {
+					boolean nativeFlag = StringUtils.equalsIgnoreCase(remoteSvc.getServiceKey(), nativeSvc.getServiceKey());
+					boolean parentFlag = StringUtils.equalsIgnoreCase(remoteSvc.getServiceKey(), parentSvc.getServiceKey());
+					if (nativeFlag || parentFlag) {
 						logger.warn("Endpoint {} can not be its own remote branch!", identifier);
+						return false;
 					}
+
+					this.remoteParticipantList.add(archive);
+					this.putEnlistedResourceArchive(archive);
 				} else if (this.participant == null) {
 					// this.participant = this.participant == null ? archive : this.participant;
 					this.participant = archive;
@@ -862,7 +867,7 @@ public class TransactionImpl implements Transaction {
 
 				if (resourceValid) {
 					this.participantList.add(archive);
-					this.participantMap.put(identifier, archive);
+					this.putEnlistedResourceArchive(archive);
 
 					this.resourceListenerList.onEnlistResource(archive.getXid(), descriptor);
 				} // end-if (resourceValid)
@@ -1606,6 +1611,31 @@ public class TransactionImpl implements Transaction {
 
 	}
 
+	public XAResourceDescriptor getResourceDescriptor(String beanId) {
+		XAResourceArchive archive = this.nativeParticipantMap.get(beanId);
+		return archive == null ? null : archive.getDescriptor();
+	}
+
+	public XAResourceDescriptor getRemoteCoordinator(RemoteSvc remoteSvc) {
+		XAResourceArchive archive = this.remoteParticipantMap.get(remoteSvc);
+		return archive == null ? null : archive.getDescriptor();
+	}
+
+	public XAResourceDescriptor getRemoteCoordinator(String application) {
+		RemoteSvc remoteSvc = new RemoteSvc();
+		remoteSvc.setServiceKey(application);
+		XAResourceArchive archive = this.remoteParticipantMap.get(remoteSvc);
+		return archive == null ? null : archive.getDescriptor();
+	}
+
+	public void setBeanFactory(TransactionBeanFactory tbf) {
+		this.beanFactory = tbf;
+	}
+
+	public boolean isLocalTransaction() {
+		return this.participantList.size() <= 1;
+	}
+
 	public Exception getCreatedAt() {
 		return createdAt;
 	}
@@ -1658,12 +1688,12 @@ public class TransactionImpl implements Transaction {
 		return participant;
 	}
 
-	public Map<String, XAResourceArchive> getApplicationMap() {
-		return applicationMap;
+	public Map<RemoteSvc, XAResourceArchive> getRemoteParticipantMap() {
+		return remoteParticipantMap;
 	}
 
-	public Map<String, XAResourceArchive> getParticipantMap() {
-		return participantMap;
+	public Map<String, XAResourceArchive> getNativeParticipantMap() {
+		return nativeParticipantMap;
 	}
 
 	public List<XAResourceArchive> getParticipantList() {

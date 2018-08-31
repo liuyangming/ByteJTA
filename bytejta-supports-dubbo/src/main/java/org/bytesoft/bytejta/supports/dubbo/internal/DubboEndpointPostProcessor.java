@@ -20,9 +20,9 @@ import java.util.List;
 
 import org.bytesoft.bytejta.supports.dubbo.config.DubboSupportConfiguration;
 import org.bytesoft.bytejta.supports.internal.TransactionEndpointInitializer;
-import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.aware.TransactionEndpointAware;
+import org.bytesoft.transaction.remote.RemoteCoordinator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;

@@ -24,7 +24,6 @@ import javax.transaction.xa.XAResource;
 
 import org.apache.commons.lang3.StringUtils;
 import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
-import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.CommitRequiredException;
@@ -40,6 +39,7 @@ import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.logging.TransactionLogger;
 import org.bytesoft.transaction.recovery.TransactionRecoveryCallback;
 import org.bytesoft.transaction.recovery.TransactionRecoveryListener;
+import org.bytesoft.transaction.remote.RemoteSvc;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
@@ -199,27 +199,42 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		transaction.getRemoteParticipantList().addAll(remoteResources);
 
 		List<XAResourceArchive> participants = transaction.getParticipantList();
-		Map<String, XAResourceArchive> applicationMap = transaction.getApplicationMap();
+		Map<String, XAResourceArchive> nativeParticipantMap = transaction.getNativeParticipantMap();
+		Map<RemoteSvc, XAResourceArchive> remoteParticipantMap = transaction.getRemoteParticipantMap();
+
 		if (archive.getOptimizedResource() != null) {
-			participants.add(archive.getOptimizedResource());
+			XAResourceArchive optimized = archive.getOptimizedResource();
+			XAResourceDescriptor descriptor = optimized.getDescriptor();
+			String identifier = descriptor.getIdentifier();
+			if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
+				RemoteSvc remoteSvc = CommonUtils.getRemoteSvc(identifier);
+				remoteParticipantMap.put(remoteSvc, optimized);
+			} else {
+				nativeParticipantMap.put(identifier, optimized);
+			}
+
+			participants.add(optimized);
+		}
+
+		for (int i = 0; i < nativeResources.size(); i++) {
+			XAResourceArchive element = nativeResources.get(i);
+			XAResourceDescriptor descriptor = element.getDescriptor();
+			String identifier = StringUtils.trimToEmpty(descriptor.getIdentifier());
+			nativeParticipantMap.put(identifier, element);
 		}
 		participants.addAll(nativeResources);
-		participants.addAll(remoteResources);
 
-		for (int i = 0; i < participants.size(); i++) {
-			XAResourceArchive element = participants.get(i);
+		for (int i = 0; i < remoteResources.size(); i++) {
+			XAResourceArchive element = remoteResources.get(i);
 			XAResourceDescriptor descriptor = element.getDescriptor();
 			String identifier = StringUtils.trimToEmpty(descriptor.getIdentifier());
 
 			if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
-				RemoteResourceDescriptor resourceDescriptor = (RemoteResourceDescriptor) descriptor;
-				RemoteCoordinator remoteCoordinator = resourceDescriptor.getDelegate();
-				applicationMap.put(remoteCoordinator.getApplication(), element);
+				RemoteSvc remoteSvc = CommonUtils.getRemoteSvc(identifier);
+				remoteParticipantMap.put(remoteSvc, element);
 			} // end-if (RemoteResourceDescriptor.class.isInstance(descriptor))
-
-			String application = CommonUtils.getApplication(identifier);
-			applicationMap.put(application, element);
 		}
+		participants.addAll(remoteResources);
 
 		transaction.recoverTransactionStrategy(archive.getTransactionStrategyType());
 

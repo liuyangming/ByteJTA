@@ -22,12 +22,12 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 
 import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
-import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
+import org.bytesoft.transaction.remote.RemoteCoordinator;
 import org.bytesoft.transaction.supports.rpc.TransactionInterceptor;
 import org.bytesoft.transaction.supports.rpc.TransactionRequest;
 import org.bytesoft.transaction.supports.rpc.TransactionResponse;

@@ -20,9 +20,9 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
+import org.bytesoft.transaction.remote.RemoteCoordinator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.EnvironmentAware;

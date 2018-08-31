@@ -13,10 +13,12 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.bytejta.supports.wire;
+package org.bytesoft.bytejta.supports.internal;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.bytesoft.transaction.remote.RemoteCoordinator;
 
 public class RemoteCoordinatorRegistry {
 	static final RemoteCoordinatorRegistry instance = new RemoteCoordinatorRegistry();

@@ -20,8 +20,11 @@ import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
 import org.apache.commons.lang3.StringUtils;
-import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.common.utils.CommonUtils;
+import org.bytesoft.transaction.remote.RemoteAddr;
+import org.bytesoft.transaction.remote.RemoteCoordinator;
+import org.bytesoft.transaction.remote.RemoteNode;
+import org.bytesoft.transaction.remote.RemoteSvc;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 
 public class RemoteResourceDescriptor implements XAResourceDescriptor {
@@ -36,12 +39,24 @@ public class RemoteResourceDescriptor implements XAResourceDescriptor {
 		return this.delegate == null ? null : this.delegate.getIdentifier();
 	}
 
+	public RemoteAddr getRemoteAddr() {
+		return this.delegate == null ? null : this.delegate.getRemoteAddr();
+	}
+
+	public RemoteNode getRemoteNode() {
+		return this.delegate == null ? null : this.delegate.getRemoteNode();
+	}
+
+	public RemoteSvc getRemoteSvc() {
+		return this.delegate == null ? null : CommonUtils.getRemoteSvc(this.delegate.getIdentifier());
+	}
+
 	public boolean isTransactionCommitted(Xid xid) throws IllegalStateException {
 		throw new IllegalStateException();
 	}
 
 	public String toString() {
-		return String.format("remote-resource[id= %s]", this.getIdentifier());
+		return String.format("<remote-resource| id= %s>", this.getIdentifier());
 	}
 
 	public void setTransactionTimeoutQuietly(int timeout) {

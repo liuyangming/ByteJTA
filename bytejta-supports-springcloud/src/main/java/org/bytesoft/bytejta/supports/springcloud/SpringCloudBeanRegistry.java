@@ -18,11 +18,11 @@ package org.bytesoft.bytejta.supports.springcloud;
 import java.lang.reflect.Proxy;
 
 import org.apache.commons.lang3.StringUtils;
+import org.bytesoft.bytejta.supports.internal.RemoteCoordinatorRegistry;
 import org.bytesoft.bytejta.supports.springcloud.loadbalancer.TransactionLoadBalancerInterceptor;
-import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
-import org.bytesoft.bytejta.supports.wire.RemoteCoordinatorRegistry;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
+import org.bytesoft.transaction.remote.RemoteCoordinator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.EnvironmentAware;

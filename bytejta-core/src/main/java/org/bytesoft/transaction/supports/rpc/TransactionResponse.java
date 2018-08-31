@@ -15,8 +15,8 @@
  */
 package org.bytesoft.transaction.supports.rpc;
 
-import org.bytesoft.bytejta.supports.wire.RemoteCoordinator;
 import org.bytesoft.transaction.TransactionContext;
+import org.bytesoft.transaction.remote.RemoteCoordinator;
 
 public interface TransactionResponse {
 

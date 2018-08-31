@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.bytejta.supports.wire;
+package org.bytesoft.transaction.remote;
 
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
@@ -23,6 +23,10 @@ import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionContext;
 
 public interface RemoteCoordinator extends XAResource {
+
+	public RemoteAddr getRemoteAddr();
+
+	public RemoteNode getRemoteNode();
 
 	public String getApplication();
 

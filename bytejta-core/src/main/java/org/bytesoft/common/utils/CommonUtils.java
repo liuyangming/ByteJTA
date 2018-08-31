@@ -24,11 +24,60 @@ import java.net.UnknownHostException;
 import java.util.Enumeration;
 
 import org.apache.commons.lang3.StringUtils;
+import org.bytesoft.transaction.remote.RemoteAddr;
+import org.bytesoft.transaction.remote.RemoteNode;
+import org.bytesoft.transaction.remote.RemoteSvc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CommonUtils {
 	static final Logger logger = LoggerFactory.getLogger(CommonUtils.class);
+
+	public static RemoteAddr getRemoteAddr(String identifier) {
+		if (StringUtils.isBlank(identifier)) {
+			return null;
+		} else {
+			String[] values = identifier.split("\\s*:\\s*");
+			if (values.length != 3) {
+				return null;
+			}
+
+			RemoteAddr remoteAddr = new RemoteAddr();
+			remoteAddr.setServerHost(values[0]);
+			remoteAddr.setServerPort(Integer.parseInt(values[2]));
+			return remoteAddr;
+		}
+	}
+
+	public static RemoteNode getRemoteNode(String identifier) {
+		if (StringUtils.isBlank(identifier)) {
+			return null;
+		} else {
+			String[] values = identifier.split("\\s*:\\s*");
+			if (values.length != 3) {
+				return null;
+			}
+
+			RemoteNode remoteNode = new RemoteNode();
+			remoteNode.setServerHost(values[0]);
+			remoteNode.setServiceKey(values[1]);
+			remoteNode.setServerPort(Integer.parseInt(values[2]));
+			return remoteNode;
+		}
+	}
+
+	public static RemoteSvc getRemoteSvc(RemoteNode remoteNode) {
+		RemoteSvc remoteSvc = new RemoteSvc();
+		remoteSvc.setServerHost(remoteNode.getServerHost());
+		remoteSvc.setServiceKey(remoteNode.getServiceKey());
+		remoteSvc.setServerPort(remoteNode.getServerPort());
+		return remoteSvc;
+	}
+
+	public static RemoteSvc getRemoteSvc(String identifier) {
+		RemoteNode remoteNode = getRemoteNode(identifier);
+		return getRemoteSvc(remoteNode);
+	}
 
 	public static String getApplication(String identifier) {
 		if (StringUtils.isBlank(identifier)) {
