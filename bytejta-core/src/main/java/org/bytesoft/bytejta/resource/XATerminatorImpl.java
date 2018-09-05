@@ -57,7 +57,7 @@ public class XATerminatorImpl implements XATerminator {
 					globalVote = XAResource.XA_OK;
 				}
 
-				transactionLogger.updateResource(archive);
+				transactionLogger.updateParticipant(archive);
 			}
 
 			logger.info("[{}] prepare: xares= {}, branch= {}, vote= {}",
@@ -151,7 +151,7 @@ public class XATerminatorImpl implements XATerminator {
 			throw new XAException(XAException.XA_HEURHAZ);
 		} finally {
 			if (updateRequired) {
-				transactionLogger.updateResource(archive);
+				transactionLogger.updateParticipant(archive);
 			}
 		}
 	}
@@ -242,7 +242,7 @@ public class XATerminatorImpl implements XATerminator {
 				updateRequired = false;
 			} finally {
 				if (updateRequired) {
-					transactionLogger.updateResource(archive);
+					transactionLogger.updateParticipant(archive);
 				}
 			}
 
@@ -443,7 +443,7 @@ public class XATerminatorImpl implements XATerminator {
 						ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()), rex);
 			} finally {
 				if (updateRequired) {
-					transactionLogger.updateResource(archive);
+					transactionLogger.updateParticipant(archive);
 				}
 			}
 		}

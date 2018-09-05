@@ -157,7 +157,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 
 			public void recover(TransactionArchive archive) {
 				try {
-					TransactionImpl transaction = reconstructTransaction(archive);
+					TransactionImpl transaction = (TransactionImpl) reconstruct(archive);
 					if (listener != null) {
 						listener.onRecovery(transaction);
 					}
@@ -177,7 +177,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		transactionCoordinator.markParticipantReady();
 	}
 
-	protected TransactionImpl reconstructTransaction(TransactionArchive archive) throws IllegalStateException {
+	public org.bytesoft.transaction.Transaction reconstruct(TransactionArchive archive) throws IllegalStateException {
 		XidFactory xidFactory = this.beanFactory.getXidFactory();
 		TransactionContext transactionContext = new TransactionContext();
 		TransactionXid xid = (TransactionXid) archive.getXid();

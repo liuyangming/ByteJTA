@@ -83,11 +83,11 @@ public class MongoTransactionRecovery extends TransactionRecoveryImpl {
 		transactionCoordinator.markParticipantReady();
 	}
 
-	public Transaction reconstructTransactionForRecovery(TransactionArchive archive) {
+	public Transaction reconstruct(TransactionArchive archive) {
 		TransactionBeanFactory beanFactory = this.getBeanFactory();
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		try {
-			return super.reconstructTransaction(archive);
+			return super.reconstruct(archive);
 		} catch (IllegalStateException ex) {
 			transactionLogger.deleteTransaction(archive);
 			return null;

@@ -23,7 +23,11 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -167,6 +171,127 @@ public class SerializeUtils {
 		} finally {
 			CommonUtils.closeQuietly(bais);
 		}
+	}
+
+	public static String serializeClass(Class<?> clazz) {
+		if (boolean.class.equals(clazz)) {
+			return "Z";
+		} else if (byte.class.equals(clazz)) {
+			return "B";
+		} else if (short.class.equals(clazz)) {
+			return "S";
+		} else if (char.class.equals(clazz)) {
+			return "C";
+		} else if (int.class.equals(clazz)) {
+			return "I";
+		} else if (float.class.equals(clazz)) {
+			return "F";
+		} else if (long.class.equals(clazz)) {
+			return "J";
+		} else if (double.class.equals(clazz)) {
+			return "D";
+		} else if (void.class.equals(clazz)) {
+			return "V";
+		} else if (clazz.isArray()) {
+			return clazz.getName();
+		} else {
+			return String.format("L%s;", clazz.getName().replaceAll("\\.", "/"));
+		}
+	}
+
+	public static Class<?> deserializeClass(String classDesc) {
+		String clazz = StringUtils.trimToEmpty(classDesc);
+		if (StringUtils.isBlank(clazz)) {
+			throw new IllegalStateException();
+		}
+
+		if (clazz.length() > 1) {
+			String clazzName = clazz.replaceAll("\\/", ".");
+			ClassLoader cl = Thread.currentThread().getContextClassLoader();
+			try {
+				return cl.loadClass(clazzName);
+			} catch (ClassNotFoundException ex) {
+				throw new IllegalStateException(ex.getMessage());
+			}
+		}
+
+		final char character = clazz.charAt(0);
+		return SerializeUtils.deserializeClass(character);
+	}
+
+	public static Class<?> deserializeClass(final char character) {
+		switch (character) {
+		case 'Z':
+			return boolean.class;
+		case 'B':
+			return byte.class;
+		case 'S':
+			return short.class;
+		case 'C':
+			return char.class;
+		case 'I':
+			return int.class;
+		case 'J':
+			return long.class;
+		case 'F':
+			return float.class;
+		case 'D':
+			return double.class;
+		default:
+			throw new IllegalStateException();
+		}
+	}
+
+	public static String serializeMethod(Method method) {
+		StringBuilder ber = new StringBuilder();
+		ber.append(method.getName()).append("(");
+		Class<?>[] parameterTypes = method.getParameterTypes();
+		for (int i = 0; i < parameterTypes.length; i++) {
+			Class<?> parameterType = parameterTypes[i];
+			String clazzName = SerializeUtils.serializeClass(parameterType);
+			ber.append(clazzName);
+		}
+
+		ber.append(")").append(SerializeUtils.serializeClass(method.getReturnType()));
+
+		return ber.toString();
+	}
+
+	public static Method deserializeMethod(Class<?> interfaceClass, String methodDesc) throws Exception {
+		int startIdx = methodDesc.indexOf("(");
+		String methodName = methodDesc.substring(0, startIdx);
+		int endIndex = methodDesc.indexOf(")");
+		String value = methodDesc.substring(startIdx + 1, endIndex);
+		char[] values = value.toCharArray();
+
+		List<Class<?>> paramTypeList = new ArrayList<Class<?>>();
+		boolean flags = false;
+		StringBuilder clazzDesc = new StringBuilder();
+		for (int i = 0; i < values.length; i++) {
+			char character = values[i];
+			if (character == ';') {
+				flags = false;
+				String paramTypeNameDesc = clazzDesc.toString();
+				clazzDesc.delete(0, clazzDesc.length());
+				Class<?> paramType = SerializeUtils.deserializeClass(paramTypeNameDesc);
+				paramTypeList.add(paramType);
+				continue;
+			} else if (flags) {
+				clazzDesc.append(character);
+				continue;
+			} else if (character == 'L') {
+				flags = true;
+				continue;
+			}
+
+			Class<?> paramType = SerializeUtils.deserializeClass(character);
+			paramTypeList.add(paramType);
+		}
+
+		Class<?>[] parameterTypes = new Class<?>[paramTypeList.size()];
+		paramTypeList.toArray(parameterTypes);
+
+		return interfaceClass.getDeclaredMethod(methodName, parameterTypes);
 	}
 
 }

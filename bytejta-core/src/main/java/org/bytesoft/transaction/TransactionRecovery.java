@@ -15,7 +15,11 @@
  */
 package org.bytesoft.transaction;
 
+import org.bytesoft.transaction.archive.TransactionArchive;
+
 public interface TransactionRecovery {
+
+	public Transaction reconstruct(TransactionArchive archive);
 
 	public void timingRecover();
 

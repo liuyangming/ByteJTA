@@ -82,7 +82,10 @@ public class SampleTransactionLogger extends VirtualLoggingSystemImpl
 		}
 	}
 
-	public void updateResource(XAResourceArchive archive) {
+	public void createParticipant(XAResourceArchive archive) {
+	}
+
+	public void updateParticipant(XAResourceArchive archive) {
 		ArchiveDeserializer deserializer = this.beanFactory.getArchiveDeserializer();
 
 		try {
@@ -91,6 +94,18 @@ public class SampleTransactionLogger extends VirtualLoggingSystemImpl
 		} catch (RuntimeException rex) {
 			logger.error("Error occurred while modifying resource-archive.", rex);
 		}
+	}
+
+	public void deleteParticipant(XAResourceArchive archive) {
+	}
+
+	public void createResource(XAResourceArchive archive) {
+	}
+
+	public void updateResource(XAResourceArchive archive) {
+	}
+
+	public void deleteResource(XAResourceArchive archive) {
 	}
 
 	public List<VirtualLoggingRecord> compressIfNecessary(List<VirtualLoggingRecord> recordList) {

@@ -29,7 +29,18 @@ public interface TransactionLogger {
 	public void deleteTransaction(TransactionArchive archive);
 
 	/* resource */
+	public void createResource(XAResourceArchive archive);
+
 	public void updateResource(XAResourceArchive archive);
+
+	public void deleteResource(XAResourceArchive archive);
+
+	/* participant */
+	public void createParticipant(XAResourceArchive archive);
+
+	public void updateParticipant(XAResourceArchive archive);
+
+	public void deleteParticipant(XAResourceArchive archive);
 
 	/* recovery */
 	public void recover(TransactionRecoveryCallback callback);

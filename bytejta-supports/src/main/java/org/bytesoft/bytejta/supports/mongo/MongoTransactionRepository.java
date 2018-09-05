@@ -30,6 +30,7 @@ import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionBeanFactory;
+import org.bytesoft.transaction.TransactionRecovery;
 import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.archive.XAResourceArchive;
@@ -186,8 +187,8 @@ public class MongoTransactionRepository
 
 			}
 
-			MongoTransactionRecovery transactionRecovery = (MongoTransactionRecovery) this.beanFactory.getTransactionRecovery();
-			return transactionRecovery.reconstructTransactionForRecovery(archive);
+			TransactionRecovery transactionRecovery = this.beanFactory.getTransactionRecovery();
+			return transactionRecovery.reconstruct(archive);
 		} catch (RuntimeException rex) {
 			logger.error("Error occurred while loading transaction(xid= {}).", xid, rex);
 		} catch (Exception ex) {
@@ -332,7 +333,7 @@ public class MongoTransactionRepository
 			logger.error("Error occurred while loading transactions.", ex);
 		}
 
-		MongoTransactionRecovery transactionRecovery = (MongoTransactionRecovery) this.beanFactory.getTransactionRecovery();
+		TransactionRecovery transactionRecovery = this.beanFactory.getTransactionRecovery();
 
 		List<Transaction> resultList = new ArrayList<Transaction>();
 
@@ -341,7 +342,7 @@ public class MongoTransactionRepository
 			Map.Entry<Xid, TransactionArchive> entry = itr.next();
 			TransactionArchive archive = entry.getValue();
 
-			Transaction transaction = transactionRecovery.reconstructTransactionForRecovery(archive);
+			Transaction transaction = transactionRecovery.reconstruct(archive);
 			resultList.add(transaction);
 		}
 
