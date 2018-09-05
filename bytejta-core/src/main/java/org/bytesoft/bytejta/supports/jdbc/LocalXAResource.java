@@ -352,34 +352,45 @@ public class LocalXAResource implements XAResource {
 		}
 	}
 
-	protected String getIdentifier(byte[] globalTransactionId, byte[] branchQualifier) {
+	protected String getIdentifier(byte[] globalByteArray, byte[] branchByteArray) {
 		byte[] resultByteArray = new byte[16];
+		if (branchByteArray == null || branchByteArray.length != XidFactory.BRANCH_QUALIFIER_LENGTH) {
+			Calendar calendar = Calendar.getInstance();
+			calendar.setTimeInMillis(System.currentTimeMillis());
+			int year = calendar.get(Calendar.YEAR) - 2014;
+			int month = calendar.get(Calendar.MONTH) + 1;
+			int day = calendar.get(Calendar.DAY_OF_MONTH);
+			int hour = calendar.get(Calendar.HOUR_OF_DAY);
+			int minute = calendar.get(Calendar.MINUTE);
+			int second = calendar.get(Calendar.SECOND);
+			int millis = calendar.get(Calendar.MILLISECOND);
 
-		byte[] globalByteArray = globalTransactionId;
-		byte[] branchByteArray = branchQualifier == null || branchQualifier.length == 0 ? globalTransactionId : branchQualifier;
+			int prefix = (year << 20);
+			prefix = prefix | (month << 16);
+			prefix = prefix | (day << 11);
+			prefix = prefix | (hour << 6);
+			prefix = prefix | minute;
+			byte[] prefixByteArray = ByteUtils.intToByteArray(prefix);
 
-		byte[] millisByteArray = new byte[8];
-		System.arraycopy(branchByteArray, 6, millisByteArray, 0, 8);
+			int value = 0;
+			value = value | (second << 26);
+			value = value | (millis << 16);
 
-		long millis = ByteUtils.byteArrayToLong(millisByteArray);
-		Calendar calendar = Calendar.getInstance();
-		calendar.setTimeInMillis(millis);
-		int hour = calendar.get(Calendar.HOUR_OF_DAY);
-		int minute = calendar.get(Calendar.MINUTE);
-		int second = calendar.get(Calendar.SECOND);
+			short suffix = (short) (value >> 16);
+			byte[] suffixByteArray = ByteUtils.shortToByteArray(suffix);
 
-		int intTimeValue = (hour << 12) | (minute << 6) | second;
-		short shortTimeValue = (short) intTimeValue;
-		byte[] timeByteArray = ByteUtils.shortToByteArray(shortTimeValue);
-
-		int globalStartIndex = XidFactory.GLOBAL_TRANSACTION_LENGTH - 4;
-		int branchStartIndex = XidFactory.BRANCH_QUALIFIER_LENGTH - 4;
-
-		System.arraycopy(branchByteArray, 0, resultByteArray, 0, 6);
-		System.arraycopy(timeByteArray, 0, resultByteArray, 6, 2);
-		System.arraycopy(globalByteArray, globalStartIndex, resultByteArray, 8, 4);
-		System.arraycopy(branchByteArray, branchStartIndex, resultByteArray, 12, 4);
-
+			System.arraycopy(globalByteArray, 6, resultByteArray, 0, 5);
+			System.arraycopy(prefixByteArray, 0, resultByteArray, 5, 4);
+			System.arraycopy(suffixByteArray, 0, resultByteArray, 9, 2);
+			resultByteArray[11] = globalByteArray[11];
+			System.arraycopy(globalByteArray, 12, resultByteArray, 12, 4);
+		} else {
+			System.arraycopy(globalByteArray, 6, resultByteArray, 0, 5);
+			System.arraycopy(branchByteArray, 6, resultByteArray, 5, 5);
+			resultByteArray[10] = globalByteArray[11];
+			resultByteArray[11] = branchByteArray[11];
+			System.arraycopy(branchByteArray, 12, resultByteArray, 12, 4);
+		}
 		return ByteUtils.byteArrayToString(resultByteArray);
 	}
 

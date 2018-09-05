@@ -164,7 +164,7 @@ public class XidFactoryImpl implements XidFactory {
 		value = value | (second << 2);
 		value = value | (millis >>> 8);
 
-		byte[] valueByteArray = ByteUtils.longToByteArray(value);
+		byte[] valueByteArray = ByteUtils.intToByteArray(value);
 
 		byte[] timeByteArray = new byte[5];
 		System.arraycopy(valueByteArray, 0, timeByteArray, 0, 4);
