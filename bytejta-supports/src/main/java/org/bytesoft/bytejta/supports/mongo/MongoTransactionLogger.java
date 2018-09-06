@@ -85,7 +85,7 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 		}
 	}
 
-	public void initializeIndexIfNecessary() {
+	private void initializeIndexIfNecessary() {
 		this.createTransactionsGlobalTxKeyIndexIfNecessary();
 		this.createTransactionsApplicationIndexIfNecessary();
 		this.createParticipantsGlobalTxKeyIndexIfNecessary();

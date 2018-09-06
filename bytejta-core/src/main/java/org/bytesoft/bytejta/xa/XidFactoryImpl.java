@@ -168,7 +168,7 @@ public class XidFactoryImpl implements XidFactory {
 
 		byte[] timeByteArray = new byte[5];
 		System.arraycopy(valueByteArray, 0, timeByteArray, 0, 4);
-		timeByteArray[4] = (byte) ((millis << 24) >>> 24);
+		timeByteArray[4] = (byte) (((millis << 24) >>> 24) + Byte.MIN_VALUE);
 
 		byte increment = (byte) atomic.incrementAndGet();
 

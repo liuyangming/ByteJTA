@@ -21,7 +21,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Calendar;
 
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
@@ -353,44 +352,57 @@ public class LocalXAResource implements XAResource {
 	}
 
 	protected String getIdentifier(byte[] globalByteArray, byte[] branchByteArray) {
-		byte[] resultByteArray = new byte[16];
 		if (branchByteArray == null || branchByteArray.length != XidFactory.BRANCH_QUALIFIER_LENGTH) {
-			Calendar calendar = Calendar.getInstance();
-			calendar.setTimeInMillis(System.currentTimeMillis());
-			int year = calendar.get(Calendar.YEAR) - 2014;
-			int month = calendar.get(Calendar.MONTH) + 1;
-			int day = calendar.get(Calendar.DAY_OF_MONTH);
-			int hour = calendar.get(Calendar.HOUR_OF_DAY);
-			int minute = calendar.get(Calendar.MINUTE);
-			int second = calendar.get(Calendar.SECOND);
-			int millis = calendar.get(Calendar.MILLISECOND);
-
-			int prefix = (year << 20);
-			prefix = prefix | (month << 16);
-			prefix = prefix | (day << 11);
-			prefix = prefix | (hour << 6);
-			prefix = prefix | minute;
-			byte[] prefixByteArray = ByteUtils.intToByteArray(prefix);
-
-			int value = 0;
-			value = value | (second << 26);
-			value = value | (millis << 16);
-
-			short suffix = (short) (value >> 16);
-			byte[] suffixByteArray = ByteUtils.shortToByteArray(suffix);
-
-			System.arraycopy(globalByteArray, 6, resultByteArray, 0, 5);
-			System.arraycopy(prefixByteArray, 0, resultByteArray, 5, 4);
-			System.arraycopy(suffixByteArray, 0, resultByteArray, 9, 2);
-			resultByteArray[11] = globalByteArray[11];
-			System.arraycopy(globalByteArray, 12, resultByteArray, 12, 4);
-		} else {
-			System.arraycopy(globalByteArray, 6, resultByteArray, 0, 5);
-			System.arraycopy(branchByteArray, 6, resultByteArray, 5, 5);
-			resultByteArray[10] = globalByteArray[11];
-			resultByteArray[11] = branchByteArray[11];
-			System.arraycopy(branchByteArray, 12, resultByteArray, 12, 4);
+			logger.warn("Invalid branchByteArray: the length of branchQulifier not equals to 16!");
+			return ByteUtils.byteArrayToString(globalByteArray);
 		}
+
+		byte[] gvalueByteArray = new byte[4];
+		System.arraycopy(globalByteArray, 6, gvalueByteArray, 0, 4);
+		int global = ByteUtils.byteArrayToInt(gvalueByteArray);
+
+		int gday = (global << 8) >>> 27;
+		int ghour = (global << 13) >>> 27;
+		int gminute = (global << 18) >>> 26;
+		int gsecond = (global << 24) >>> 26;
+		int gmillis = ((global << 30) >>> 22) | (globalByteArray[11] - Byte.MIN_VALUE);
+
+		int datime = 0;
+		datime = datime | (gday << 27);
+		datime = datime | (ghour << 22);
+		datime = datime | (gminute << 16);
+		datime = datime | (gsecond << 10);
+		datime = datime | gmillis;
+		byte[] datimeByteArray = ByteUtils.intToByteArray(datime);
+
+		byte[] bvalueByteArray = new byte[4];
+		System.arraycopy(branchByteArray, 6, bvalueByteArray, 0, 4);
+		int branch = ByteUtils.byteArrayToInt(bvalueByteArray);
+
+		int bminute = (branch << 18) >>> 26;
+		int bsecond = (branch << 24) >>> 26;
+		int bmillis = ((branch << 30) >>> 22) | (branchByteArray[11] - Byte.MIN_VALUE);
+
+		byte[] brandomByteArray = new byte[4];
+		System.arraycopy(branchByteArray, 12, brandomByteArray, 0, 4);
+		int brandom = ByteUtils.byteArrayToInt(brandomByteArray);
+		int bprefix = ((brandom >>> 16) << 22) >>> 22;
+
+		int millis = 0;
+		millis = millis | (bminute << 26);
+		millis = millis | (bsecond << 20);
+		millis = millis | (bmillis << 10);
+		millis = millis | bprefix;
+		byte[] millisByteArray = ByteUtils.intToByteArray(millis);
+
+		int bsuffix = ((brandom << 16) >>> 16) + Short.MIN_VALUE;
+		byte[] suffixByteArray = ByteUtils.shortToByteArray((short) bsuffix);
+
+		byte[] resultByteArray = new byte[16];
+		System.arraycopy(globalByteArray, 0, resultByteArray, 0, 6);
+		System.arraycopy(datimeByteArray, 0, resultByteArray, 6, 4);
+		System.arraycopy(millisByteArray, 0, resultByteArray, 10, 4);
+		System.arraycopy(suffixByteArray, 0, resultByteArray, 14, 2);
 		return ByteUtils.byteArrayToString(resultByteArray);
 	}
 
