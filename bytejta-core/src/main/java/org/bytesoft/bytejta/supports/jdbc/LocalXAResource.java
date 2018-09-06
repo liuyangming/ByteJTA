@@ -379,30 +379,29 @@ public class LocalXAResource implements XAResource {
 		System.arraycopy(branchByteArray, 6, bvalueByteArray, 0, 4);
 		int branch = ByteUtils.byteArrayToInt(bvalueByteArray);
 
+		int bmonth = (branch << 4) >> 28;
 		int bminute = (branch << 18) >>> 26;
 		int bsecond = (branch << 24) >>> 26;
 		int bmillis = ((branch << 30) >>> 22) | (branchByteArray[11] - Byte.MIN_VALUE);
 
-		byte[] brandomByteArray = new byte[4];
-		System.arraycopy(branchByteArray, 12, brandomByteArray, 0, 4);
-		int brandom = ByteUtils.byteArrayToInt(brandomByteArray);
-		int bprefix = ((brandom >>> 16) << 22) >>> 22;
+		byte[] randomByteArray = new byte[4];
+		System.arraycopy(branchByteArray, 12, randomByteArray, 0, 4);
+		int brandom = ByteUtils.byteArrayToInt(randomByteArray);
+		int bprefix = ((brandom >>> 16) << 26) >>> 26;
 
 		int millis = 0;
-		millis = millis | (bminute << 26);
-		millis = millis | (bsecond << 20);
-		millis = millis | (bmillis << 10);
+		millis = millis | (bmonth << 28);
+		millis = millis | (bminute << 22);
+		millis = millis | (bsecond << 16);
+		millis = millis | (bmillis << 6);
 		millis = millis | bprefix;
 		byte[] millisByteArray = ByteUtils.intToByteArray(millis);
-
-		int bsuffix = ((brandom << 16) >>> 16) + Short.MIN_VALUE;
-		byte[] suffixByteArray = ByteUtils.shortToByteArray((short) bsuffix);
 
 		byte[] resultByteArray = new byte[16];
 		System.arraycopy(globalByteArray, 0, resultByteArray, 0, 6);
 		System.arraycopy(datimeByteArray, 0, resultByteArray, 6, 4);
 		System.arraycopy(millisByteArray, 0, resultByteArray, 10, 4);
-		System.arraycopy(suffixByteArray, 0, resultByteArray, 14, 2);
+		System.arraycopy(randomByteArray, 2, resultByteArray, 14, 2);
 		return ByteUtils.byteArrayToString(resultByteArray);
 	}
 
