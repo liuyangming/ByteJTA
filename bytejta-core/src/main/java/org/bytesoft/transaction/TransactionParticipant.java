@@ -15,12 +15,18 @@
  */
 package org.bytesoft.transaction;
 
-import org.bytesoft.transaction.xa.TransactionXid;
+import javax.transaction.xa.XAException;
+import javax.transaction.xa.XAResource;
+import javax.transaction.xa.Xid;
 
-public interface TransactionParticipant {
+public interface TransactionParticipant extends XAResource {
 
-	public void receiveTransaction(TransactionXid transactionXid, String identifier);
+	public Transaction end(TransactionContext transactionContext, int flags) throws XAException;
 
-	public void releaseTransaction(TransactionXid transactionXid, String identifier);
+	public void forgetQuietly(Xid xid);
+
+	public String getIdentifier();
+
+	public Transaction start(TransactionContext transactionContext, int flags) throws XAException;
 
 }

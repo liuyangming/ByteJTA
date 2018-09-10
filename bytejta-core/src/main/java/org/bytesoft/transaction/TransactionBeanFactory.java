@@ -17,7 +17,6 @@ package org.bytesoft.transaction;
 
 import org.bytesoft.transaction.logging.ArchiveDeserializer;
 import org.bytesoft.transaction.logging.TransactionLogger;
-import org.bytesoft.transaction.remote.RemoteCoordinator;
 import org.bytesoft.transaction.supports.TransactionTimer;
 import org.bytesoft.transaction.supports.rpc.TransactionInterceptor;
 import org.bytesoft.transaction.supports.serialize.XAResourceDeserializer;
@@ -39,7 +38,7 @@ public interface TransactionBeanFactory {
 
 	public TransactionRecovery getTransactionRecovery();
 
-	public RemoteCoordinator getTransactionCoordinator();
+	public TransactionParticipant getNativeParticipant();
 
 	public TransactionLogger getTransactionLogger();
 

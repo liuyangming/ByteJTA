@@ -35,10 +35,10 @@ import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.TransactionManager;
+import org.bytesoft.transaction.TransactionParticipant;
 import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.aware.TransactionDebuggable;
-import org.bytesoft.transaction.remote.RemoteCoordinator;
 import org.bytesoft.transaction.supports.TransactionTimer;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
@@ -61,7 +61,7 @@ public class TransactionManagerImpl
 		}
 
 		XidFactory xidFactory = this.beanFactory.getXidFactory();
-		RemoteCoordinator transactionCoordinator = this.beanFactory.getTransactionCoordinator();
+		TransactionParticipant transactionCoordinator = this.beanFactory.getNativeParticipant();
 
 		int timeoutSeconds = this.timeoutSeconds;
 

@@ -40,6 +40,7 @@ import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.TransactionManager;
+import org.bytesoft.transaction.TransactionParticipant;
 import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.remote.RemoteCoordinator;
 import org.bytesoft.transaction.supports.rpc.TransactionInterceptor;
@@ -93,7 +94,7 @@ public class TransactionServiceFilter implements Filter {
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
 		RemoteCoordinator consumeCoordinator = beanRegistry.getConsumeCoordinator();
-		RemoteCoordinator transactionCoordinator = beanFactory.getTransactionCoordinator();
+		TransactionParticipant transactionCoordinator = beanFactory.getNativeParticipant();
 
 		String instanceId = StringUtils.trimToEmpty(invocation.getAttachment(RemoteCoordinator.class.getName()));
 
@@ -144,7 +145,7 @@ public class TransactionServiceFilter implements Filter {
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
 		XidFactory xidFactory = beanFactory.getXidFactory();
 		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
-		RemoteCoordinator transactionCoordinator = beanFactory.getTransactionCoordinator();
+		TransactionParticipant transactionCoordinator = beanFactory.getNativeParticipant();
 
 		Class<?>[] parameterTypeArray = invocation.getParameterTypes();
 		Class<?> parameterType = (parameterTypeArray == null || parameterTypeArray.length == 0) ? null : parameterTypeArray[0];
@@ -298,7 +299,7 @@ public class TransactionServiceFilter implements Filter {
 	private Result convertResultForProvider(RpcResult result, String propagatedBy, boolean attachRequired) {
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
-		RemoteCoordinator transactionCoordinator = beanFactory.getTransactionCoordinator();
+		TransactionParticipant transactionCoordinator = beanFactory.getNativeParticipant();
 
 		Object value = result.getValue();
 
@@ -318,7 +319,7 @@ public class TransactionServiceFilter implements Filter {
 	private Result createErrorResultForProvider(Throwable throwable, String propagatedBy, boolean attachRequired) {
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
-		RemoteCoordinator transactionCoordinator = beanFactory.getTransactionCoordinator();
+		TransactionParticipant transactionCoordinator = beanFactory.getNativeParticipant();
 
 		RpcResult result = new RpcResult();
 
@@ -409,7 +410,7 @@ public class TransactionServiceFilter implements Filter {
 		RemoteCoordinatorRegistry coordinatorRegistry = RemoteCoordinatorRegistry.getInstance();
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
-		RemoteCoordinator transactionCoordinator = beanFactory.getTransactionCoordinator();
+		TransactionParticipant transactionCoordinator = beanFactory.getNativeParticipant();
 		RemoteCoordinator consumeCoordinator = beanRegistry.getConsumeCoordinator();
 
 		String instanceId = null;
@@ -480,7 +481,7 @@ public class TransactionServiceFilter implements Filter {
 	public Result consumerInvokeForJTA(Invoker<?> invoker, Invocation invocation) throws RpcException {
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
-		RemoteCoordinator transactionCoordinator = beanFactory.getTransactionCoordinator();
+		TransactionParticipant transactionCoordinator = beanFactory.getNativeParticipant();
 
 		Map<String, String> attachments = invocation.getAttachments();
 		attachments.put(RemoteCoordinator.class.getName(), transactionCoordinator.getIdentifier());
@@ -506,7 +507,7 @@ public class TransactionServiceFilter implements Filter {
 		RemoteCoordinatorRegistry coordinatorRegistry = RemoteCoordinatorRegistry.getInstance();
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
-		RemoteCoordinator transactionCoordinator = beanFactory.getTransactionCoordinator();
+		TransactionParticipant transactionCoordinator = beanFactory.getNativeParticipant();
 		RemoteCoordinator consumeCoordinator = beanRegistry.getConsumeCoordinator();
 		TransactionManager transactionManager = beanFactory.getTransactionManager();
 		Transaction transaction = transactionManager.getTransactionQuietly();
@@ -614,7 +615,7 @@ public class TransactionServiceFilter implements Filter {
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
 		TransactionInterceptor transactionInterceptor = beanFactory.getTransactionInterceptor();
-		RemoteCoordinator transactionCoordinator = beanFactory.getTransactionCoordinator();
+		TransactionParticipant transactionCoordinator = beanFactory.getNativeParticipant();
 
 		Map<String, String> attachments = invocation.getAttachments();
 		attachments.put(RemoteCoordinator.class.getName(), transactionCoordinator.getIdentifier());

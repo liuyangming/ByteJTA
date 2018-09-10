@@ -110,7 +110,7 @@ public class TransactionBeanFactoryImpl implements TransactionBeanFactory {
 		this.transactionRecovery = transactionRecovery;
 	}
 
-	public RemoteCoordinator getTransactionCoordinator() {
+	public RemoteCoordinator getNativeParticipant() {
 		return transactionCoordinator;
 	}
 

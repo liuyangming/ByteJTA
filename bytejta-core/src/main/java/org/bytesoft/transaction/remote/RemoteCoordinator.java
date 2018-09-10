@@ -15,27 +15,14 @@
  */
 package org.bytesoft.transaction.remote;
 
-import javax.transaction.xa.XAException;
-import javax.transaction.xa.XAResource;
-import javax.transaction.xa.Xid;
+import org.bytesoft.transaction.TransactionParticipant;
 
-import org.bytesoft.transaction.Transaction;
-import org.bytesoft.transaction.TransactionContext;
-
-public interface RemoteCoordinator extends XAResource {
+public interface RemoteCoordinator extends TransactionParticipant {
 
 	public RemoteAddr getRemoteAddr();
 
 	public RemoteNode getRemoteNode();
 
 	public String getApplication();
-
-	public String getIdentifier();
-
-	public void forgetQuietly(Xid xid);
-
-	public Transaction start(TransactionContext transactionContext, int flags) throws XAException;
-
-	public Transaction end(TransactionContext transactionContext, int flags) throws XAException;
 
 }

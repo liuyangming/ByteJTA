@@ -26,6 +26,7 @@ import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.TransactionManager;
+import org.bytesoft.transaction.TransactionParticipant;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.remote.RemoteCoordinator;
 import org.bytesoft.transaction.supports.rpc.TransactionInterceptor;
@@ -83,7 +84,7 @@ public class TransactionInterceptorImpl implements TransactionInterceptor, Trans
 			return;
 		}
 
-		RemoteCoordinator coordinator = this.beanFactory.getTransactionCoordinator();
+		TransactionParticipant coordinator = this.beanFactory.getNativeParticipant();
 
 		TransactionContext srcTransactionContext = transaction.getTransactionContext();
 		TransactionContext transactionContext = srcTransactionContext.clone();
@@ -105,7 +106,7 @@ public class TransactionInterceptorImpl implements TransactionInterceptor, Trans
 			return;
 		}
 
-		RemoteCoordinator coordinator = this.beanFactory.getTransactionCoordinator();
+		TransactionParticipant coordinator = this.beanFactory.getNativeParticipant();
 
 		TransactionContext transactionContext = srcTransactionContext.clone();
 		transactionContext.setPropagatedBy(srcTransactionContext.getPropagatedBy());

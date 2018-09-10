@@ -79,7 +79,7 @@ public class MongoTransactionRecovery extends TransactionRecoveryImpl {
 	public synchronized void startRecovery() {
 		TransactionBeanFactory beanFactory = this.getBeanFactory();
 		TransactionCoordinator transactionCoordinator = //
-				(TransactionCoordinator) beanFactory.getTransactionCoordinator();
+				(TransactionCoordinator) beanFactory.getNativeParticipant();
 		transactionCoordinator.markParticipantReady();
 	}
 

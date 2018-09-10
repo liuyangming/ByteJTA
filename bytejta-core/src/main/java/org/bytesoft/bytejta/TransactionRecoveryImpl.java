@@ -173,7 +173,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		});
 
 		TransactionCoordinator transactionCoordinator = //
-				(TransactionCoordinator) this.beanFactory.getTransactionCoordinator();
+				(TransactionCoordinator) this.beanFactory.getNativeParticipant();
 		transactionCoordinator.markParticipantReady();
 	}
 
