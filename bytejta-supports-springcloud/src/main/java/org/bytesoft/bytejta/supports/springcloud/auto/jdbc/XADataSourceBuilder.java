@@ -22,8 +22,6 @@ import javax.sql.DataSource;
 
 import org.apache.commons.dbcp2.managed.BasicManagedDataSource;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.MutablePropertyValues;
-import org.springframework.boot.bind.RelaxedDataBinder;
 
 public class XADataSourceBuilder {
 	private Class<? extends DataSource> type = BasicManagedDataSource.class;
@@ -37,8 +35,9 @@ public class XADataSourceBuilder {
 	}
 
 	private void bind(DataSource result) {
-		MutablePropertyValues properties = new MutablePropertyValues(this.properties);
-		new RelaxedDataBinder(result).withAlias("url", "jdbcUrl").withAlias("username", "user").bind(properties);
+		// MutablePropertyValues properties = new MutablePropertyValues(this.properties);
+		// new RelaxedDataBinder(result).withAlias("url", "jdbcUrl").withAlias("username", "user").bind(properties);
+		// TODO
 	}
 
 	public XADataSourceBuilder type(Class<? extends DataSource> type) {

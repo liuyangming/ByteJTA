@@ -22,7 +22,7 @@ import org.apache.commons.dbcp2.managed.BasicManagedDataSource;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionManager;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.jta.XADataSourceWrapper;
+import org.springframework.boot.jdbc.XADataSourceWrapper;
 
 public class CommonDBCPXADataSourceWrapper implements XADataSourceWrapper {
 	@Autowired
