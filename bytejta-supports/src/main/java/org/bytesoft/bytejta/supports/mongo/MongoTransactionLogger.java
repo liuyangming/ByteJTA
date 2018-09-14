@@ -554,6 +554,10 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 		this.endpoint = identifier;
 	}
 
+	public TransactionBeanFactory getBeanFactory() {
+		return this.beanFactory;
+	}
+
 	public void setBeanFactory(TransactionBeanFactory tbf) {
 		this.beanFactory = tbf;
 	}

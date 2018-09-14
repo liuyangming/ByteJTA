@@ -326,6 +326,10 @@ public class TransactionManagerImpl
 		this.timeoutSeconds = timeoutSeconds;
 	}
 
+	public TransactionBeanFactory getBeanFactory() {
+		return this.beanFactory;
+	}
+
 	public void setBeanFactory(TransactionBeanFactory tbf) {
 		this.beanFactory = tbf;
 	}

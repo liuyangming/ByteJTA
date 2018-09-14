@@ -160,6 +160,10 @@ public class TransactionCoordinatorController extends PropertyEditorSupport impl
 		}
 	}
 
+	public TransactionBeanFactory getBeanFactory() {
+		return this.beanFactory;
+	}
+
 	public void setBeanFactory(TransactionBeanFactory tbf) {
 		this.beanFactory = tbf;
 	}

@@ -98,6 +98,10 @@ public class TransactionWork implements Work, TransactionBeanFactoryAware {
 		this.delayOfStoping = delayOfStoping;
 	}
 
+	public TransactionBeanFactory getBeanFactory() {
+		return this.beanFactory;
+	}
+
 	public void setBeanFactory(TransactionBeanFactory tbf) {
 		this.beanFactory = tbf;
 	}

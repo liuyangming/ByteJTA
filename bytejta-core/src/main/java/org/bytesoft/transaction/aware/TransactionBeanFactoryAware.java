@@ -20,6 +20,8 @@ import org.bytesoft.transaction.TransactionBeanFactory;
 public interface TransactionBeanFactoryAware {
 	public static final String BEAN_FACTORY_FIELD_NAME = "beanFactory";
 
+	public TransactionBeanFactory getBeanFactory();
+
 	public void setBeanFactory(TransactionBeanFactory tbf);
 
 }

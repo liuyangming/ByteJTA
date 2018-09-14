@@ -16,20 +16,63 @@
 package org.bytesoft.bytejta.supports.spring;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.FatalBeanException;
 import org.springframework.beans.MutablePropertyValues;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.config.RuntimeBeanReference;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 
-@Deprecated
-public class TransactionBeanFactoryPostProcessor implements BeanFactoryPostProcessor {
+public class TransactionBeanFactoryPostProcessor
+		implements BeanFactoryPostProcessor, BeanPostProcessor, SmartInitializingSingleton, ApplicationContextAware {
+	static final Logger logger = LoggerFactory.getLogger(TransactionBeanFactoryPostProcessor.class);
+
+	private ApplicationContext applicationContext;
+
+	public void afterSingletonsInstantiated() {
+		Map<String, TransactionBeanFactoryAware> beanMap = //
+				this.applicationContext.getBeansOfType(TransactionBeanFactoryAware.class);
+		Iterator<Map.Entry<String, TransactionBeanFactoryAware>> iterator = //
+				(beanMap == null) ? null : beanMap.entrySet().iterator();
+		while (iterator != null && iterator.hasNext()) {
+			Map.Entry<String, TransactionBeanFactoryAware> entry = iterator.next();
+			TransactionBeanFactoryAware bean = entry.getValue();
+			this.initializeTransactionBeanFactoryIfNecessary(bean);
+		}
+	}
+
+	public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+		return bean;
+	}
+
+	public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+		if (TransactionBeanFactoryAware.class.isInstance(bean)) {
+			this.initializeTransactionBeanFactoryIfNecessary((TransactionBeanFactoryAware) bean);
+		} // end-if (TransactionBeanFactoryAware.class.isInstance(bean))
+
+		return bean;
+	}
+
+	private void initializeTransactionBeanFactoryIfNecessary(TransactionBeanFactoryAware aware) {
+		if (aware.getBeanFactory() == null) {
+			TransactionBeanFactory beanFactory = //
+					this.applicationContext.getBean(TransactionBeanFactory.class);
+			aware.setBeanFactory(beanFactory);
+		} // end-if (aware.getBeanFactory() == null)
+	}
 
 	public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
 		ClassLoader cl = Thread.currentThread().getContextClassLoader();
@@ -71,4 +114,9 @@ public class TransactionBeanFactoryPostProcessor implements BeanFactoryPostProce
 		}
 
 	}
+
+	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+		this.applicationContext = applicationContext;
+	}
+
 }

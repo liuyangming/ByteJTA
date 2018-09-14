@@ -140,6 +140,10 @@ public class XAResourceArchiveDeserializer implements ArchiveDeserializer, Trans
 		return archive;
 	}
 
+	public TransactionBeanFactory getBeanFactory() {
+		return this.beanFactory;
+	}
+
 	public void setBeanFactory(TransactionBeanFactory tbf) {
 		this.beanFactory = tbf;
 	}

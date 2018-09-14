@@ -111,6 +111,10 @@
 			<groupId>org.springframework.cloud</groupId>
 			<artifactId>spring-cloud-commons</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-zookeeper-core</artifactId>
+		</dependency>
 
 		<dependency>
 			<groupId>io.netty</groupId>

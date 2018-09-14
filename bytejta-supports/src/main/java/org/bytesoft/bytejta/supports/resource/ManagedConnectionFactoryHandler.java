@@ -24,8 +24,6 @@ import javax.resource.spi.ManagedConnection;
 import javax.resource.spi.ManagedConnectionFactory;
 import javax.sql.XADataSource;
 
-import org.bytesoft.bytejta.supports.jdbc.LocalXADataSource;
-
 public class ManagedConnectionFactoryHandler implements InvocationHandler {
 
 	private final Object delegate;
@@ -53,23 +51,24 @@ public class ManagedConnectionFactoryHandler implements InvocationHandler {
 			}
 		} // end-for (int i = 0; i < interfaces.length; i++)
 
-		if (LocalXADataSource.class.isInstance(this.delegate) && XADataSource.class.equals(declaringClass)
-				&& javax.sql.XAConnection.class.equals(returningClass)) {
-			ManagedConnectionHandler interceptor = new ManagedConnectionHandler(resultObject);
-			interceptor.setIdentifier(this.identifier);
-
-			Object finalObject = null;
-			if (containsReturningClass) {
-				finalObject = Proxy.newProxyInstance(cl, interfaces, interceptor);
-			} else {
-				Class<?>[] interfaceArray = new Class<?>[interfaces.length + 2];
-				System.arraycopy(interfaces, 0, interfaceArray, 0, interfaces.length);
-				interfaceArray[interfaces.length] = javax.sql.XAConnection.class;
-				interfaceArray[interfaces.length + 1] = javax.sql.DataSource.class;
-				finalObject = Proxy.newProxyInstance(cl, interfaceArray, interceptor);
-			}
-			return (javax.sql.XAConnection) finalObject;
-		} else if (XADataSource.class.equals(declaringClass) && javax.sql.XAConnection.class.equals(returningClass)) {
+		// if (LocalXADataSource.class.isInstance(this.delegate) && XADataSource.class.equals(declaringClass)
+		// && javax.sql.XAConnection.class.equals(returningClass)) {
+		// ManagedConnectionHandler interceptor = new ManagedConnectionHandler(resultObject);
+		// interceptor.setIdentifier(this.identifier);
+		//
+		// Object finalObject = null;
+		// if (containsReturningClass) {
+		// finalObject = Proxy.newProxyInstance(cl, interfaces, interceptor);
+		// } else {
+		// Class<?>[] interfaceArray = new Class<?>[interfaces.length + 2];
+		// System.arraycopy(interfaces, 0, interfaceArray, 0, interfaces.length);
+		// interfaceArray[interfaces.length] = javax.sql.XAConnection.class;
+		// interfaceArray[interfaces.length + 1] = javax.sql.DataSource.class;
+		// finalObject = Proxy.newProxyInstance(cl, interfaceArray, interceptor);
+		// }
+		// return (javax.sql.XAConnection) finalObject;
+		// } else
+		if (XADataSource.class.equals(declaringClass) && javax.sql.XAConnection.class.equals(returningClass)) {
 			ManagedConnectionHandler interceptor = new ManagedConnectionHandler(resultObject);
 			interceptor.setIdentifier(this.identifier);
 
