@@ -25,7 +25,10 @@ import javax.transaction.xa.XAResource;
 import org.apache.commons.lang3.StringUtils;
 import org.bytesoft.bytejta.supports.internal.RemoteCoordinatorRegistry;
 import org.bytesoft.common.utils.CommonUtils;
+import org.bytesoft.transaction.TransactionParticipant;
+import org.bytesoft.transaction.remote.RemoteAddr;
 import org.bytesoft.transaction.remote.RemoteCoordinator;
+import org.bytesoft.transaction.remote.RemoteNode;
 
 public class DubboRemoteCoordinator implements InvocationHandler {
 
@@ -39,30 +42,24 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 			registry.associateInvocationContext(this.invocationContext);
 			Class<?> clazz = method.getDeclaringClass();
 			String methodName = method.getName();
+			Class<?> returnType = method.getReturnType();
 			if (Object.class.equals(clazz)) {
 				return method.invoke(this, args);
-			} else if (RemoteCoordinator.class.equals(clazz)) {
+			} else if (TransactionParticipant.class.equals(clazz)) {
 				if ("getIdentifier".equals(methodName)) {
-					String serverHost = this.invocationContext == null ? null : this.invocationContext.getServerHost();
-					String serviceKey = this.invocationContext == null ? null : this.invocationContext.getServiceKey();
-					int serverPort = this.invocationContext == null ? 0 : this.invocationContext.getServerPort();
-
-					if (this.invocationContext == null) {
-						return null;
-					} else if (StringUtils.isNotBlank(serviceKey)) {
-						return String.format("%s:%s:%s", serverHost, serviceKey, serverPort);
-					} else {
-						Object application = this.getParticipantsApplication(proxy, method, args);
-						return String.format("%s:%s:%s", serverHost, application, serverPort);
-					}
-				} else if ("getApplication".equals(methodName)) {
-					if (this.invocationContext == null) {
-						return null;
-					} else if (StringUtils.isNotBlank(this.invocationContext.getServiceKey())) {
-						return this.invocationContext.getServiceKey();
-					} else {
-						return this.getParticipantsApplication(proxy, method, args);
-					}
+					return this.getParticipantsIdentifier(proxy, method, args);
+				} else {
+					throw new XAException(XAException.XAER_RMFAIL);
+				}
+			} else if (RemoteCoordinator.class.equals(clazz)) {
+				if ("getApplication".equals(methodName)) {
+					return this.getParticipantsApplication(proxy, method, args);
+				} else if ("getRemoteAddr".equals(methodName) && RemoteAddr.class.equals(returnType)) {
+					String identifier = this.getParticipantsIdentifier(proxy, method, args);
+					return identifier == null ? null : CommonUtils.getRemoteAddr(identifier);
+				} else if ("getRemoteNode".equals(methodName) && RemoteNode.class.equals(returnType)) {
+					String identifier = this.getParticipantsIdentifier(proxy, method, args);
+					return identifier == null ? null : CommonUtils.getRemoteNode(identifier);
 				} else {
 					throw new XAException(XAException.XAER_RMFAIL);
 				}
@@ -100,17 +97,29 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 		}
 	}
 
-	public Object invokeCoordinator(Object proxy, Method method, Object[] args) throws Throwable {
-		try {
-			return method.invoke(this.remoteCoordinator, args);
-		} catch (InvocationTargetException ex) {
-			throw ex.getTargetException();
-		} catch (IllegalAccessException ex) {
-			throw new RuntimeException(ex);
+	private String getParticipantsIdentifier(Object proxy, Method method, Object[] args) throws Throwable {
+		if (this.invocationContext == null) {
+			return null;
+		}
+
+		String serverHost = this.invocationContext == null ? null : this.invocationContext.getServerHost();
+		String serviceKey = this.invocationContext == null ? null : this.invocationContext.getServiceKey();
+		int serverPort = this.invocationContext == null ? 0 : this.invocationContext.getServerPort();
+		if (StringUtils.isNotBlank(serviceKey)) {
+			return String.format("%s:%s:%s", serverHost, serviceKey, serverPort);
+		} else {
+			Object application = this.getParticipantsApplication(proxy, method, args);
+			return String.format("%s:%s:%s", serverHost, application, serverPort);
 		}
 	}
 
 	private Object getParticipantsApplication(Object proxy, Method method, Object[] args) throws Throwable {
+		if (this.invocationContext == null) {
+			return null;
+		} else if (StringUtils.isNotBlank(this.invocationContext.getServiceKey())) {
+			return this.invocationContext.getServiceKey();
+		}
+
 		RemoteCoordinatorRegistry coordinatorRegistry = RemoteCoordinatorRegistry.getInstance();
 
 		Object result = this.invokeCoordinator(proxy, method, args);
@@ -143,6 +152,16 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 		}
 
 		return instanceId;
+	}
+
+	public Object invokeCoordinator(Object proxy, Method method, Object[] args) throws Throwable {
+		try {
+			return method.invoke(this.remoteCoordinator, args);
+		} catch (InvocationTargetException ex) {
+			throw ex.getTargetException();
+		} catch (IllegalAccessException ex) {
+			throw new RuntimeException(ex);
+		}
 	}
 
 	public InvocationContext getInvocationContext() {
