@@ -39,6 +39,7 @@ import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
+import org.bytesoft.transaction.TransactionException;
 import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.TransactionParticipant;
 import org.bytesoft.transaction.TransactionRepository;
@@ -161,7 +162,19 @@ public class TransactionServiceFilter implements Filter {
 		Xid xid = (Xid) arguments[0];
 
 		TransactionXid globalXid = xidFactory.createGlobalXid(xid.getGlobalTransactionId());
-		Transaction transaction = transactionRepository.getTransaction(globalXid);
+		Transaction transaction = null;
+		try {
+			transaction = transactionRepository.getTransaction(globalXid);
+		} catch (TransactionException tex) {
+			InvocationResult wrapped = new InvocationResult();
+			wrapped.setError(new XAException(XAException.XAER_RMERR));
+			wrapped.setVariable(RemoteCoordinator.class.getName(), transactionCoordinator.getIdentifier());
+
+			result.setException(null);
+			result.setValue(wrapped);
+			return result;
+		}
+
 		if (transaction == null) {
 			InvocationResult wrapped = new InvocationResult();
 			wrapped.setError(new XAException(XAException.XAER_NOTA));

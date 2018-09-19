@@ -30,6 +30,7 @@ import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionBeanFactory;
+import org.bytesoft.transaction.TransactionException;
 import org.bytesoft.transaction.TransactionRecovery;
 import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.archive.TransactionArchive;
@@ -100,7 +101,7 @@ public class MongoTransactionRepository
 		}
 	}
 
-	public Transaction getTransaction(TransactionXid xid) {
+	public Transaction getTransaction(TransactionXid xid) throws TransactionException {
 		XidFactory xidFactory = this.beanFactory.getXidFactory();
 
 		try {
@@ -228,7 +229,7 @@ public class MongoTransactionRepository
 	public void putErrorTransaction(TransactionXid xid, Transaction transaction) {
 	}
 
-	public Transaction getErrorTransaction(TransactionXid xid) {
+	public Transaction getErrorTransaction(TransactionXid xid) throws TransactionException {
 		return this.getTransaction(xid);
 	}
 

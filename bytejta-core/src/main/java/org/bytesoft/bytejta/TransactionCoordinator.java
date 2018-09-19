@@ -36,6 +36,7 @@ import org.bytesoft.transaction.RollbackRequiredException;
 import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
+import org.bytesoft.transaction.TransactionException;
 import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
@@ -72,7 +73,13 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		}
 
 		TransactionXid globalXid = (TransactionXid) transactionContext.getXid();
-		Transaction transaction = transactionRepository.getTransaction(globalXid);
+		Transaction transaction = null;
+		try {
+			transaction = transactionRepository.getTransaction(globalXid);
+		} catch (TransactionException tex) {
+			throw new XAException(XAException.XAER_RMERR);
+		}
+
 		if (transaction == null) {
 			transaction = new TransactionImpl(transactionContext);
 			((TransactionImpl) transaction).setBeanFactory(this.beanFactory);
@@ -113,7 +120,13 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		TransactionXid branchXid = (TransactionXid) xid;
 		TransactionXid globalXid = xidFactory.createGlobalXid(branchXid.getGlobalTransactionId());
 
-		Transaction transaction = transactionRepository.getTransaction(globalXid);
+		Transaction transaction = null;
+		try {
+			transaction = transactionRepository.getTransaction(globalXid);
+		} catch (TransactionException tex) {
+			throw new XAException(XAException.XAER_RMERR);
+		}
+
 		if (transaction == null) {
 			throw new XAException(XAException.XAER_NOTA);
 		}
@@ -150,7 +163,13 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		TransactionXid branchXid = (TransactionXid) xid;
 		TransactionXid globalXid = xidFactory.createGlobalXid(branchXid.getGlobalTransactionId());
 		TransactionRepository repository = beanFactory.getTransactionRepository();
-		Transaction transaction = repository.getTransaction(globalXid);
+		Transaction transaction = null;
+		try {
+			transaction = repository.getTransaction(globalXid);
+		} catch (TransactionException tex) {
+			throw new XAException(XAException.XAER_RMERR);
+		}
+
 		if (transaction == null) {
 			throw new XAException(XAException.XAER_NOTA);
 		}
@@ -251,7 +270,13 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		TransactionXid branchXid = (TransactionXid) xid;
 		TransactionXid globalXid = xidFactory.createGlobalXid(branchXid.getGlobalTransactionId());
 		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
-		Transaction transaction = transactionRepository.getErrorTransaction(globalXid);
+		Transaction transaction = null;
+		try {
+			transaction = transactionRepository.getErrorTransaction(globalXid);
+		} catch (TransactionException tex) {
+			throw new XAException(XAException.XAER_RMERR);
+		}
+
 		if (transaction == null) {
 			throw new XAException(XAException.XAER_NOTA);
 		}
@@ -284,7 +309,13 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		TransactionXid branchXid = (TransactionXid) xid;
 		TransactionXid globalXid = xidFactory.createGlobalXid(branchXid.getGlobalTransactionId());
 		TransactionRepository repository = beanFactory.getTransactionRepository();
-		Transaction transaction = repository.getTransaction(globalXid);
+		Transaction transaction = null;
+		try {
+			transaction = repository.getTransaction(globalXid);
+		} catch (TransactionException tex) {
+			throw new XAException(XAException.XAER_RMERR);
+		}
+
 		if (transaction == null) {
 			throw new XAException(XAException.XAER_NOTA);
 		}
@@ -333,7 +364,13 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		TransactionXid branchXid = (TransactionXid) xid;
 		TransactionXid globalXid = xidFactory.createGlobalXid(branchXid.getGlobalTransactionId());
 		TransactionRepository repository = beanFactory.getTransactionRepository();
-		Transaction transaction = repository.getTransaction(globalXid);
+		Transaction transaction = null;
+		try {
+			transaction = repository.getTransaction(globalXid);
+		} catch (TransactionException tex) {
+			throw new XAException(XAException.XAER_RMERR);
+		}
+
 		if (transaction == null) {
 			throw new XAException(XAException.XAER_NOTA);
 		}
