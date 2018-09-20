@@ -28,6 +28,7 @@ import org.bytesoft.transaction.RollbackRequiredException;
 import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
+import org.bytesoft.transaction.TransactionException;
 import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.logging.TransactionLogger;
@@ -41,10 +42,17 @@ public class MongoTransactionRecovery extends TransactionRecoveryImpl {
 	@javax.inject.Inject
 	private AbstractElectionManager electionManager;
 
-	public synchronized void timingRecover() {
+	public void timingRecover() {
 		TransactionBeanFactory beanFactory = this.getBeanFactory();
 		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
-		List<Transaction> transactions = transactionRepository.getErrorTransactionList();
+		List<Transaction> transactions = null;
+		try {
+			transactions = transactionRepository.getErrorTransactionList();
+		} catch (TransactionException tex) {
+			logger.error("Error occurred while recovering transactions!", tex);
+			return;
+		}
+
 		int total = transactions == null ? 0 : transactions.size(), value = 0;
 		for (int i = 0; transactions != null && i < transactions.size(); i++) {
 			Transaction transaction = transactions.get(i);
@@ -76,7 +84,7 @@ public class MongoTransactionRecovery extends TransactionRecoveryImpl {
 		logger.debug("[transaction-recovery] total= {}, success= {}", total, value);
 	}
 
-	public synchronized void startRecovery() {
+	public void startRecovery() {
 		TransactionBeanFactory beanFactory = this.getBeanFactory();
 		TransactionCoordinator transactionCoordinator = //
 				(TransactionCoordinator) beanFactory.getNativeParticipant();

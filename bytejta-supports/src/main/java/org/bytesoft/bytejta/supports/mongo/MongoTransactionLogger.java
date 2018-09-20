@@ -267,7 +267,7 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 			Bson created = Filters.eq("application", application);
 
 			UpdateResult result = collection.updateOne(Filters.and(xidBson, created), document);
-			if (result.getModifiedCount() != 1) {
+			if (result.getMatchedCount() != 1) {
 				throw new IllegalStateException(
 						String.format("Error occurred while updating transaction(matched= %s, modified= %s).",
 								result.getMatchedCount(), result.getModifiedCount()));
@@ -422,7 +422,7 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 			UpdateResult result = collection.updateOne(Filters.and(gxidBson, bxidBson, crteBson),
 					new Document("$set", variables));
 
-			if (result.getModifiedCount() != 1) {
+			if (result.getMatchedCount() != 1) {
 				throw new IllegalStateException(
 						String.format("Error occurred while updating participant(matched= %s, modified= %s).",
 								result.getMatchedCount(), result.getModifiedCount()));

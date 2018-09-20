@@ -350,7 +350,7 @@ public class MongoTransactionRepository
 		return resultList;
 	}
 
-	public List<Transaction> getErrorTransactionList() {
+	public List<Transaction> getErrorTransactionList() throws TransactionException {
 		return this.getActiveTransactionList();
 	}
 
