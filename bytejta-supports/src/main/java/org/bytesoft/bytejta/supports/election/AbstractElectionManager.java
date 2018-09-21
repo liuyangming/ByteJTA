@@ -96,7 +96,7 @@ public abstract class AbstractElectionManager
 	public void takeLeadership(CuratorFramework client) throws Exception {
 		try {
 			this.lock.lock();
-			if (ConnectionState.CONNECTED.equals(this.state)) {
+			if (ConnectionState.CONNECTED.equals(this.state) || ConnectionState.RECONNECTED.equals(this.state)) {
 				this.condition.await();
 			} else {
 				logger.debug("Wrong state! Re-elect the master node.");

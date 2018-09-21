@@ -37,9 +37,10 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 	private RemoteCoordinator remoteCoordinator;
 
 	public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-		InvocationContextRegistry registry = InvocationContextRegistry.getInstance();
+		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
+		InvocationContextRegistry invocationRegistry = InvocationContextRegistry.getInstance();
 		try {
-			registry.associateInvocationContext(this.invocationContext);
+			invocationRegistry.associateInvocationContext(this.invocationContext);
 			Class<?> clazz = method.getDeclaringClass();
 			String methodName = method.getName();
 			Class<?> returnType = method.getReturnType();
@@ -66,12 +67,12 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 			} else if (XAResource.class.equals(clazz)) {
 				String serverHost = this.invocationContext == null ? null : this.invocationContext.getServerHost();
 				int serverPort = this.invocationContext == null ? 0 : this.invocationContext.getServerPort();
-				String remoteAddr = String.format("%s:%s", serverHost, serverPort);
+				String remoteText = String.format("%s:%s:%s", serverHost, null, serverPort);
+				RemoteAddr remoteAddr = CommonUtils.getRemoteAddr(remoteText);
 				if ("start".equals(methodName)) {
-					RemoteCoordinatorRegistry coordinatorRegistry = RemoteCoordinatorRegistry.getInstance();
 					if (this.invocationContext == null) {
 						throw new IllegalAccessException();
-					} else if (coordinatorRegistry.containsApplication(remoteAddr)) {
+					} else if (participantRegistry.getRemoteNode(remoteAddr) != null) {
 						return null;
 					} else {
 						return this.invokeCoordinator(proxy, method, args);
@@ -93,7 +94,7 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 				throw new IllegalAccessException();
 			}
 		} finally {
-			registry.desociateInvocationContext();
+			invocationRegistry.desociateInvocationContext();
 		}
 	}
 
@@ -119,39 +120,27 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 		} else if (StringUtils.isNotBlank(this.invocationContext.getServiceKey())) {
 			return this.invocationContext.getServiceKey();
 		}
-
-		RemoteCoordinatorRegistry coordinatorRegistry = RemoteCoordinatorRegistry.getInstance();
+		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
 
 		Object result = this.invokeCoordinator(proxy, method, args);
-		String instanceId = CommonUtils.getApplication(String.valueOf(result));
-		this.invocationContext.setServiceKey(instanceId);
+		String application = CommonUtils.getApplication(String.valueOf(result));
+		this.invocationContext.setServiceKey(application);
 
-		if (StringUtils.isNotBlank(instanceId) && coordinatorRegistry.getRemoteCoordinator(instanceId) == null) {
-			String[] values = instanceId == null ? new String[0] : instanceId.split("\\s*:\\s*");
+		String serverHost = this.invocationContext.getServerHost();
+		int serverPort = this.invocationContext.getServerPort();
 
-			String targetAddr = values.length == 3 ? values[0] : StringUtils.EMPTY;
-			String targetName = values.length == 3 ? values[1] : StringUtils.EMPTY;
-			String targetPort = values.length == 3 ? values[2] : String.valueOf(0);
+		String instanceId = String.format("%s:%s:%s", serverHost, application, serverPort);
 
-			String remoteAddr = StringUtils.isBlank(targetAddr) && StringUtils.isBlank(targetPort) //
-					? StringUtils.EMPTY : String.format("%s:%s", targetAddr, targetPort);
+		RemoteAddr remoteAddr = CommonUtils.getRemoteAddr(instanceId);
+		RemoteNode remoteNode = CommonUtils.getRemoteNode(instanceId);
 
-			coordinatorRegistry.putApplication(remoteAddr, targetName);
-			coordinatorRegistry.putRemoteAddr(instanceId, remoteAddr);
-
-			RemoteCoordinator remoteAddrCoordinator = //
-					coordinatorRegistry.getRemoteCoordinatorByAddr(remoteAddr);
-			if (remoteAddrCoordinator == null) {
-				coordinatorRegistry.putRemoteCoordinatorByAddr(remoteAddr, this.proxyCoordinator);
-			}
-
-			RemoteCoordinator instanceCoordinator = coordinatorRegistry.getRemoteCoordinator(instanceId);
-			if (instanceCoordinator == null) {
-				coordinatorRegistry.putRemoteCoordinator(instanceId, this.proxyCoordinator);
-			}
+		if (StringUtils.isNotBlank(instanceId) && remoteAddr != null && remoteNode != null
+				&& participantRegistry.containsRemoteNode(remoteAddr) == false) {
+			participantRegistry.putParticipant(remoteNode.getServiceKey(), this.proxyCoordinator);
+			participantRegistry.putRemoteNode(remoteAddr, remoteNode);
 		}
 
-		return instanceId;
+		return application;
 	}
 
 	public Object invokeCoordinator(Object proxy, Method method, Object[] args) throws Throwable {
