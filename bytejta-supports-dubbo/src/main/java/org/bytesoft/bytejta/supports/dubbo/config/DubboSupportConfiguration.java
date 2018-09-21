@@ -51,8 +51,8 @@ import com.alibaba.dubbo.config.ServiceConfig;
 public class DubboSupportConfiguration implements ApplicationContextAware, EnvironmentAware {
 	static final Logger logger = LoggerFactory.getLogger(DubboSupportConfiguration.class);
 
-	static final String CONSTANTS_SKEN_ID = "skeleton@org.bytesoft.bytejta.supports.wire.RemoteCoordinator";
-	static final String CONSTANTS_STUB_ID = "stub@org.bytesoft.bytejta.supports.wire.RemoteCoordinator";
+	static final String CONSTANTS_SKEN_ID = "skeleton@org.bytesoft.transaction.remote.RemoteCoordinator";
+	static final String CONSTANTS_STUB_ID = "stub@org.bytesoft.transaction.remote.RemoteCoordinator";
 
 	static final int CONSTANTS_TIMEOUT_MILLIS = 6000;
 	static final String CONSTANTS_TIMEOUT_KEY = "org.bytesoft.bytejta.timeout";

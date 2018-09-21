@@ -29,8 +29,11 @@ import org.bytesoft.transaction.TransactionParticipant;
 import org.bytesoft.transaction.remote.RemoteAddr;
 import org.bytesoft.transaction.remote.RemoteCoordinator;
 import org.bytesoft.transaction.remote.RemoteNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DubboRemoteCoordinator implements InvocationHandler {
+	static final Logger logger = LoggerFactory.getLogger(DubboRemoteCoordinator.class);
 
 	private InvocationContext invocationContext;
 	private RemoteCoordinator proxyCoordinator;
@@ -75,18 +78,18 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 					} else if (participantRegistry.getRemoteNode(remoteAddr) != null) {
 						return null;
 					} else {
-						return this.invokeCoordinator(proxy, method, args);
+						return this.invokeForGeneric(proxy, method, args);
 					}
 				} else if ("prepare".equals(methodName)) {
-					return this.invokeCoordinator(proxy, method, args);
+					return this.invokeForGeneric(proxy, method, args);
 				} else if ("commit".equals(methodName)) {
-					return this.invokeCoordinator(proxy, method, args);
+					return this.invokeForGeneric(proxy, method, args);
 				} else if ("rollback".equals(methodName)) {
-					return this.invokeCoordinator(proxy, method, args);
+					return this.invokeForGeneric(proxy, method, args);
 				} else if ("recover".equals(methodName)) {
-					return this.invokeCoordinator(proxy, method, args);
+					return this.invokeForGeneric(proxy, method, args);
 				} else if ("forget".equals(methodName)) {
-					return this.invokeCoordinator(proxy, method, args);
+					return this.invokeForGeneric(proxy, method, args);
 				} else {
 					throw new XAException(XAException.XAER_RMFAIL);
 				}
@@ -122,17 +125,21 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 		}
 		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
 
-		Object result = this.invokeCoordinator(proxy, method, args);
+		String serverHost = this.invocationContext.getServerHost();
+		int serverPort = this.invocationContext.getServerPort();
+		RemoteAddr remoteAddr = CommonUtils.getRemoteAddr(String.format("%s:%s:%s", serverHost, null, serverPort));
+		RemoteNode remoteNode = participantRegistry.getRemoteNode(remoteAddr);
+		if (remoteNode != null) {
+			this.invocationContext.setServiceKey(remoteNode.getServiceKey());
+			return this.invocationContext.getServiceKey();
+		}
+
+		Object result = this.invokeForSpecifiedDestination(proxy, method, args);
 		String application = CommonUtils.getApplication(String.valueOf(result));
 		this.invocationContext.setServiceKey(application);
 
-		String serverHost = this.invocationContext.getServerHost();
-		int serverPort = this.invocationContext.getServerPort();
-
 		String instanceId = String.format("%s:%s:%s", serverHost, application, serverPort);
-
-		RemoteAddr remoteAddr = CommonUtils.getRemoteAddr(instanceId);
-		RemoteNode remoteNode = CommonUtils.getRemoteNode(instanceId);
+		remoteNode = CommonUtils.getRemoteNode(instanceId);
 
 		if (StringUtils.isNotBlank(instanceId) && remoteAddr != null && remoteNode != null
 				&& participantRegistry.containsRemoteNode(remoteAddr) == false) {
@@ -143,13 +150,42 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 		return application;
 	}
 
-	public Object invokeCoordinator(Object proxy, Method method, Object[] args) throws Throwable {
+	public Object invokeForGeneric(Object proxy, Method method, Object[] args) throws Throwable {
 		try {
 			return method.invoke(this.remoteCoordinator, args);
-		} catch (InvocationTargetException ex) {
-			throw ex.getTargetException();
-		} catch (IllegalAccessException ex) {
-			throw new RuntimeException(ex);
+		} catch (IllegalArgumentException error) {
+			logger.warn("Error occurred!", error);
+			throw new XAException(XAException.XAER_RMERR);
+		} catch (InvocationTargetException error) {
+			throw error.getTargetException();
+		} catch (IllegalAccessException error) {
+			logger.warn("Error occurred!", error);
+			throw new XAException(XAException.XAER_RMERR);
+		}
+	}
+
+	public Object invokeForSpecifiedDestination(Object proxy, Method method, Object[] args) throws Throwable {
+		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
+		String serverHost = this.invocationContext.getServerHost();
+		int serverPort = this.invocationContext.getServerPort();
+		String address = String.format("%s:%s:%s", serverHost, null, serverPort);
+		RemoteAddr remoteAddr = CommonUtils.getRemoteAddr(address);
+
+		RemoteCoordinator participant = participantRegistry.getInstance(remoteAddr);
+		if (participant == null) {
+			throw new XAException(XAException.XAER_RMERR);
+		}
+
+		try {
+			return method.invoke(participant, args);
+		} catch (IllegalArgumentException error) {
+			logger.warn("Error occurred!", error);
+			throw new XAException(XAException.XAER_RMERR);
+		} catch (InvocationTargetException error) {
+			throw error.getTargetException();
+		} catch (IllegalAccessException error) {
+			logger.warn("Error occurred!", error);
+			throw new XAException(XAException.XAER_RMERR);
 		}
 	}
 

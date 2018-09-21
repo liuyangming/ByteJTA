@@ -40,7 +40,7 @@ import com.alibaba.dubbo.config.ServiceConfig;
 
 public class DubboEndpointPostProcessor
 		implements BeanPostProcessor, SmartInitializingSingleton, TransactionEndpointInitializer, ApplicationContextAware {
-	static final String KEY_REMOTE_COORDINATOR = "skeleton@org.bytesoft.bytejta.supports.wire.RemoteCoordinator";
+	static final String KEY_REMOTE_COORDINATOR = "skeleton@org.bytesoft.transaction.remote.RemoteCoordinator";
 	static final Logger logger = LoggerFactory.getLogger(DubboSupportConfiguration.class);
 	private final List<TransactionEndpointAware> beanList = new ArrayList<TransactionEndpointAware>();
 	private ApplicationContext applicationContext;
