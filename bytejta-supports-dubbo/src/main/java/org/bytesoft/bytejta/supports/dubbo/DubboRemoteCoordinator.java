@@ -171,7 +171,7 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 		String address = String.format("%s:%s:%s", serverHost, null, serverPort);
 		RemoteAddr remoteAddr = CommonUtils.getRemoteAddr(address);
 
-		RemoteCoordinator participant = participantRegistry.getInstance(remoteAddr);
+		RemoteCoordinator participant = participantRegistry.getPhysicalInstance(remoteAddr);
 		if (participant == null) {
 			throw new XAException(XAException.XAER_RMERR);
 		}

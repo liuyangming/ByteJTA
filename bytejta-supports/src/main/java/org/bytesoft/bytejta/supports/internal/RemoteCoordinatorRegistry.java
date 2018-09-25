@@ -28,46 +28,46 @@ import org.bytesoft.transaction.remote.RemoteNode;
 public class RemoteCoordinatorRegistry {
 	static final RemoteCoordinatorRegistry instance = new RemoteCoordinatorRegistry();
 
-	/* host:port -> participant */
-	private final Map<RemoteAddr, RemoteCoordinator> instances = new ConcurrentHashMap<RemoteAddr, RemoteCoordinator>();
+	/* host:port -> participant(url= host: port) */
+	private final Map<RemoteAddr, RemoteCoordinator> physicalMap = new ConcurrentHashMap<RemoteAddr, RemoteCoordinator>();
 	/* host:port -> host:application:port */
 	private final Map<RemoteAddr, RemoteNode> mappings = new ConcurrentHashMap<RemoteAddr, RemoteNode>();
 	/* application -> participant */
-	private final Map<String, RemoteCoordinator> participants = new ConcurrentHashMap<String, RemoteCoordinator>();
+	private final Map<String, RemoteCoordinator> clusterMap = new ConcurrentHashMap<String, RemoteCoordinator>();
 
-	/* invocation -> application */
-	private final Map<InvocationDefinition, String> applications = new ConcurrentHashMap<InvocationDefinition, String>();
+	/* invocation -> host:application:port */
+	private final Map<InvocationDef, RemoteNode> invocationMap = new ConcurrentHashMap<InvocationDef, RemoteNode>();
 
-	public void putInvocationDef(InvocationDefinition invocationDef, String application) {
-		this.applications.put(invocationDef, application);
+	public void putInvocationDef(InvocationDef invocationDef, RemoteNode remoteNode) {
+		this.invocationMap.put(invocationDef, remoteNode);
 	}
 
-	public String getInvocationDef(InvocationDefinition invocationDef) {
-		return this.applications.get(invocationDef);
+	public RemoteNode getRemoteNodeByInvocationDef(InvocationDef invocationDef) {
+		return this.invocationMap.get(invocationDef);
 	}
 
-	public boolean containsInvocationDef(InvocationDefinition invocationDef) {
-		return this.applications.containsKey(invocationDef);
+	public boolean containsInvocationDef(InvocationDef invocationDef) {
+		return this.invocationMap.containsKey(invocationDef);
 	}
 
-	public void removetInvocationDef(InvocationDefinition invocationDef) {
-		this.applications.remove(invocationDef);
+	public void removetInvocationDef(InvocationDef invocationDef) {
+		this.invocationMap.remove(invocationDef);
 	}
 
-	public void putInstance(RemoteAddr remoteAddr, RemoteCoordinator participant) {
-		this.instances.put(remoteAddr, participant);
+	public void putPhysicalInstance(RemoteAddr remoteAddr, RemoteCoordinator participant) {
+		this.physicalMap.put(remoteAddr, participant);
 	}
 
-	public RemoteCoordinator getInstance(RemoteAddr remoteAddr) {
-		return this.instances.get(remoteAddr);
+	public RemoteCoordinator getPhysicalInstance(RemoteAddr remoteAddr) {
+		return this.physicalMap.get(remoteAddr);
 	}
 
-	public boolean containsInstance(RemoteAddr remoteAddr) {
-		return this.instances.containsKey(remoteAddr);
+	public boolean containsPhysicalInstance(RemoteAddr remoteAddr) {
+		return this.physicalMap.containsKey(remoteAddr);
 	}
 
-	public void removetInstance(RemoteAddr remoteAddr) {
-		this.instances.remove(remoteAddr);
+	public void removePhysicalInstance(RemoteAddr remoteAddr) {
+		this.physicalMap.remove(remoteAddr);
 	}
 
 	public void putRemoteNode(RemoteAddr remoteAddr, RemoteNode remoteNode) {
@@ -87,19 +87,19 @@ public class RemoteCoordinatorRegistry {
 	}
 
 	public void putParticipant(String application, RemoteCoordinator participant) {
-		this.participants.put(application, participant);
+		this.clusterMap.put(application, participant);
 	}
 
 	public boolean containsParticipant(String application) {
-		return this.participants.containsKey(application);
+		return this.clusterMap.containsKey(application);
 	}
 
 	public RemoteCoordinator getParticipant(String application) {
-		return this.participants.get(application);
+		return this.clusterMap.get(application);
 	}
 
 	public void removeParticipant(String application) {
-		this.participants.remove(application);
+		this.clusterMap.remove(application);
 	}
 
 	private RemoteCoordinatorRegistry() {
@@ -112,7 +112,7 @@ public class RemoteCoordinatorRegistry {
 		return instance;
 	}
 
-	public static class InvocationDefinition {
+	public static class InvocationDef {
 		private Class<?> interfaceClass;
 		private String methodName;
 		private Class<?>[] parameterTypes;
@@ -128,10 +128,10 @@ public class RemoteCoordinatorRegistry {
 		public boolean equals(Object obj) {
 			if (obj == null) {
 				return false;
-			} else if (InvocationDefinition.class.isInstance(obj) == false) {
+			} else if (InvocationDef.class.isInstance(obj) == false) {
 				return false;
 			}
-			InvocationDefinition that = (InvocationDefinition) obj;
+			InvocationDef that = (InvocationDef) obj;
 			boolean clazzEquals = CommonUtils.equals(this.interfaceClass, that.interfaceClass);
 			boolean methodEquals = StringUtils.equals(this.methodName, that.methodName);
 			boolean typesEquals = Arrays.equals(this.parameterTypes, that.parameterTypes);

@@ -33,7 +33,7 @@ import org.bytesoft.bytejta.supports.dubbo.DubboRemoteCoordinator;
 import org.bytesoft.bytejta.supports.dubbo.InvocationContext;
 import org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry;
 import org.bytesoft.bytejta.supports.internal.RemoteCoordinatorRegistry;
-import org.bytesoft.bytejta.supports.internal.RemoteCoordinatorRegistry.InvocationDefinition;
+import org.bytesoft.bytejta.supports.internal.RemoteCoordinatorRegistry.InvocationDef;
 import org.bytesoft.bytejta.supports.rpc.TransactionRequestImpl;
 import org.bytesoft.bytejta.supports.rpc.TransactionResponseImpl;
 import org.bytesoft.common.utils.ByteUtils;
@@ -432,12 +432,12 @@ public class TransactionServiceFilter implements Filter {
 		Transaction transaction = transactionManager.getTransactionQuietly();
 		TransactionContext nativeTransactionContext = transaction == null ? null : transaction.getTransactionContext();
 
-		InvocationDefinition invocationDef = new InvocationDefinition();
+		InvocationDef invocationDef = new InvocationDef();
 		invocationDef.setInterfaceClass(invoker.getInterface());
 		invocationDef.setMethodName(invocation.getMethodName());
 		invocationDef.setParameterTypes(invocation.getParameterTypes());
 
-		RemoteCoordinator participant = this.getParticipantByRemoteAddr(invoker, invocation, invocationDef);
+		RemoteCoordinator participant = this.getParticipantByRemoteAddr(invoker, invocationDef);
 
 		TransactionRequestImpl request = new TransactionRequestImpl();
 		request.setTransactionContext(nativeTransactionContext);
@@ -468,7 +468,7 @@ public class TransactionServiceFilter implements Filter {
 				String propagatedBy = (String) wrapped.getVariable(Propagation.class.getName());
 				String instanceId = (String) wrapped.getVariable(RemoteCoordinator.class.getName());
 
-				participantRegistry.putInvocationDef(invocationDef, CommonUtils.getApplication(instanceId));
+				participantRegistry.putInvocationDef(invocationDef, CommonUtils.getRemoteNode(instanceId));
 
 				String identifier = transactionCoordinator.getIdentifier();
 				boolean participantDelistRequired = StringUtils.equals(propagatedBy, identifier) == false;
@@ -512,8 +512,7 @@ public class TransactionServiceFilter implements Filter {
 
 	}
 
-	private RemoteCoordinator getParticipantByRemoteAddr(Invoker<?> invoker, Invocation invocation,
-			InvocationDefinition invocationDef) {
+	private RemoteCoordinator getParticipantByRemoteAddr(Invoker<?> invoker, InvocationDef invocationDef) {
 		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 		RemoteCoordinator consumeCoordinator = beanRegistry.getConsumeCoordinator();
@@ -522,59 +521,94 @@ public class TransactionServiceFilter implements Filter {
 		String targetAddr = targetUrl.getIp();
 		int targetPort = targetUrl.getPort();
 
-		String serviceKey = participantRegistry.getInvocationDef(invocationDef);
-		if (serviceKey != null) {
-			RemoteCoordinator participant = participantRegistry.getParticipant(serviceKey);
-			if (participant == null) {
-				String instanceId = String.format("%s:%s:%s", targetAddr, serviceKey, targetPort);
-				RemoteAddr remoteAddr = CommonUtils.getRemoteAddr(instanceId);
-				RemoteNode remoteNode = CommonUtils.getRemoteNode(instanceId);
+		RemoteAddr remoteAddr = new RemoteAddr();
+		remoteAddr.setServerHost(targetAddr);
+		remoteAddr.setServerPort(targetPort);
 
-				InvocationContext invocationContext = new InvocationContext();
-				invocationContext.setServerHost(targetAddr);
-				invocationContext.setServiceKey(serviceKey);
-				invocationContext.setServerPort(targetPort);
-
-				DubboRemoteCoordinator dubboCoordinator = new DubboRemoteCoordinator();
-				dubboCoordinator.setInvocationContext(invocationContext);
-				dubboCoordinator.setRemoteCoordinator(consumeCoordinator);
-
-				participant = (RemoteCoordinator) Proxy.newProxyInstance(DubboRemoteCoordinator.class.getClassLoader(),
-						new Class[] { RemoteCoordinator.class }, dubboCoordinator);
-				dubboCoordinator.setProxyCoordinator(participant);
-
-				participantRegistry.putParticipant(serviceKey, participant);
-				participantRegistry.putRemoteNode(remoteAddr, remoteNode);
+		RemoteNode remoteNode = participantRegistry.getRemoteNode(remoteAddr);
+		if (remoteNode != null) {
+			String application = remoteNode.getServiceKey();
+			RemoteCoordinator target = participantRegistry.getParticipant(application);
+			if (target != null) {
+				return target;
 			}
 
-			return participant;
-		} else {
-			String targetText = String.format("%s:%s:%s", targetAddr, null, targetPort);
-			RemoteAddr remoteAddr = CommonUtils.getRemoteAddr(targetText);
+			InvocationContext invocationContext = new InvocationContext();
+			invocationContext.setServerHost(targetAddr);
+			invocationContext.setServiceKey(remoteNode.getServiceKey());
+			invocationContext.setServerPort(targetPort);
 
-			RemoteNode remoteNode = participantRegistry.getRemoteNode(remoteAddr);
-			String application = remoteNode == null ? null : remoteNode.getServiceKey();
+			DubboRemoteCoordinator dubboCoordinator = new DubboRemoteCoordinator();
+			dubboCoordinator.setInvocationContext(invocationContext);
+			dubboCoordinator.setRemoteCoordinator(consumeCoordinator);
 
-			RemoteCoordinator participant = //
-					StringUtils.isBlank(application) ? null : participantRegistry.getParticipant(application);
-			if (participant == null) {
-				InvocationContext invocationContext = new InvocationContext();
-				invocationContext.setServerHost(targetAddr);
-				invocationContext.setServerPort(targetPort);
+			RemoteCoordinator participant = (RemoteCoordinator) Proxy.newProxyInstance(
+					DubboRemoteCoordinator.class.getClassLoader(), new Class[] { RemoteCoordinator.class }, dubboCoordinator);
+			dubboCoordinator.setProxyCoordinator(participant);
 
-				DubboRemoteCoordinator dubboCoordinator = new DubboRemoteCoordinator();
-				dubboCoordinator.setInvocationContext(invocationContext);
-				dubboCoordinator.setRemoteCoordinator(consumeCoordinator);
-
-				participant = (RemoteCoordinator) Proxy.newProxyInstance(DubboRemoteCoordinator.class.getClassLoader(),
-						new Class[] { RemoteCoordinator.class }, dubboCoordinator);
-				dubboCoordinator.setProxyCoordinator(participant);
-
-				this.initializeRemoteParticipantIfNecessary(remoteAddr);
-			}
+			participantRegistry.putParticipant(application, participant);
 
 			return participant;
 		}
+
+		if (participantRegistry.getRemoteNodeByInvocationDef(invocationDef) != null) {
+			return this.getParticipantByInvocationDef(invoker, invocationDef);
+		}
+
+		InvocationContext invocationContext = new InvocationContext();
+		invocationContext.setServerHost(targetAddr);
+		invocationContext.setServerPort(targetPort);
+
+		DubboRemoteCoordinator dubboCoordinator = new DubboRemoteCoordinator();
+		dubboCoordinator.setInvocationContext(invocationContext);
+		dubboCoordinator.setRemoteCoordinator(consumeCoordinator);
+
+		RemoteCoordinator participant = (RemoteCoordinator) Proxy.newProxyInstance(
+				DubboRemoteCoordinator.class.getClassLoader(), new Class[] { RemoteCoordinator.class }, dubboCoordinator);
+		dubboCoordinator.setProxyCoordinator(participant);
+
+		this.initializeRemoteParticipantIfNecessary(remoteAddr);
+
+		return participant;
+	}
+
+	private RemoteCoordinator getParticipantByInvocationDef(Invoker<?> invoker, InvocationDef invocationDef) {
+		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
+		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
+		RemoteCoordinator consumeCoordinator = beanRegistry.getConsumeCoordinator();
+
+		URL targetUrl = invoker.getUrl();
+		String targetAddr = targetUrl.getIp();
+		int targetPort = targetUrl.getPort();
+
+		RemoteNode rnode = participantRegistry.getRemoteNodeByInvocationDef(invocationDef);
+		String application = rnode.getServiceKey();
+		RemoteCoordinator participant = participantRegistry.getParticipant(application);
+		if (participant != null) {
+			return participant;
+		}
+
+		String instanceId = String.format("%s:%s:%s", targetAddr, application, targetPort);
+		RemoteAddr remoteAddr = CommonUtils.getRemoteAddr(instanceId);
+		RemoteNode remoteNode = CommonUtils.getRemoteNode(instanceId);
+
+		InvocationContext invocationContext = new InvocationContext();
+		invocationContext.setServerHost(targetAddr);
+		invocationContext.setServiceKey(application);
+		invocationContext.setServerPort(targetPort);
+
+		DubboRemoteCoordinator dubboCoordinator = new DubboRemoteCoordinator();
+		dubboCoordinator.setInvocationContext(invocationContext);
+		dubboCoordinator.setRemoteCoordinator(consumeCoordinator);
+
+		participant = (RemoteCoordinator) Proxy.newProxyInstance(DubboRemoteCoordinator.class.getClassLoader(),
+				new Class[] { RemoteCoordinator.class }, dubboCoordinator);
+		dubboCoordinator.setProxyCoordinator(participant);
+
+		participantRegistry.putParticipant(application, participant);
+		participantRegistry.putRemoteNode(remoteAddr, remoteNode);
+
+		return participant;
 	}
 
 	private void beforeConsumerInvokeForSVC(Invocation invocation, TransactionRequestImpl request,
@@ -667,7 +701,7 @@ public class TransactionServiceFilter implements Filter {
 
 	private void initializeRemoteParticipantIfNecessary(RemoteAddr remoteAddr) throws RpcException {
 		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
-		RemoteCoordinator participant = participantRegistry.getInstance(remoteAddr);
+		RemoteCoordinator participant = participantRegistry.getPhysicalInstance(remoteAddr);
 		if (participant == null) {
 			final String target = String.format("%s:%s", remoteAddr.getServerHost(), remoteAddr.getServerPort());
 			synchronized (target) {
@@ -680,7 +714,7 @@ public class TransactionServiceFilter implements Filter {
 		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 
-		RemoteCoordinator participant = participantRegistry.getInstance(remoteAddr);
+		RemoteCoordinator participant = participantRegistry.getPhysicalInstance(remoteAddr);
 		if (participant == null) {
 			ApplicationConfig applicationConfig = beanRegistry.getBean(ApplicationConfig.class);
 
@@ -701,7 +735,7 @@ public class TransactionServiceFilter implements Filter {
 				throw new RpcException("Cannot get the application name of the remote application.");
 			}
 
-			participantRegistry.putInstance(remoteAddr, reference);
+			participantRegistry.putPhysicalInstance(remoteAddr, reference);
 		}
 	}
 
