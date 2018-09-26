@@ -89,6 +89,8 @@ public class TransactionServiceFilter implements Filter {
 			return this.providerInvokeForKey(invoker, invocation);
 		} else if (XAResource.class.getName().equals(interfaceClazz)) {
 			return this.providerInvokeForJTA(invoker, invocation);
+		} else if (TransactionParticipant.class.getName().equals(interfaceClazz)) {
+			return this.providerInvokeForJTA(invoker, invocation);
 		} else if (RemoteCoordinator.class.getName().equals(interfaceClazz)) {
 			return this.providerInvokeForJTA(invoker, invocation);
 		} else {
@@ -360,6 +362,8 @@ public class TransactionServiceFilter implements Filter {
 				&& Arrays.equals(invocation.getParameterTypes(), new Class<?>[] { Xid.class, Integer.TYPE })) {
 			return this.consumerInvokeForKey(invoker, invocation);
 		} else if (XAResource.class.getName().equals(interfaceClazz)) {
+			return this.consumerInvokeForJTA(invoker, invocation);
+		} else if (TransactionParticipant.class.getName().equals(interfaceClazz)) {
 			return this.consumerInvokeForJTA(invoker, invocation);
 		} else if (RemoteCoordinator.class.getName().equals(interfaceClazz)) {
 			return this.consumerInvokeForJTA(invoker, invocation);

@@ -19,7 +19,6 @@
 	<bean class="org.bytesoft.bytejta.supports.dubbo.internal.DubboEndpointPostProcessor" />
 	<bean class="org.bytesoft.bytejta.supports.dubbo.config.DubboSupportConfiguration" />
 
-	<!-- <bean class="org.bytesoft.bytejta.supports.dubbo.TransactionConfigPostProcessor" /> -->
 	<!-- <bean class="org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry" factory-method="getInstance" /> -->
 
 	<bean id="bytejtaXAResourceDeserializer" class="org.bytesoft.bytejta.logging.deserializer.XAResourceArchiveDeserializer" />

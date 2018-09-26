@@ -176,7 +176,12 @@ public class LocalXADataSource /* extends TransactionListenerAdapter */
 	}
 
 	public void setDataSource(DataSource dataSource) {
-		this.dataSource = dataSource;
+		if (LocalXADataSource.class.isInstance(dataSource)) {
+			LocalXADataSource that = (LocalXADataSource) dataSource;
+			this.dataSource = that.dataSource;
+		} else {
+			this.dataSource = dataSource;
+		}
 	}
 
 	public TransactionManager getTransactionManager() {

@@ -94,7 +94,9 @@ public class LocalXAResourceDescriptor implements XAResourceDescriptor {
 
 		if (LocalXAResourceDescriptor.class.isInstance(xares)) {
 			LocalXAResourceDescriptor that = (LocalXAResourceDescriptor) xares;
-			return StringUtils.equals(this.identifier, that.identifier);
+			boolean identifierEquals = StringUtils.equals(this.identifier, that.identifier);
+			boolean xaResourceEquals = this.delegate.isSameRM(that.delegate); // this.delegate != null
+			return identifierEquals && xaResourceEquals;
 		} else {
 			return delegate.isSameRM(xares);
 		}

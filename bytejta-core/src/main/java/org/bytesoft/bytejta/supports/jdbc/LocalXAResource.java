@@ -271,7 +271,16 @@ public class LocalXAResource implements XAResource {
 	}
 
 	public boolean isSameRM(XAResource xares) {
-		return this == xares;
+		if (this == xares) {
+			return true;
+		} else if (LocalXAResource.class.isInstance(xares) == false) {
+			return false;
+		}
+
+		LocalXAResource that = (LocalXAResource) xares;
+		Connection thisConn = this.managedConnection.getPhysicalConnection();
+		Connection thatConn = that.managedConnection.getPhysicalConnection();
+		return thisConn == thatConn;
 	}
 
 	public void forgetQuietly(Xid xid) {
