@@ -33,6 +33,25 @@ public class TransactionArchive {
 	private int transactionStrategyType;
 	private XAResourceArchive optimizedResource;
 
+	private int recoveredTimes;
+	private long recoveredAt;
+
+	public int getRecoveredTimes() {
+		return recoveredTimes;
+	}
+
+	public void setRecoveredTimes(int recoveredTimes) {
+		this.recoveredTimes = recoveredTimes;
+	}
+
+	public long getRecoveredAt() {
+		return recoveredAt;
+	}
+
+	public void setRecoveredAt(long recoveredAt) {
+		this.recoveredAt = recoveredAt;
+	}
+
 	public String getEndpoint() {
 		return endpoint;
 	}

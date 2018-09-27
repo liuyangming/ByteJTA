@@ -26,6 +26,7 @@ public class TransactionContext implements Serializable, Cloneable {
 	protected transient boolean propagated;
 	protected transient boolean coordinator;
 	protected transient boolean recoveried;
+	protected transient int recoveredTimes;
 
 	protected TransactionXid xid;
 	protected long createdTime;
@@ -39,6 +40,14 @@ public class TransactionContext implements Serializable, Cloneable {
 		that.expiredTime = this.expiredTime;
 		that.rollbackOnly = this.rollbackOnly;
 		return that;
+	}
+
+	public int getRecoveredTimes() {
+		return recoveredTimes;
+	}
+
+	public void setRecoveredTimes(int recoveredTimes) {
+		this.recoveredTimes = recoveredTimes;
 	}
 
 	public boolean isCoordinator() {
