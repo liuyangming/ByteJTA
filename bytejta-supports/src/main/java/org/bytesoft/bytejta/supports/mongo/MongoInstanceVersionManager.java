@@ -1,5 +1,5 @@
 /**
- * Copyright 2014-2016 yangming.liu<bytefox@126.com>.
+ * Copyright 2014-2018 yangming.liu<bytefox@126.com>.
  *
  * This copyrighted material is made available to anyone wishing to use, modify,
  * copy, or redistribute it subject to the terms and conditions of the GNU
@@ -13,12 +13,10 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.transaction.aware;
+package org.bytesoft.bytejta.supports.mongo;
 
-public interface TransactionEndpointAware {
-	public static final String ENDPOINT_FIELD_NAME = "endpoint";
+public interface MongoInstanceVersionManager {
 
-	public String getEndpoint();
+	public long getInstanceVersion(String instanceId);
 
-	public void setEndpoint(String identifier);
 }

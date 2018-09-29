@@ -21,7 +21,6 @@ import org.bytesoft.bytejta.supports.config.TransactionConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
@@ -29,7 +28,6 @@ import org.springframework.transaction.annotation.TransactionManagementConfigure
 
 @EnableTransactionManagement
 @Import({ TransactionConfiguration.class, ScheduleWorkConfiguration.class })
-@Configuration
 public class SpringCloudSupportConfiguration implements TransactionManagementConfigurer, ApplicationContextAware {
 	private ApplicationContext applicationContext;
 

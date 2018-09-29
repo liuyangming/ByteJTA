@@ -19,12 +19,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import javax.transaction.UserTransaction;
+
 import org.bytesoft.bytejta.TransactionBeanFactoryImpl;
 import org.bytesoft.bytejta.TransactionCoordinator;
-import org.bytesoft.bytejta.supports.config.ScheduleWorkConfiguration;
-import org.bytesoft.bytejta.supports.config.TransactionConfiguration;
 import org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry;
-import org.bytesoft.bytejta.supports.internal.TransactionEndpointInitializer;
+import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.remote.RemoteCoordinator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,9 +36,13 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
+import org.springframework.context.annotation.ImportResource;
 import org.springframework.core.env.Environment;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
+import org.springframework.transaction.annotation.TransactionManagementConfigurer;
+import org.springframework.transaction.jta.JtaTransactionManager;
 
 import com.alibaba.dubbo.config.ApplicationConfig;
 import com.alibaba.dubbo.config.ProtocolConfig;
@@ -46,9 +50,10 @@ import com.alibaba.dubbo.config.ReferenceConfig;
 import com.alibaba.dubbo.config.RegistryConfig;
 import com.alibaba.dubbo.config.ServiceConfig;
 
-@Import({ TransactionConfiguration.class, ScheduleWorkConfiguration.class })
-@Configuration
-public class DubboSupportConfiguration implements ApplicationContextAware, EnvironmentAware {
+@ImportResource({ "classpath:bytejta-supports-dubbo.xml" })
+@EnableAspectJAutoProxy(proxyTargetClass = true)
+@EnableTransactionManagement
+public class DubboSupportConfiguration implements TransactionManagementConfigurer, ApplicationContextAware, EnvironmentAware {
 	static final Logger logger = LoggerFactory.getLogger(DubboSupportConfiguration.class);
 
 	static final String CONSTANTS_SKEN_ID = "skeleton@org.bytesoft.transaction.remote.RemoteCoordinator";
@@ -59,6 +64,13 @@ public class DubboSupportConfiguration implements ApplicationContextAware, Envir
 
 	private Environment environment;
 	private ApplicationContext applicationContext;
+
+	public PlatformTransactionManager annotationDrivenTransactionManager() {
+		JtaTransactionManager jtaTransactionManager = new JtaTransactionManager();
+		jtaTransactionManager.setTransactionManager(this.applicationContext.getBean(TransactionManager.class));
+		jtaTransactionManager.setUserTransaction(this.applicationContext.getBean(UserTransaction.class));
+		return jtaTransactionManager;
+	}
 
 	@Bean(CONSTANTS_SKEN_ID)
 	public ServiceConfig<RemoteCoordinator> skeletonRemoteCoordinator(
@@ -206,14 +218,6 @@ public class DubboSupportConfiguration implements ApplicationContextAware, Envir
 	@org.springframework.context.annotation.Bean
 	public org.bytesoft.bytejta.supports.dubbo.internal.DubboEndpointPostProcessor transactionEndpointPostProcessor() {
 		return new org.bytesoft.bytejta.supports.dubbo.internal.DubboEndpointPostProcessor();
-	}
-
-	@org.springframework.context.annotation.Bean
-	public org.bytesoft.bytejta.supports.dubbo.election.DubboElectionManager electionManager(
-			@Autowired TransactionEndpointInitializer configurator) {
-		org.bytesoft.bytejta.supports.dubbo.election.DubboElectionManager electionManager = new org.bytesoft.bytejta.supports.dubbo.election.DubboElectionManager();
-		electionManager.setInitializer(configurator);
-		return electionManager;
 	}
 
 	@org.springframework.context.annotation.Bean

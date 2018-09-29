@@ -23,9 +23,11 @@ import org.bytesoft.bytejta.supports.dubbo.InvocationContext;
 import org.bytesoft.bytejta.supports.dubbo.InvocationContextRegistry;
 import org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry;
 import org.bytesoft.bytejta.supports.dubbo.ext.ILoadBalancer;
+import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.archive.XAResourceArchive;
+import org.bytesoft.transaction.remote.RemoteAddr;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 import org.springframework.core.env.Environment;
 
@@ -81,20 +83,17 @@ public final class TransactionLoadBalance implements LoadBalance {
 				&& i < invokers.size(); i++) {
 			Invoker<T> invoker = invokers.get(i);
 			URL invokerUrl = invoker.getUrl();
-			String invokerHost = invokerUrl.getHost();
-			int invokerPort = invokerUrl.getPort();
-			String invokerAddr = String.format("%s:%s", invokerHost, invokerPort);
+			RemoteAddr invokerAddr = new RemoteAddr();
+			invokerAddr.setServerHost(invokerUrl.getHost());
+			invokerAddr.setServerPort(invokerUrl.getPort());
 			for (int j = 0; participantList != null && j < participantList.size(); j++) {
 				XAResourceArchive archive = participantList.get(j);
 				XAResourceDescriptor descriptor = archive.getDescriptor();
 				String identifier = descriptor.getIdentifier();
-				String[] values = identifier == null ? new String[0] : identifier.split("\\s*:\\s*");
-				String targetAddr = values.length == 3 ? values[0] : null;
-				String targetPort = values.length == 3 ? values[2] : null;
-				String remoteAddr = String.format("%s:%s", targetAddr, targetPort);
-				if (StringUtils.equalsIgnoreCase(invokerAddr, remoteAddr)) {
+				RemoteAddr remoteAddr = CommonUtils.getRemoteAddr(identifier);
+				if (remoteAddr.equals(invokerAddr)) {
 					return invoker;
-				} // end-if (StringUtils.equalsIgnoreCase(invokerAddr, identifier))
+				} // end-if (remoteAddr.equals(invokerAddr))
 			}
 		}
 
@@ -110,18 +109,21 @@ public final class TransactionLoadBalance implements LoadBalance {
 
 	public <T> Invoker<T> selectSpecificInvoker(List<Invoker<T>> invokers, URL url, Invocation invocation,
 			InvocationContext context) throws RpcException {
-		String serverHost = context.getServerHost();
-		int serverPort = context.getServerPort();
+		RemoteAddr remoteAddr = new RemoteAddr();
+		remoteAddr.setServerHost(context.getServerHost());
+		remoteAddr.setServerPort(context.getServerPort());
 		for (int i = 0; invokers != null && i < invokers.size(); i++) {
 			Invoker<T> invoker = invokers.get(i);
 			URL targetUrl = invoker.getUrl();
-			String targetAddr = targetUrl.getIp();
-			int targetPort = targetUrl.getPort();
-			if (StringUtils.equals(targetAddr, serverHost) && targetPort == serverPort) {
+			RemoteAddr targetAddr = new RemoteAddr();
+			targetAddr.setServerHost(targetUrl.getIp());
+			targetAddr.setServerPort(targetUrl.getPort());
+			if (targetAddr.equals(remoteAddr)) {
 				return invoker;
-			}
+			} // end-if (targetAddr.equals(remoteAddr))
 		}
-		throw new RpcException(String.format("Invoker(%s:%s) is not found!", serverHost, serverPort));
+
+		throw new RpcException(String.format("Invoker(%s:%s) is not found!", context.getServerHost(), context.getServerPort()));
 	}
 
 }

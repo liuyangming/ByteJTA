@@ -148,6 +148,10 @@ public class TransactionHandlerInterceptor implements HandlerInterceptor, Transa
 
 	}
 
+	public String getEndpoint() {
+		return this.identifier;
+	}
+
 	public void setEndpoint(String identifier) {
 		this.identifier = identifier;
 	}

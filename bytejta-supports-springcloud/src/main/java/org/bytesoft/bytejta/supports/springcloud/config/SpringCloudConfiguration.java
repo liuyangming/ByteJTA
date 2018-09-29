@@ -51,7 +51,6 @@ import org.springframework.cloud.openfeign.support.SpringMvcContract;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.EnvironmentAware;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.PropertySource;
@@ -65,7 +64,6 @@ import feign.codec.ErrorDecoder;
 
 @Import(SpringCloudSupportConfiguration.class)
 @PropertySource(value = "bytejta:loadbalancer.config", factory = TransactionPropertySourceFactory.class)
-@Configuration
 public class SpringCloudConfiguration extends WebMvcConfigurerAdapter
 		implements BeanFactoryPostProcessor, TransactionEndpointAware, EnvironmentAware, ApplicationContextAware {
 	static final String CONSTANT_INCLUSIONS = "org.bytesoft.bytejta.feign.inclusions";
@@ -256,6 +254,10 @@ public class SpringCloudConfiguration extends WebMvcConfigurerAdapter
 			} // end-while (itr.hasNext())
 		}
 
+	}
+
+	public String getEndpoint() {
+		return this.identifier;
 	}
 
 	public void setEndpoint(String identifier) {

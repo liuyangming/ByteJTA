@@ -13,8 +13,7 @@
 
 	<description>The bytejta transaction manager module</description>
 
-	<!-- <bean class="org.bytesoft.bytejta.supports.spring.TransactionBeanFactoryPostProcessor" /> -->
-	<!-- <bean class="org.bytesoft.bytejta.supports.spring.TransactionManagerPostProcessor" /> -->
+	<bean class="org.bytesoft.bytejta.supports.spring.TransactionBeanFactoryAutoInjector" />
 	<bean class="org.bytesoft.bytejta.supports.spring.ManagedConnectionFactoryPostProcessor" />
 
 	<bean id="bytejtaUserTransaction" class="org.bytesoft.bytejta.UserTransactionImpl" />

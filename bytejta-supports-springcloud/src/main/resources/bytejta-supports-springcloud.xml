@@ -13,10 +13,6 @@
 
 	<import resource="classpath:bytejta-supports-springcloud-core.xml" />
 
-	<bean id="jtaTransactionManager" class="org.springframework.transaction.jta.JtaTransactionManager">
-		<property name="userTransaction" ref="bytejtaUserTransaction" />
-		<property name="transactionManager" ref="transactionManager" />
-	</bean>
-	<tx:annotation-driven transaction-manager="jtaTransactionManager" />
+	<import resource="classpath:bytetcc-disable-tx-advice.xml" />
 
 </beans>

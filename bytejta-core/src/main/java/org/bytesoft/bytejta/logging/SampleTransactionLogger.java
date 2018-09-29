@@ -334,6 +334,10 @@ public class SampleTransactionLogger extends VirtualLoggingSystemImpl
 		return "org.bytesoft.bytejta.logging.sample";
 	}
 
+	public String getEndpoint() {
+		return endpoint;
+	}
+
 	public void setEndpoint(String identifier) {
 		this.endpoint = identifier;
 	}

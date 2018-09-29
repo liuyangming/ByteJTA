@@ -15,24 +15,8 @@
  */
 package org.bytesoft.bytejta.supports.mongo;
 
-import java.util.List;
-
-import javax.transaction.SystemException;
-
-import org.bytesoft.bytejta.TransactionCoordinator;
 import org.bytesoft.bytejta.TransactionRecoveryImpl;
-import org.bytesoft.bytejta.supports.election.AbstractElectionManager;
-import org.bytesoft.common.utils.ByteUtils;
-import org.bytesoft.transaction.CommitRequiredException;
-import org.bytesoft.transaction.RollbackRequiredException;
-import org.bytesoft.transaction.Transaction;
-import org.bytesoft.transaction.TransactionBeanFactory;
-import org.bytesoft.transaction.TransactionContext;
-import org.bytesoft.transaction.TransactionException;
-import org.bytesoft.transaction.TransactionRepository;
-import org.bytesoft.transaction.archive.TransactionArchive;
-import org.bytesoft.transaction.logging.TransactionLogger;
-import org.bytesoft.transaction.xa.TransactionXid;
+import org.bytesoft.bytejta.work.CommandManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,77 +24,34 @@ public class MongoTransactionRecovery extends TransactionRecoveryImpl {
 	static final Logger logger = LoggerFactory.getLogger(MongoTransactionRecovery.class);
 
 	@javax.inject.Inject
-	private AbstractElectionManager electionManager;
+	private CommandManager commandManager;
 
 	public void timingRecover() {
-		TransactionBeanFactory beanFactory = this.getBeanFactory();
-		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
-		List<Transaction> transactions = null;
 		try {
-			transactions = transactionRepository.getErrorTransactionList();
-		} catch (TransactionException tex) {
-			logger.error("Error occurred while recovering transactions!", tex);
-			return;
-		}
-
-		int total = transactions == null ? 0 : transactions.size(), value = 0;
-		for (int i = 0; transactions != null && i < transactions.size(); i++) {
-			Transaction transaction = transactions.get(i);
-			TransactionContext transactionContext = transaction.getTransactionContext();
-			TransactionXid xid = transactionContext.getXid();
-			try {
-				this.recoverTransaction(transaction);
-				value++;
-			} catch (CommitRequiredException ex) {
-				logger.debug("[{}] recover: branch={}, message= commit-required",
-						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-						ByteUtils.byteArrayToString(xid.getBranchQualifier()), ex);
-				continue;
-			} catch (RollbackRequiredException ex) {
-				logger.debug("[{}] recover: branch={}, message= rollback-required",
-						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-						ByteUtils.byteArrayToString(xid.getBranchQualifier()), ex);
-				continue;
-			} catch (SystemException ex) {
-				logger.debug("[{}] recover: branch={}, message= {}", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-						ByteUtils.byteArrayToString(xid.getBranchQualifier()), ex.getMessage(), ex);
-				continue;
-			} catch (RuntimeException ex) {
-				logger.debug("[{}] recover: branch={}, message= {}", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
-						ByteUtils.byteArrayToString(xid.getBranchQualifier()), ex.getMessage(), ex);
-				continue;
-			}
-		}
-		logger.debug("[transaction-recovery] total= {}, success= {}", total, value);
-	}
-
-	public void startRecovery() {
-		TransactionBeanFactory beanFactory = this.getBeanFactory();
-		TransactionCoordinator transactionCoordinator = //
-				(TransactionCoordinator) beanFactory.getNativeParticipant();
-		transactionCoordinator.markParticipantReady();
-	}
-
-	public Transaction reconstruct(TransactionArchive archive) {
-		TransactionBeanFactory beanFactory = this.getBeanFactory();
-		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
-		try {
-			return super.reconstruct(archive);
-		} catch (IllegalStateException ex) {
-			transactionLogger.deleteTransaction(archive);
-			return null;
-		} catch (RuntimeException rex) {
-			logger.error("Error occurred while reconstructing transaction from archive!", rex);
-			return null;
+			this.commandManager.execute(new Runnable() {
+				public void run() {
+					fireSuperTimingRecovery();
+				}
+			});
+		} catch (SecurityException error) {
+			throw error; // Only the master node can perform the recovery operation!
+		} catch (RuntimeException error) {
+			throw error;
+		} catch (Exception error) {
+			throw new RuntimeException(error);
 		}
 	}
 
-	public AbstractElectionManager getElectionManager() {
-		return electionManager;
+	private void fireSuperTimingRecovery() {
+		super.timingRecover();
 	}
 
-	public void setElectionManager(AbstractElectionManager electionManager) {
-		this.electionManager = electionManager;
+	public CommandManager getCommandManager() {
+		return commandManager;
+	}
+
+	public void setCommandManager(CommandManager commandManager) {
+		this.commandManager = commandManager;
 	}
 
 }

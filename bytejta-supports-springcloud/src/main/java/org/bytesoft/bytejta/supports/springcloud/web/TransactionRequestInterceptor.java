@@ -243,6 +243,10 @@ public class TransactionRequestInterceptor
 		this.applicationContext = applicationContext;
 	}
 
+	public String getEndpoint() {
+		return this.identifier;
+	}
+
 	public void setEndpoint(String identifier) {
 		this.identifier = identifier;
 	}

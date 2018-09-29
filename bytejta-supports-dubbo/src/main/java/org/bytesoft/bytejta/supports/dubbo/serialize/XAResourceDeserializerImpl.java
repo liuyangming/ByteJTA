@@ -56,16 +56,12 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 			String application = CommonUtils.getApplication(identifier);
 			RemoteCoordinator participant = StringUtils.isBlank(application) ? null : registry.getParticipant(application);
 			if (participant == null) {
-				String[] array = identifier.split("\\:");
-				String serverHost = StringUtils.trimToNull(array[0]);
-				String serviceKey = StringUtils.isBlank(array[1]) || StringUtils.equalsIgnoreCase(array[1], "null") ? null
-						: StringUtils.trimToNull(array[1]);
-				String serverPort = StringUtils.trimToNull(array[2]);
+				RemoteNode remoteNode = CommonUtils.getRemoteNode(identifier);
 
 				InvocationContext invocationContext = new InvocationContext();
-				invocationContext.setServerHost(serverHost);
-				invocationContext.setServiceKey(serviceKey);
-				invocationContext.setServerPort(Integer.valueOf(serverPort));
+				invocationContext.setServerHost(remoteNode.getServerHost());
+				invocationContext.setServiceKey(remoteNode.getServiceKey());
+				invocationContext.setServerPort(remoteNode.getServerPort());
 
 				TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 				RemoteCoordinator consumeCoordinator = beanRegistry.getConsumeCoordinator();
@@ -80,7 +76,6 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 
 				if (StringUtils.isNotBlank(application)) {
 					RemoteAddr remoteAddr = CommonUtils.getRemoteAddr(identifier);
-					RemoteNode remoteNode = CommonUtils.getRemoteNode(identifier);
 					registry.putParticipant(application, participant);
 					registry.putRemoteNode(remoteAddr, remoteNode);
 				}

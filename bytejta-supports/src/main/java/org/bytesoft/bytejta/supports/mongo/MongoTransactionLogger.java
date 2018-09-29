@@ -15,6 +15,7 @@
  */
 package org.bytesoft.bytejta.supports.mongo;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -29,6 +30,7 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
 import org.bytesoft.common.utils.ByteUtils;
+import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.archive.XAResourceArchive;
@@ -47,15 +49,15 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.core.env.Environment;
 
-import com.mongodb.BasicDBObject;
-import com.mongodb.MongoClient;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.ListIndexesIterable;
+import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.IndexOptions;
+import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.UpdateResult;
 
@@ -71,13 +73,15 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 
 	static final int MONGODB_ERROR_DUPLICATE_KEY = 11000;
 
-	@javax.annotation.Resource(name = "transactionMongoClient")
+	@javax.annotation.Resource
 	private MongoClient mongoClient;
 	private String endpoint;
 	private Environment environment;
 	@javax.inject.Inject
+	private MongoInstanceVersionManager versionManager;
+	@javax.inject.Inject
 	private TransactionBeanFactory beanFactory;
-	private boolean initializeEnabled = true;
+	private volatile boolean initializeEnabled = true;
 
 	public void afterPropertiesSet() throws Exception {
 		if (this.initializeEnabled) {
@@ -189,7 +193,7 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 	}
 
 	public void onDelistResource(Xid xid, XAResource xares) {
-		this.createOrUpdateResource((XAResourceArchive) xares);
+		this.upsertParticipant((TransactionXid) xid, (XAResourceArchive) xares);
 	}
 
 	public void createTransaction(TransactionArchive archive) {
@@ -203,11 +207,15 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 			MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
 			MongoCollection<Document> collection = mdb.getCollection(CONSTANTS_TB_TRANSACTIONS);
 
-			String[] values = this.endpoint.split("\\s*:\\s*");
-			String application = values[1];
+			String application = CommonUtils.getApplication(this.endpoint);
 
 			byte[] global = transactionXid.getGlobalTransactionId();
 			String identifier = ByteUtils.byteArrayToString(global);
+
+			long version = this.versionManager.getInstanceVersion(this.endpoint);
+			if (version <= 0) {
+				throw new IllegalStateException(String.format("Invalid version(%s)!", this.endpoint));
+			}
 
 			Document document = new Document();
 			document.append(CONSTANTS_FD_GLOBAL, identifier);
@@ -220,30 +228,33 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 			document.append("lock", 0);
 			document.append("locked_by", this.endpoint);
 			document.append("error", false);
-			document.append("version", 0L);
+			document.append("version", version);
 
 			collection.insertOne(document);
+
+			List<XAResourceArchive> nativeList = archive.getNativeResources();
+			for (int i = 0; nativeList != null && i < nativeList.size(); i++) {
+				XAResourceArchive participant = nativeList.get(i);
+				this.updateParticipant(participant);
+			}
+
+			List<XAResourceArchive> remoteList = archive.getRemoteResources();
+			for (int i = 0; remoteList != null && i < remoteList.size(); i++) {
+				XAResourceArchive participant = remoteList.get(i);
+				this.updateParticipant(participant);
+			}
 		} catch (RuntimeException error) {
 			logger.error("Error occurred while creating transaction.", error);
 			this.beanFactory.getTransactionManager().setRollbackOnlyQuietly();
-		}
-
-		List<XAResourceArchive> nativeList = archive.getNativeResources();
-		for (int i = 0; nativeList != null && i < nativeList.size(); i++) {
-			XAResourceArchive participant = nativeList.get(i);
-			this.updateParticipant(participant);
-		}
-
-		List<XAResourceArchive> remoteList = archive.getRemoteResources();
-		for (int i = 0; remoteList != null && i < remoteList.size(); i++) {
-			XAResourceArchive participant = remoteList.get(i);
-			this.updateParticipant(participant);
 		}
 	}
 
 	public void updateTransaction(TransactionArchive archive) {
 		try {
 			TransactionXid transactionXid = (TransactionXid) archive.getXid();
+			byte[] global = transactionXid.getGlobalTransactionId();
+			String identifier = ByteUtils.byteArrayToString(global);
+
 			int vote = archive.getVote();
 			int status = archive.getStatus();
 
@@ -254,19 +265,17 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 			variables.append("modified", this.endpoint);
 			variables.append("vote", vote);
 			variables.append("status", status);
+			variables.append("recovered_at", archive.getRecoveredAt() == 0 ? null : new Date(archive.getRecoveredAt()));
+			variables.append("recovered_times", archive.getRecoveredTimes());
 
 			Document document = new Document();
 			document.append("$set", variables);
-			document.append("$inc", new BasicDBObject("version", 1));
 
-			String[] values = this.endpoint.split(":");
-			String application = values[1];
+			String application = CommonUtils.getApplication(this.endpoint);
 
-			byte[] globalTransactionId = transactionXid.getGlobalTransactionId();
-			Bson xidBson = Filters.eq("gxid", ByteUtils.byteArrayToString(globalTransactionId));
-			Bson created = Filters.eq("application", application);
-
-			UpdateResult result = collection.updateOne(Filters.and(xidBson, created), document);
+			Bson globalFilter = Filters.eq(CONSTANTS_FD_GLOBAL, identifier);
+			Bson systemFilter = Filters.eq(CONSTANTS_FD_SYSTEM, application);
+			UpdateResult result = collection.updateOne(Filters.and(globalFilter, systemFilter), document);
 			if (result.getMatchedCount() != 1) {
 				throw new IllegalStateException(
 						String.format("Error occurred while updating transaction(matched= %s, modified= %s).",
@@ -276,25 +285,17 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 			List<XAResourceArchive> nativeResourceList = archive.getNativeResources();
 			for (int i = 0; nativeResourceList != null && i < nativeResourceList.size(); i++) {
 				XAResourceArchive resourceArchive = nativeResourceList.get(i);
-				this.createOrUpdateResource(resourceArchive);
+				this.updateParticipant(resourceArchive);
 			}
 
 			List<XAResourceArchive> remoteResourceList = archive.getRemoteResources();
 			for (int i = 0; remoteResourceList != null && i < remoteResourceList.size(); i++) {
 				XAResourceArchive resourceArchive = remoteResourceList.get(i);
-				this.createOrUpdateResource(resourceArchive);
+				this.updateParticipant(resourceArchive);
 			}
 
 		} catch (RuntimeException rex) {
 			logger.error("Error occurred while updating transaction.", rex);
-		}
-	}
-
-	private void createOrUpdateResource(XAResourceArchive archive) {
-		try {
-			this.updateParticipant(archive);
-		} catch (IllegalStateException ex) {
-			this.createParticipant(archive);
 		}
 	}
 
@@ -306,12 +307,11 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 			MongoCollection<Document> transactions = mdb.getCollection(CONSTANTS_TB_TRANSACTIONS);
 			MongoCollection<Document> participants = mdb.getCollection(CONSTANTS_TB_PARTICIPANTS);
 
-			String[] values = this.endpoint.split(":");
-			String application = values[1];
+			String application = CommonUtils.getApplication(this.endpoint);
 
 			byte[] globalTransactionId = transactionXid.getGlobalTransactionId();
-			Bson xidBson = Filters.eq("gxid", ByteUtils.byteArrayToString(globalTransactionId));
-			Bson created = Filters.eq("application", application);
+			Bson xidBson = Filters.eq(CONSTANTS_FD_GLOBAL, ByteUtils.byteArrayToString(globalTransactionId));
+			Bson created = Filters.eq(CONSTANTS_FD_SYSTEM, application);
 
 			participants.deleteMany(Filters.and(xidBson, created));
 
@@ -335,56 +335,13 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 	}
 
 	public void createParticipant(XAResourceArchive archive) {
-		TransactionXid transactionXid = (TransactionXid) archive.getXid();
-
-		MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
-		MongoCollection<Document> collection = mdb.getCollection(CONSTANTS_TB_PARTICIPANTS);
-
-		Document document = new Document();
-		byte[] globalTransactionId = transactionXid.getGlobalTransactionId();
-		byte[] branchQualifier = transactionXid.getBranchQualifier();
-
-		XAResourceDescriptor descriptor = archive.getDescriptor();
-		String descriptorType = descriptor.getClass().getName();
-		String descriptorName = descriptor.getIdentifier();
-
-		int branchVote = archive.getVote();
-		boolean readonly = archive.isReadonly();
-		boolean committed = archive.isCommitted();
-		boolean rolledback = archive.isRolledback();
-		boolean completed = archive.isCompleted();
-		boolean heuristic = archive.isHeuristic();
-
-		String[] values = this.endpoint.split(":");
-		String application = values[1];
-
-		document.put("gxid", ByteUtils.byteArrayToString(globalTransactionId));
-		document.put("bxid", ByteUtils.byteArrayToString(branchQualifier));
-		document.put("application", application);
-
-		document.put("type", descriptorType);
-		document.put("name", descriptorName);
-
-		document.put("vote", branchVote);
-		document.put("committed", committed);
-		document.put("rolledback", rolledback);
-		document.put("readonly", readonly);
-		document.put("completed", completed);
-		document.put("heuristic", heuristic);
-
-		document.put("created", this.endpoint);
-		document.put("modified", this.endpoint);
-
-		collection.insertOne(document);
-	}
-
-	public void updateParticipant(XAResourceArchive archive) {
 		try {
-			TransactionXid transactionXid = (TransactionXid) archive.getXid();
-
 			MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
 			MongoCollection<Document> collection = mdb.getCollection(CONSTANTS_TB_PARTICIPANTS);
 
+			Document document = new Document();
+
+			TransactionXid transactionXid = (TransactionXid) archive.getXid();
 			byte[] globalTransactionId = transactionXid.getGlobalTransactionId();
 			byte[] branchQualifier = transactionXid.getBranchQualifier();
 
@@ -399,41 +356,115 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 			boolean completed = archive.isCompleted();
 			boolean heuristic = archive.isHeuristic();
 
-			Document variables = new Document();
-			variables.append("type", descriptorType);
-			variables.append("name", descriptorName);
+			String application = CommonUtils.getApplication(this.endpoint);
 
-			variables.append("vote", branchVote);
-			variables.append("committed", committed);
-			variables.append("rolledback", rolledback);
-			variables.append("readonly", readonly);
-			variables.append("completed", completed);
-			variables.append("heuristic", heuristic);
+			document.put(CONSTANTS_FD_GLOBAL, ByteUtils.byteArrayToString(globalTransactionId));
+			document.put(CONSTANTS_FD_BRANCH, ByteUtils.byteArrayToString(branchQualifier));
+			document.put(CONSTANTS_FD_SYSTEM, application);
 
-			variables.append("modified", this.endpoint);
+			document.put("type", descriptorType);
+			document.put("name", descriptorName);
 
-			String[] values = this.endpoint.split(":");
-			String application = values[1];
+			document.put("vote", branchVote);
+			document.put("committed", committed);
+			document.put("rolledback", rolledback);
+			document.put("readonly", readonly);
+			document.put("completed", completed);
+			document.put("heuristic", heuristic);
 
-			Bson gxidBson = Filters.eq("gxid", ByteUtils.byteArrayToString(globalTransactionId));
-			Bson bxidBson = Filters.eq("bxid", ByteUtils.byteArrayToString(branchQualifier));
-			Bson crteBson = Filters.eq("application", application);
+			document.put("created", this.endpoint);
+			document.put("modified", this.endpoint);
 
-			UpdateResult result = collection.updateOne(Filters.and(gxidBson, bxidBson, crteBson),
-					new Document("$set", variables));
-
-			if (result.getMatchedCount() != 1) {
-				throw new IllegalStateException(
-						String.format("Error occurred while updating participant(matched= %s, modified= %s).",
-								result.getMatchedCount(), result.getModifiedCount()));
+			collection.insertOne(document);
+		} catch (com.mongodb.MongoWriteException error) {
+			com.mongodb.WriteError writeError = error.getError();
+			if (MONGODB_ERROR_DUPLICATE_KEY == writeError.getCode()) {
+				// this.upsertParticipant(transactionXid, archive);
+				this.updateParticipant(archive);
+			} else {
+				throw error;
 			}
+		} catch (RuntimeException error) {
+			logger.error("Error occurred while creating participant!", error);
+			this.beanFactory.getTransactionManager().setRollbackOnlyQuietly();
+		}
+	}
 
-		} catch (RuntimeException rex) {
-			logger.error("Error occurred while updating participant.", rex);
+	public void updateParticipant(XAResourceArchive archive) {
+		try {
+			this.upsertParticipant((TransactionXid) archive.getXid(), archive);
+		} catch (RuntimeException error) {
+			logger.error("Error occurred while updating participant.", error);
+			this.beanFactory.getTransactionManager().setRollbackOnlyQuietly();
+		}
+	}
+
+	public void upsertParticipant(TransactionXid transactionXid, XAResourceArchive archive) {
+		MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
+		MongoCollection<Document> collection = mdb.getCollection(CONSTANTS_TB_PARTICIPANTS);
+
+		byte[] globalTransactionId = transactionXid.getGlobalTransactionId();
+		byte[] branchQualifier = transactionXid.getBranchQualifier();
+
+		XAResourceDescriptor descriptor = archive.getDescriptor();
+		String descriptorType = descriptor.getClass().getName();
+		String descriptorName = descriptor.getIdentifier();
+
+		int branchVote = archive.getVote();
+		boolean readonly = archive.isReadonly();
+		boolean committed = archive.isCommitted();
+		boolean rolledback = archive.isRolledback();
+		boolean completed = archive.isCompleted();
+		boolean heuristic = archive.isHeuristic();
+
+		Document variables = new Document();
+		variables.append("type", descriptorType);
+		variables.append("name", descriptorName);
+
+		variables.append("vote", branchVote);
+		variables.append("committed", committed);
+		variables.append("rolledback", rolledback);
+		variables.append("readonly", readonly);
+		variables.append("completed", completed);
+		variables.append("heuristic", heuristic);
+
+		variables.append("modified", this.endpoint);
+
+		Document document = new Document();
+		document.append("$set", variables);
+
+		String application = CommonUtils.getApplication(this.endpoint);
+
+		Bson gxidBson = Filters.eq(CONSTANTS_FD_GLOBAL, ByteUtils.byteArrayToString(globalTransactionId));
+		Bson bxidBson = Filters.eq(CONSTANTS_FD_BRANCH, ByteUtils.byteArrayToString(branchQualifier));
+		Bson crteBson = Filters.eq(CONSTANTS_FD_SYSTEM, application);
+
+		Bson condition = Filters.and(gxidBson, bxidBson, crteBson);
+		UpdateResult result = collection.updateOne(condition, document, new UpdateOptions().upsert(true));
+		if (result.getUpsertedId() == null && result.getMatchedCount() != 1) {
+			throw new IllegalStateException(
+					String.format("Error occurred while upserting participant(matched= %s, modified= %s).",
+							result.getMatchedCount(), result.getModifiedCount()));
 		}
 	}
 
 	public void deleteParticipant(XAResourceArchive archive) {
+		TransactionXid transactionXid = (TransactionXid) archive.getXid();
+		byte[] global = transactionXid.getGlobalTransactionId();
+		byte[] branch = transactionXid.getBranchQualifier();
+		String globalKey = ByteUtils.byteArrayToString(global);
+		String branchKey = ByteUtils.byteArrayToString(branch);
+
+		MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
+		MongoCollection<Document> collection = mdb.getCollection(CONSTANTS_TB_PARTICIPANTS);
+
+		Bson globalFilter = Filters.eq(CONSTANTS_FD_GLOBAL, globalKey);
+		Bson branchFilter = Filters.eq(CONSTANTS_FD_BRANCH, branchKey);
+
+		DeleteResult result = collection.deleteOne(Filters.and(globalFilter, branchFilter));
+		if (result.getDeletedCount() != 1) {
+			logger.error("Error occurred while deleting participant(deleted= {}).", result.getDeletedCount());
+		}
 	}
 
 	public void recover(TransactionRecoveryCallback callback) {
@@ -445,9 +476,8 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 			MongoCollection<Document> transactions = mdb.getCollection(CONSTANTS_TB_TRANSACTIONS);
 			MongoCollection<Document> participants = mdb.getCollection(CONSTANTS_TB_PARTICIPANTS);
 
-			String[] values = this.endpoint.split(":");
-			String application = values[1];
-			Bson filter = Filters.eq("application", application);
+			String application = CommonUtils.getApplication(this.endpoint);
+			Bson filter = Filters.eq(CONSTANTS_FD_SYSTEM, application);
 
 			FindIterable<Document> transactionItr = transactions.find(filter);
 			MongoCursor<Document> transactionCursor = transactionItr.iterator();
@@ -455,7 +485,7 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 				Document document = transactionCursor.next();
 				TransactionArchive archive = new TransactionArchive();
 
-				String gxid = document.getString("gxid");
+				String gxid = document.getString(CONSTANTS_FD_GLOBAL);
 				byte[] globalTransactionId = ByteUtils.stringToByteArray(gxid);
 				TransactionXid globalXid = xidFactory.createGlobalXid(globalTransactionId);
 				archive.setXid(globalXid);
@@ -477,8 +507,8 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 				Document document = participantCursor.next();
 				XAResourceArchive participant = new XAResourceArchive();
 
-				String gxid = document.getString("gxid");
-				String bxid = document.getString("bxid");
+				String gxid = document.getString(CONSTANTS_FD_GLOBAL);
+				String bxid = document.getString(CONSTANTS_FD_BRANCH);
 
 				String descriptorType = document.getString("type");
 				String descriptorName = document.getString("name");
@@ -548,6 +578,18 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 
 	public void setEnvironment(Environment environment) {
 		this.environment = environment;
+	}
+
+	public MongoInstanceVersionManager getVersionManager() {
+		return versionManager;
+	}
+
+	public void setVersionManager(MongoInstanceVersionManager versionManager) {
+		this.versionManager = versionManager;
+	}
+
+	public String getEndpoint() {
+		return endpoint;
 	}
 
 	public void setEndpoint(String identifier) {

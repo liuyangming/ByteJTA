@@ -17,7 +17,10 @@ package org.bytesoft.bytejta.supports.springcloud;
 
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
+
+import javax.transaction.UserTransaction;
 
 import org.apache.commons.lang3.StringUtils;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionClientRegistry;
@@ -31,7 +34,7 @@ import org.bytesoft.bytejta.supports.springcloud.property.TransactionPropertySou
 import org.bytesoft.bytejta.supports.springcloud.web.TransactionHandlerInterceptor;
 import org.bytesoft.bytejta.supports.springcloud.web.TransactionRequestInterceptor;
 import org.bytesoft.common.utils.CommonUtils;
-import org.bytesoft.transaction.aware.TransactionEndpointAware;
+import org.bytesoft.transaction.TransactionManager;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.PropertyValue;
@@ -43,6 +46,7 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.http.HttpMessageConverters;
 import org.springframework.cloud.openfeign.support.ResponseEntityDecoder;
@@ -51,24 +55,36 @@ import org.springframework.cloud.openfeign.support.SpringMvcContract;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.EnvironmentAware;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
+import org.springframework.context.annotation.ImportResource;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.env.Environment;
 import org.springframework.http.client.ClientHttpRequestFactory;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
+import org.springframework.transaction.annotation.TransactionManagementConfigurer;
+import org.springframework.transaction.jta.JtaTransactionManager;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import com.mongodb.ServerAddress;
+import com.mongodb.client.MongoClients;
 
 import feign.codec.ErrorDecoder;
 
 @PropertySource(value = "bytejta:loadbalancer.config", factory = TransactionPropertySourceFactory.class)
-@Configuration
-public class SpringCloudConfiguration extends WebMvcConfigurerAdapter implements BeanFactoryPostProcessor, InitializingBean,
-		TransactionEndpointAware, EnvironmentAware, ApplicationContextAware {
+@ImportResource({ "classpath:bytejta-supports-springcloud.xml" })
+@EnableAspectJAutoProxy(proxyTargetClass = true)
+@EnableTransactionManagement
+public class SpringCloudConfiguration implements TransactionManagementConfigurer, WebMvcConfigurer, BeanFactoryPostProcessor,
+		InitializingBean, EnvironmentAware, ApplicationContextAware {
 	static final String CONSTANT_INCLUSIONS = "org.bytesoft.bytejta.feign.inclusions";
 	static final String CONSTANT_EXCLUSIONS = "org.bytesoft.bytejta.feign.exclusions";
 	static final String FEIGN_FACTORY_CLASS = "org.springframework.cloud.netflix.feign.FeignClientFactoryBean";
+
+	static final String CONSTANT_MONGODBURI = "spring.data.mongodb.uri";
 
 	private ApplicationContext applicationContext;
 	private String identifier;
@@ -80,6 +96,36 @@ public class SpringCloudConfiguration extends WebMvcConfigurerAdapter implements
 		String name = this.environment.getProperty("spring.application.name");
 		String port = this.environment.getProperty("server.port");
 		this.identifier = String.format("%s:%s:%s", host, name, port);
+	}
+
+	public PlatformTransactionManager annotationDrivenTransactionManager() {
+		JtaTransactionManager jtaTransactionManager = new JtaTransactionManager();
+		jtaTransactionManager.setTransactionManager(this.applicationContext.getBean(TransactionManager.class));
+		jtaTransactionManager.setUserTransaction(this.applicationContext.getBean(UserTransaction.class));
+		return jtaTransactionManager;
+	}
+
+	@ConditionalOnMissingBean(com.mongodb.client.MongoClient.class)
+	@ConditionalOnProperty(CONSTANT_MONGODBURI)
+	@org.springframework.context.annotation.Bean
+	public com.mongodb.client.MongoClient mongoClient(@Autowired(required = false) com.mongodb.MongoClient mongoClient) {
+		if (mongoClient == null) {
+			return MongoClients.create(this.environment.getProperty(CONSTANT_MONGODBURI));
+		} else {
+			List<ServerAddress> addressList = mongoClient.getAllAddress();
+			StringBuilder ber = new StringBuilder();
+			for (int i = 0; addressList != null && i < addressList.size(); i++) {
+				ServerAddress address = addressList.get(i);
+				String host = address.getHost();
+				int port = address.getPort();
+				if (i == 0) {
+					ber.append(host).append(":").append(port);
+				} else {
+					ber.append(",").append(host).append(":").append(port);
+				}
+			}
+			return MongoClients.create(String.format("mongodb://%s", ber.toString()));
+		}
 	}
 
 	@org.springframework.context.annotation.Bean
@@ -255,6 +301,10 @@ public class SpringCloudConfiguration extends WebMvcConfigurerAdapter implements
 			} // end-while (itr.hasNext())
 		}
 
+	}
+
+	public String getEndpoint() {
+		return this.identifier;
 	}
 
 	public void setEndpoint(String identifier) {

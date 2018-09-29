@@ -15,9 +15,7 @@
  */
 package org.bytesoft.bytejta.supports.spring;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 
 import org.bytesoft.transaction.TransactionBeanFactory;
@@ -25,20 +23,14 @@ import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
-import org.springframework.beans.FatalBeanException;
-import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.factory.SmartInitializingSingleton;
-import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.beans.factory.config.BeanPostProcessor;
-import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
-import org.springframework.beans.factory.config.RuntimeBeanReference;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 
-public class TransactionBeanFactoryPostProcessor
-		implements BeanFactoryPostProcessor, BeanPostProcessor, SmartInitializingSingleton, ApplicationContextAware {
-	static final Logger logger = LoggerFactory.getLogger(TransactionBeanFactoryPostProcessor.class);
+public class TransactionBeanFactoryAutoInjector
+		implements BeanPostProcessor, SmartInitializingSingleton, ApplicationContextAware {
+	static final Logger logger = LoggerFactory.getLogger(TransactionBeanFactoryAutoInjector.class);
 
 	private ApplicationContext applicationContext;
 
@@ -72,47 +64,6 @@ public class TransactionBeanFactoryPostProcessor
 					this.applicationContext.getBean(TransactionBeanFactory.class);
 			aware.setBeanFactory(beanFactory);
 		} // end-if (aware.getBeanFactory() == null)
-	}
-
-	public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
-		ClassLoader cl = Thread.currentThread().getContextClassLoader();
-
-		String beanFactoryBeanId = null;
-		List<BeanDefinition> beanFactoryAwareBeanIdList = new ArrayList<BeanDefinition>();
-		String[] beanNameArray = beanFactory.getBeanDefinitionNames();
-		for (int i = 0; i < beanNameArray.length; i++) {
-			String beanName = beanNameArray[i];
-			BeanDefinition beanDef = beanFactory.getBeanDefinition(beanName);
-			String beanClassName = beanDef.getBeanClassName();
-
-			Class<?> beanClass = null;
-			try {
-				beanClass = cl.loadClass(beanClassName);
-			} catch (Exception ex) {
-				continue;
-			}
-
-			if (TransactionBeanFactoryAware.class.isAssignableFrom(beanClass)) {
-				beanFactoryAwareBeanIdList.add(beanDef);
-			}
-
-			if (TransactionBeanFactory.class.isAssignableFrom(beanClass)) {
-				if (beanFactoryBeanId == null) {
-					beanFactoryBeanId = beanName;
-				} else {
-					throw new FatalBeanException("Duplicated transaction-bean-factory defined.");
-				}
-			}
-
-		}
-
-		for (int i = 0; beanFactoryBeanId != null && i < beanFactoryAwareBeanIdList.size(); i++) {
-			BeanDefinition beanDef = beanFactoryAwareBeanIdList.get(i);
-			MutablePropertyValues mpv = beanDef.getPropertyValues();
-			RuntimeBeanReference beanRef = new RuntimeBeanReference(beanFactoryBeanId);
-			mpv.addPropertyValue(TransactionBeanFactoryAware.BEAN_FACTORY_FIELD_NAME, beanRef);
-		}
-
 	}
 
 	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {

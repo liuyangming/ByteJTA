@@ -435,6 +435,10 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		return false;
 	}
 
+	public String getEndpoint() {
+		return endpoint;
+	}
+
 	public void setEndpoint(String identifier) {
 		this.endpoint = identifier;
 	}
