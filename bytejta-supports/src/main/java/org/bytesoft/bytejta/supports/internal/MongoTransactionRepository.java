@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.bytejta.supports.mongo;
+package org.bytesoft.bytejta.supports.internal;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -26,7 +26,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
-import org.bytesoft.bytejta.work.CommandManager;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.Transaction;
@@ -74,8 +73,6 @@ public class MongoTransactionRepository
 	private MongoInstanceVersionManager versionManager;
 	@javax.inject.Inject
 	private TransactionBeanFactory beanFactory;
-	@javax.inject.Inject
-	private CommandManager commandManager;
 
 	public void putTransaction(TransactionXid transactionXid, Transaction transaction) {
 	}
@@ -395,14 +392,6 @@ public class MongoTransactionRepository
 
 	public void setVersionManager(MongoInstanceVersionManager versionManager) {
 		this.versionManager = versionManager;
-	}
-
-	public CommandManager getCommandManager() {
-		return commandManager;
-	}
-
-	public void setCommandManager(CommandManager commandManager) {
-		this.commandManager = commandManager;
 	}
 
 	public TransactionBeanFactory getBeanFactory() {

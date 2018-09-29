@@ -11,8 +11,41 @@
            http://www.springframework.org/schema/tx 
            http://www.springframework.org/schema/tx/spring-tx-3.0.xsd">
 
-	<import resource="classpath:bytejta-supports-springcloud-core.xml" />
+	<import resource="classpath:bytejta-supports-core.xml" />
+	<import resource="classpath:bytejta-supports-task.xml" />
 
-	<import resource="classpath:bytetcc-disable-tx-advice.xml" />
+	<bean class="org.bytesoft.bytejta.supports.spring.TransactionDebuggablePostProcessor" />
+	<bean class="org.bytesoft.bytejta.supports.springcloud.SpringCloudEndpointPostProcessor" />
+	<bean class="org.bytesoft.bytejta.supports.springcloud.SpringCloudBeanRegistry" factory-method="getInstance" />
+
+	<bean class="org.bytesoft.bytejta.supports.springcloud.controller.TransactionCoordinatorController" />
+
+	<bean id="bytejtaXAResourceDeserializer" class="org.bytesoft.bytejta.logging.deserializer.XAResourceArchiveDeserializer" />
+	<bean id="bytejtaTransactionDeserializer" class="org.bytesoft.bytejta.logging.deserializer.TransactionArchiveDeserializer">
+		<property name="resourceArchiveDeserializer" ref="bytejtaXAResourceDeserializer" />
+	</bean>
+	<bean id="bytejtaArchiveDeserializer" class="org.bytesoft.bytejta.logging.ArchiveDeserializerImpl">
+		<property name="transactionArchiveDeserializer" ref="bytejtaTransactionDeserializer" />
+		<property name="xaResourceArchiveDeserializer" ref="bytejtaXAResourceDeserializer" />
+	</bean>
+
+	<bean id="commonResourceDeserializer" class="org.bytesoft.bytejta.supports.serialize.XAResourceDeserializerImpl" />
+	<bean id="bytejtaResourceDeserializer" class="org.bytesoft.bytejta.supports.springcloud.serialize.XAResourceDeserializerImpl">
+		<property name="resourceDeserializer" ref="commonResourceDeserializer" />
+	</bean>
+
+	<bean id="bytejtaBeanFactory" class="org.bytesoft.bytejta.TransactionBeanFactoryImpl" factory-method="getInstance">
+		<property name="transactionManager" ref="transactionManager" />
+		<property name="xidFactory" ref="bytejtaXidFactory" />
+		<property name="transactionTimer" ref="transactionManager" />
+		<property name="transactionLogger" ref="bytejtaTransactionLogger" />
+		<property name="transactionRepository" ref="bytejtaTransactionRepository" />
+		<property name="transactionInterceptor" ref="bytejtaTransactionInterceptor" />
+		<property name="transactionRecovery" ref="bytejtaTransactionRecovery" />
+		<property name="transactionCoordinator" ref="bytejtaTransactionCoordinator" />
+		<property name="transactionLock" ref="bytejtaTransactionLock" />
+		<property name="archiveDeserializer" ref="bytejtaArchiveDeserializer" />
+		<property name="resourceDeserializer" ref="bytejtaResourceDeserializer" />
+	</bean>
 
 </beans>

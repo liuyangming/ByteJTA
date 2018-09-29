@@ -42,6 +42,8 @@ public class TransactionWork implements Work, TransactionBeanFactoryAware {
 		try {
 			transactionRecovery.startRecovery();
 			transactionRecovery.timingRecover();
+		} catch (SecurityException rex) {
+			logger.debug("Only the master node can perform the recovery operation!");
 		} catch (RuntimeException rex) {
 			logger.error("TransactionRecovery init failed!", rex);
 		}
@@ -64,6 +66,8 @@ public class TransactionWork implements Work, TransactionBeanFactoryAware {
 				nextRecoveryTime = current + this.recoveryInterval;
 				try {
 					transactionRecovery.timingRecover();
+				} catch (SecurityException rex) {
+					logger.debug("Only the master node can perform the recovery operation!");
 				} catch (RuntimeException rex) {
 					logger.error(rex.getMessage(), rex);
 				}

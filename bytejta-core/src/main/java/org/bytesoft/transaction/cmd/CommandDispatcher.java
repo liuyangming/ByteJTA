@@ -13,14 +13,14 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.bytejta.work;
+package org.bytesoft.transaction.cmd;
 
 import java.util.concurrent.Callable;
 
-public interface CommandManager {
+public interface CommandDispatcher {
 
-	public Object execute(Callable<Object> callable) throws Exception;
+	public Object dispatch(Callable<Object> callable) throws Exception;
 
-	public void execute(Runnable runnable) throws Exception;
+	public void dispatch(Runnable runnable) throws Exception;
 
 }

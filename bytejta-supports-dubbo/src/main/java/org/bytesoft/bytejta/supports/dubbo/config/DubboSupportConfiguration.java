@@ -21,9 +21,7 @@ import java.util.Map;
 
 import javax.transaction.UserTransaction;
 
-import org.bytesoft.bytejta.TransactionBeanFactoryImpl;
 import org.bytesoft.bytejta.TransactionCoordinator;
-import org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry;
 import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.remote.RemoteCoordinator;
 import org.slf4j.Logger;
@@ -163,66 +161,6 @@ public class DubboSupportConfiguration implements TransactionManagementConfigure
 		}
 
 		return referenceConfig;
-	}
-
-	@SuppressWarnings("unchecked")
-	@org.springframework.context.annotation.Bean
-	public Object transactionBeanRegistry() {
-		TransactionBeanRegistry transactionBeanRegistry = TransactionBeanRegistry.getInstance();
-		ReferenceConfig<RemoteCoordinator> reference = //
-				(ReferenceConfig<RemoteCoordinator>) this.applicationContext.getBean(CONSTANTS_STUB_ID);
-		RemoteCoordinator stubRemoteCoordinator = reference.get();
-		transactionBeanRegistry.setConsumeCoordinator(stubRemoteCoordinator);
-		return transactionBeanRegistry;
-	}
-
-	@org.springframework.context.annotation.Bean
-	public org.bytesoft.bytejta.supports.dubbo.internal.DubboValidationPostProcessor dubboConfigPostProcessor() {
-		return new org.bytesoft.bytejta.supports.dubbo.internal.DubboValidationPostProcessor();
-	}
-
-	@org.springframework.context.annotation.Bean
-	public org.bytesoft.bytejta.logging.deserializer.XAResourceArchiveDeserializer bytejtaXAResourceDeserializer() {
-		return new org.bytesoft.bytejta.logging.deserializer.XAResourceArchiveDeserializer();
-	}
-
-	@org.springframework.context.annotation.Bean
-	public org.bytesoft.bytejta.logging.deserializer.TransactionArchiveDeserializer bytejtaTransactionDeserializer(
-			@Autowired org.bytesoft.bytejta.logging.deserializer.XAResourceArchiveDeserializer resourceArchiveDeserializer) {
-		org.bytesoft.bytejta.logging.deserializer.TransactionArchiveDeserializer transactionArchiveDeserializer //
-				= new org.bytesoft.bytejta.logging.deserializer.TransactionArchiveDeserializer();
-		transactionArchiveDeserializer.setResourceArchiveDeserializer(resourceArchiveDeserializer);
-		return transactionArchiveDeserializer;
-	}
-
-	@org.springframework.context.annotation.Bean
-	public org.bytesoft.bytejta.logging.ArchiveDeserializerImpl bytejtaArchiveDeserializer(
-			@Autowired org.bytesoft.bytejta.logging.deserializer.TransactionArchiveDeserializer transactionArchiveDeserializer,
-			@Autowired org.bytesoft.bytejta.logging.deserializer.XAResourceArchiveDeserializer xaResourceArchiveDeserializer) {
-		org.bytesoft.bytejta.logging.ArchiveDeserializerImpl archiveDeserializer //
-				= new org.bytesoft.bytejta.logging.ArchiveDeserializerImpl();
-		archiveDeserializer.setTransactionArchiveDeserializer(transactionArchiveDeserializer);
-		archiveDeserializer.setXaResourceArchiveDeserializer(xaResourceArchiveDeserializer);
-		TransactionBeanFactoryImpl.getInstance().setArchiveDeserializer(archiveDeserializer);
-		return archiveDeserializer;
-	}
-
-	@org.springframework.context.annotation.Bean
-	public org.bytesoft.bytejta.supports.dubbo.serialize.XAResourceDeserializerImpl bytejtaResourceDeserializer() {
-		org.bytesoft.bytejta.supports.dubbo.serialize.XAResourceDeserializerImpl resourceDeserializer //
-				= new org.bytesoft.bytejta.supports.dubbo.serialize.XAResourceDeserializerImpl();
-		TransactionBeanFactoryImpl.getInstance().setResourceDeserializer(resourceDeserializer);
-		return resourceDeserializer;
-	}
-
-	@org.springframework.context.annotation.Bean
-	public org.bytesoft.bytejta.supports.dubbo.internal.DubboEndpointPostProcessor transactionEndpointPostProcessor() {
-		return new org.bytesoft.bytejta.supports.dubbo.internal.DubboEndpointPostProcessor();
-	}
-
-	@org.springframework.context.annotation.Bean
-	public org.bytesoft.transaction.TransactionBeanFactory transactionBeanFactory() {
-		return TransactionBeanFactoryImpl.getInstance();
 	}
 
 	public Environment getEnvironment() {

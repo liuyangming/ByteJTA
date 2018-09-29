@@ -11,12 +11,41 @@
            http://www.springframework.org/schema/tx 
            http://www.springframework.org/schema/tx/spring-tx-3.0.xsd">
 
-	<import resource="classpath:bytejta-supports-dubbo-core.xml" />
+	<import resource="classpath:bytejta-supports-core.xml" />
+	<import resource="classpath:bytejta-supports-task.xml" />
 
-	<bean id="jtaTransactionManager" class="org.springframework.transaction.jta.JtaTransactionManager">
-		<property name="userTransaction" ref="bytejtaUserTransaction" />
-		<property name="transactionManager" ref="transactionManager" />
+	<bean class="org.bytesoft.bytejta.supports.spring.TransactionDebuggablePostProcessor" />
+	<bean class="org.bytesoft.bytejta.supports.dubbo.internal.DubboValidationPostProcessor" />
+	<bean class="org.bytesoft.bytejta.supports.dubbo.internal.DubboEndpointPostProcessor" />
+
+	<bean class="org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry" factory-method="getInstance" />
+
+	<bean id="bytejtaXAResourceDeserializer" class="org.bytesoft.bytejta.logging.deserializer.XAResourceArchiveDeserializer" />
+	<bean id="bytejtaTransactionDeserializer" class="org.bytesoft.bytejta.logging.deserializer.TransactionArchiveDeserializer">
+		<property name="resourceArchiveDeserializer" ref="bytejtaXAResourceDeserializer" />
 	</bean>
-	<tx:annotation-driven transaction-manager="jtaTransactionManager" />
+	<bean id="bytejtaArchiveDeserializer" class="org.bytesoft.bytejta.logging.ArchiveDeserializerImpl">
+		<property name="transactionArchiveDeserializer" ref="bytejtaTransactionDeserializer" />
+		<property name="xaResourceArchiveDeserializer" ref="bytejtaXAResourceDeserializer" />
+	</bean>
+
+	<bean id="commonResourceDeserializer" class="org.bytesoft.bytejta.supports.serialize.XAResourceDeserializerImpl" />
+	<bean id="bytejtaResourceDeserializer" class="org.bytesoft.bytejta.supports.dubbo.serialize.XAResourceDeserializerImpl">
+		<property name="resourceDeserializer" ref="commonResourceDeserializer" />
+	</bean>
+
+	<bean id="bytejtaBeanFactory" class="org.bytesoft.bytejta.TransactionBeanFactoryImpl" factory-method="getInstance">
+		<property name="transactionManager" ref="transactionManager" />
+		<property name="xidFactory" ref="bytejtaXidFactory" />
+		<property name="transactionTimer" ref="transactionManager" />
+		<property name="transactionLogger" ref="bytejtaTransactionLogger" />
+		<property name="transactionRepository" ref="bytejtaTransactionRepository" />
+		<property name="transactionInterceptor" ref="bytejtaTransactionInterceptor" />
+		<property name="transactionRecovery" ref="bytejtaTransactionRecovery" />
+		<property name="transactionCoordinator" ref="bytejtaTransactionCoordinator" />
+		<property name="transactionLock" ref="bytejtaTransactionLock" />
+		<property name="archiveDeserializer" ref="bytejtaArchiveDeserializer" />
+		<property name="resourceDeserializer" ref="bytejtaResourceDeserializer" />
+	</bean>
 
 </beans>

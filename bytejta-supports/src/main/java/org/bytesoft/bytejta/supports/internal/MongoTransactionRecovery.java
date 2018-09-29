@@ -13,10 +13,10 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
  */
-package org.bytesoft.bytejta.supports.mongo;
+package org.bytesoft.bytejta.supports.internal;
 
 import org.bytesoft.bytejta.TransactionRecoveryImpl;
-import org.bytesoft.bytejta.work.CommandManager;
+import org.bytesoft.transaction.cmd.CommandDispatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,11 +24,11 @@ public class MongoTransactionRecovery extends TransactionRecoveryImpl {
 	static final Logger logger = LoggerFactory.getLogger(MongoTransactionRecovery.class);
 
 	@javax.inject.Inject
-	private CommandManager commandManager;
+	private CommandDispatcher commandDispatcher;
 
 	public void timingRecover() {
 		try {
-			this.commandManager.execute(new Runnable() {
+			this.commandDispatcher.dispatch(new Runnable() {
 				public void run() {
 					fireSuperTimingRecovery();
 				}
@@ -46,12 +46,12 @@ public class MongoTransactionRecovery extends TransactionRecoveryImpl {
 		super.timingRecover();
 	}
 
-	public CommandManager getCommandManager() {
-		return commandManager;
+	public CommandDispatcher getCommandDispatcher() {
+		return commandDispatcher;
 	}
 
-	public void setCommandManager(CommandManager commandManager) {
-		this.commandManager = commandManager;
+	public void setCommandDispatcher(CommandDispatcher commandDispatcher) {
+		this.commandDispatcher = commandDispatcher;
 	}
 
 }
