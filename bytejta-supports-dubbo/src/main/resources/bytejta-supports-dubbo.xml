@@ -14,9 +14,9 @@
 	<import resource="classpath:bytejta-supports-core.xml" />
 	<import resource="classpath:bytejta-supports-task.xml" />
 
+	<bean class="org.bytesoft.bytejta.supports.dubbo.internal.TransactionBeanConfigValidator" />
+	<bean class="org.bytesoft.bytejta.supports.dubbo.internal.TransactionEndpointAutoInjector" />
 	<bean class="org.bytesoft.bytejta.supports.spring.TransactionDebuggablePostProcessor" />
-	<bean class="org.bytesoft.bytejta.supports.dubbo.internal.DubboValidationPostProcessor" />
-	<bean class="org.bytesoft.bytejta.supports.dubbo.internal.DubboEndpointPostProcessor" />
 
 	<bean class="org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry" factory-method="getInstance" />
 

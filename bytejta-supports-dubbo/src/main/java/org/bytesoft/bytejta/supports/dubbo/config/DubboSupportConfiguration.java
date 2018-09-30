@@ -22,6 +22,7 @@ import java.util.Map;
 import javax.transaction.UserTransaction;
 
 import org.bytesoft.bytejta.TransactionCoordinator;
+import org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry;
 import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.remote.RemoteCoordinator;
 import org.slf4j.Logger;
@@ -42,6 +43,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.transaction.annotation.TransactionManagementConfigurer;
 import org.springframework.transaction.jta.JtaTransactionManager;
 
+import com.alibaba.dubbo.common.Constants;
 import com.alibaba.dubbo.config.ApplicationConfig;
 import com.alibaba.dubbo.config.ProtocolConfig;
 import com.alibaba.dubbo.config.ReferenceConfig;
@@ -81,7 +83,7 @@ public class DubboSupportConfiguration implements TransactionManagementConfigure
 		serviceConfig.setCluster("failfast");
 		serviceConfig.setLoadbalance("bytejta");
 		serviceConfig.setFilter("bytejta");
-		serviceConfig.setGroup("bytejta");
+		serviceConfig.setGroup("org-bytesoft-bytejta");
 		serviceConfig.setRetries(0);
 		serviceConfig.setTimeout(timeout);
 
@@ -132,8 +134,8 @@ public class DubboSupportConfiguration implements TransactionManagementConfigure
 		referenceConfig.setCluster("failfast");
 		referenceConfig.setLoadbalance("bytejta");
 		referenceConfig.setFilter("bytejta");
-		referenceConfig.setGroup("bytejta");
-		referenceConfig.setScope("remote");
+		referenceConfig.setGroup("org-bytesoft-bytejta");
+		referenceConfig.setScope(Constants.SCOPE_REMOTE);
 		referenceConfig.setRetries(0);
 		referenceConfig.setTimeout(timeout);
 		referenceConfig.setCheck(false);
@@ -159,6 +161,17 @@ public class DubboSupportConfiguration implements TransactionManagementConfigure
 		} catch (BeansException ex) {
 			throw new RuntimeException("Error occurred while creating ReferenceConfig!", ex);
 		}
+
+		// try {
+		// com.alibaba.dubbo.config.ProtocolConfig protocolConfig = //
+		// this.applicationContext.getBean(com.alibaba.dubbo.config.ProtocolConfig.class);
+		// referenceConfig.setProtocol(protocolConfig.getName());
+		// } catch (NoSuchBeanDefinitionException error) {
+		// logger.warn("No configuration of class com.alibaba.dubbo.config.ProtocolConfig was found.");
+		// }
+
+		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
+		beanRegistry.setConsumeCoordinator(referenceConfig.get());
 
 		return referenceConfig;
 	}

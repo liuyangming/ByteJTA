@@ -726,8 +726,8 @@ public class TransactionServiceFilter implements Filter {
 			referenceConfig.setInterface(RemoteCoordinator.class);
 			referenceConfig.setTimeout(30 * 1000);
 			referenceConfig.setCluster("failfast");
-			referenceConfig.setFilter("compensable");
-			referenceConfig.setGroup("org-bytesoft-bytetcc");
+			referenceConfig.setFilter("bytejta");
+			referenceConfig.setGroup("org-bytesoft-bytejta");
 			referenceConfig.setCheck(false);
 			referenceConfig.setRetries(0);
 			referenceConfig.setUrl(String.format("%s:%s", remoteAddr.getServerHost(), remoteAddr.getServerPort()));

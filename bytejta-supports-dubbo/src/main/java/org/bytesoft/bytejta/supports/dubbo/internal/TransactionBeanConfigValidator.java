@@ -36,8 +36,8 @@ import com.alibaba.dubbo.config.ProtocolConfig;
 import com.alibaba.dubbo.config.spring.ServiceBean;
 import com.alibaba.dubbo.remoting.RemotingException;
 
-public class DubboValidationPostProcessor implements BeanPostProcessor, BeanFactoryPostProcessor {
-	static final Logger logger = LoggerFactory.getLogger(DubboValidationPostProcessor.class);
+public class TransactionBeanConfigValidator implements BeanPostProcessor, BeanFactoryPostProcessor {
+	static final Logger logger = LoggerFactory.getLogger(TransactionBeanConfigValidator.class);
 
 	public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
 		return bean;
