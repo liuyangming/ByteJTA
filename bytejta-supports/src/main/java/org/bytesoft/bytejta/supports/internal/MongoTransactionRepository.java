@@ -22,10 +22,8 @@ import java.util.List;
 import javax.transaction.xa.XAException;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.Transaction;
@@ -34,13 +32,10 @@ import org.bytesoft.transaction.TransactionException;
 import org.bytesoft.transaction.TransactionRecovery;
 import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.archive.TransactionArchive;
-import org.bytesoft.transaction.archive.XAResourceArchive;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.aware.TransactionEndpointAware;
-import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
-import org.bytesoft.transaction.supports.serialize.XAResourceDeserializer;
+import org.bytesoft.transaction.logging.TransactionLogger;
 import org.bytesoft.transaction.xa.TransactionXid;
-import org.bytesoft.transaction.xa.XidFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.EnvironmentAware;
@@ -78,8 +73,9 @@ public class MongoTransactionRepository
 	}
 
 	public Transaction getTransaction(TransactionXid xid) throws TransactionException {
-		XidFactory xidFactory = this.beanFactory.getXidFactory();
-
+		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
+		TransactionRecovery transactionRecovery = this.beanFactory.getTransactionRecovery();
+		MongoCursor<Document> transactionCursor = null;
 		try {
 			MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
 			MongoCollection<Document> transactions = mdb.getCollection(CONSTANTS_TB_TRANSACTIONS);
@@ -91,104 +87,26 @@ public class MongoTransactionRepository
 			Bson systemFilter = Filters.eq(CONSTANTS_FD_SYSTEM, application);
 
 			FindIterable<Document> transactionItr = transactions.find(Filters.and(globalFilter, systemFilter));
-			MongoCursor<Document> transactionCursor = transactionItr.iterator();
+			transactionCursor = transactionItr.iterator();
 			transactionCursor = transactionItr.iterator();
 			if (transactionCursor.hasNext() == false) {
 				return null;
 			}
 
 			Document document = transactionCursor.next();
-			TransactionArchive archive = new TransactionArchive();
 
-			TransactionXid globalXid = xidFactory.createGlobalXid(global);
-			archive.setXid(globalXid);
+			MongoTransactionLogger mongoTransactionLogger = (MongoTransactionLogger) transactionLogger;
+			TransactionArchive archive = mongoTransactionLogger.reconstructTransactionArchive(document);
 
-			String propagatedBy = document.getString("propagated_by");
-			boolean coordinator = document.getBoolean("coordinator");
-			int transactionStatus = document.getInteger("status");
-
-			archive.setCoordinator(coordinator);
-			archive.setStatus(transactionStatus);
-			archive.setPropagatedBy(propagatedBy);
-
-			this.initializeParticipantList(archive);
-
-			TransactionRecovery transactionRecovery = this.beanFactory.getTransactionRecovery();
 			return transactionRecovery.reconstruct(archive);
 		} catch (RuntimeException rex) {
 			logger.error("Error occurred while loading transaction(xid= {}).", xid, rex);
+			throw new TransactionException(XAException.XAER_RMERR);
 		} catch (Exception ex) {
 			logger.error("Error occurred while loading transaction(xid= {}).", xid, ex);
-		}
-
-		return null;
-	}
-
-	private void initializeParticipantList(TransactionArchive archive) {
-		XidFactory xidFactory = this.beanFactory.getXidFactory();
-
-		MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
-		MongoCollection<Document> participants = mdb.getCollection(CONSTANTS_TB_PARTICIPANTS);
-
-		TransactionXid xid = (TransactionXid) archive.getXid();
-		String application = CommonUtils.getApplication(this.endpoint);
-		byte[] global = xid.getGlobalTransactionId();
-
-		Bson globalFilter = Filters.eq(CONSTANTS_FD_GLOBAL, ByteUtils.byteArrayToString(global));
-		Bson systemFilter = Filters.eq(CONSTANTS_FD_SYSTEM, application);
-
-		MongoCursor<Document> participantCursor = null;
-		try {
-			FindIterable<Document> participantItr = participants.find(Filters.and(globalFilter, systemFilter));
-			participantCursor = participantItr.iterator();
-			for (; participantCursor.hasNext();) {
-				Document document = participantCursor.next();
-				XAResourceArchive participant = new XAResourceArchive();
-
-				String bxid = document.getString("bxid");
-
-				String descriptorType = document.getString("type");
-				String descriptorName = document.getString("name");
-
-				int vote = document.getInteger("vote");
-				boolean committed = document.getBoolean("committed");
-				boolean rolledback = document.getBoolean("rolledback");
-				boolean readonly = document.getBoolean("readonly");
-				boolean completed = document.getBoolean("completed");
-				boolean heuristic = document.getBoolean("heuristic");
-
-				byte[] branchQualifier = ByteUtils.stringToByteArray(bxid);
-				TransactionXid globalXid = xidFactory.createGlobalXid(global);
-				TransactionXid branchXid = xidFactory.createBranchXid(globalXid, branchQualifier);
-				participant.setXid(branchXid);
-
-				XAResourceDeserializer resourceDeserializer = this.beanFactory.getResourceDeserializer();
-				XAResourceDescriptor descriptor = resourceDeserializer.deserialize(descriptorName);
-				if (descriptor != null //
-						&& descriptor.getClass().getName().equals(descriptorType) == false) {
-					throw new IllegalStateException();
-				}
-
-				participant.setVote(vote);
-				participant.setCommitted(committed);
-				participant.setRolledback(rolledback);
-				participant.setReadonly(readonly);
-				participant.setCompleted(completed);
-				participant.setHeuristic(heuristic);
-
-				participant.setDescriptor(descriptor);
-
-				boolean remote = //
-						StringUtils.equalsIgnoreCase(RemoteResourceDescriptor.class.getName(), descriptorType);
-				if (remote) {
-					archive.getRemoteResources().add(participant);
-				} else {
-					archive.getNativeResources().add(participant);
-				}
-
-			}
+			throw new TransactionException(XAException.XAER_RMERR);
 		} finally {
-			IOUtils.closeQuietly(participantCursor);
+			IOUtils.closeQuietly(transactionCursor);
 		}
 	}
 
@@ -232,9 +150,8 @@ public class MongoTransactionRepository
 	}
 
 	public Transaction getErrorTransaction(TransactionXid xid) throws TransactionException {
+		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
 		TransactionRecovery transactionRecovery = this.beanFactory.getTransactionRecovery();
-		XidFactory xidFactory = this.beanFactory.getXidFactory();
-
 		MongoCursor<Document> transactionCursor = null;
 		try {
 			MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
@@ -254,26 +171,9 @@ public class MongoTransactionRepository
 			}
 
 			Document document = transactionCursor.next();
-			TransactionArchive archive = new TransactionArchive();
 
-			TransactionXid globalXid = xidFactory.createGlobalXid(global);
-			archive.setXid(globalXid);
-
-			String propagatedBy = document.getString("propagated_by");
-			// boolean propagated = document.getBoolean("propagated");
-			boolean coordinator = document.getBoolean("coordinator");
-			int transactionStatus = document.getInteger("status");
-			Integer recoveredTimes = document.getInteger("recovered_times");
-			Date recoveredAt = document.getDate("recovered_at");
-
-			archive.setRecoveredAt(recoveredAt == null ? 0 : recoveredAt.getTime());
-			archive.setRecoveredTimes(recoveredTimes == null ? 0 : recoveredTimes);
-
-			archive.setCoordinator(coordinator);
-			archive.setStatus(transactionStatus);
-			archive.setPropagatedBy(propagatedBy);
-
-			this.initializeParticipantList(archive);
+			MongoTransactionLogger mongoTransactionLogger = (MongoTransactionLogger) transactionLogger;
+			TransactionArchive archive = mongoTransactionLogger.reconstructTransactionArchive(document);
 
 			return transactionRecovery.reconstruct(archive);
 		} catch (RuntimeException error) {
@@ -296,8 +196,8 @@ public class MongoTransactionRepository
 	}
 
 	public List<Transaction> getErrorTransactionList() throws TransactionException {
+		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
 		TransactionRecovery transactionRecovery = this.beanFactory.getTransactionRecovery();
-		XidFactory xidFactory = this.beanFactory.getXidFactory();
 
 		List<Transaction> transactionList = new ArrayList<Transaction>();
 		MongoCursor<Document> transactionCursor = null;
@@ -313,16 +213,7 @@ public class MongoTransactionRepository
 			transactionCursor = transactionItr.iterator();
 			for (; transactionCursor.hasNext();) {
 				Document document = transactionCursor.next();
-				TransactionArchive archive = new TransactionArchive();
-
-				String gxid = document.getString("gxid");
-				String propagatedBy = document.getString("propagated_by");
-				boolean coordinator = document.getBoolean("coordinator");
-				int transactionStatus = document.getInteger("status");
-
 				boolean error = document.getBoolean("error");
-				Integer recoveredTimes = document.getInteger("recovered_times");
-				Date recoveredAt = document.getDate("recovered_at");
 
 				String targetApplication = document.getString("created");
 				long expectVersion = document.getLong("version");
@@ -332,18 +223,8 @@ public class MongoTransactionRepository
 					continue; // ignore
 				}
 
-				byte[] globalByteArray = ByteUtils.stringToByteArray(gxid);
-				TransactionXid globalXid = xidFactory.createGlobalXid(globalByteArray);
-				archive.setXid(globalXid);
-
-				archive.setCoordinator(coordinator);
-				archive.setStatus(transactionStatus);
-				archive.setPropagatedBy(propagatedBy);
-
-				archive.setRecoveredAt(recoveredAt == null ? 0 : recoveredAt.getTime());
-				archive.setRecoveredTimes(recoveredTimes == null ? 0 : recoveredTimes);
-
-				this.initializeParticipantList(archive);
+				MongoTransactionLogger mongoTransactionLogger = (MongoTransactionLogger) transactionLogger;
+				TransactionArchive archive = mongoTransactionLogger.reconstructTransactionArchive(document);
 
 				Transaction transaction = transactionRecovery.reconstruct(archive);
 				transactionList.add(transaction);
