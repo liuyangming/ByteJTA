@@ -15,6 +15,9 @@
  */
 package org.bytesoft.bytejta.supports.rpc;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.bytesoft.transaction.TransactionContext;
 import org.bytesoft.transaction.remote.RemoteCoordinator;
 import org.bytesoft.transaction.supports.rpc.TransactionRequest;
@@ -25,6 +28,16 @@ public class TransactionRequestImpl implements TransactionRequest {
 	private TransactionContext transactionContext;
 
 	private transient boolean participantEnlistFlag;
+
+	private final Map<String, Object> headers = new HashMap<String, Object>();
+
+	public Object getHeader(String name) {
+		return this.headers.get(name);
+	}
+
+	public void setHeader(String name, Object value) {
+		this.headers.put(name, value);
+	}
 
 	public RemoteCoordinator getTargetTransactionCoordinator() {
 		return this.participantCoordinator;

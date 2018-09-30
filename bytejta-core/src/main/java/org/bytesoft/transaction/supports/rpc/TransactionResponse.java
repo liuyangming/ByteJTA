@@ -30,4 +30,8 @@ public interface TransactionResponse {
 
 	public void setTransactionContext(TransactionContext transactionContext);
 
+	public Object getHeader(String name);
+
+	public void setHeader(String name, Object value);
+
 }

@@ -22,9 +22,9 @@ import java.util.Map;
 
 import org.bytesoft.bytejta.TransactionImpl;
 import org.bytesoft.bytejta.supports.rpc.TransactionRequestImpl;
+import org.bytesoft.bytejta.supports.rpc.TransactionResponseImpl;
 import org.bytesoft.bytejta.supports.springcloud.SpringCloudBeanRegistry;
 import org.bytesoft.bytejta.supports.springcloud.loadbalancer.TransactionLoadBalancerInterceptor;
-import org.bytesoft.bytejta.supports.springcloud.rpc.TransactionResponseImpl;
 import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
@@ -167,7 +167,8 @@ public class TransactionHystrixMethodHandler implements MethodHandler {
 		} finally {
 
 			try {
-				if (response.isIntercepted() == false) {
+				Object interceptedValue = response.getHeader(TransactionInterceptor.class.getName());
+				if (Boolean.valueOf(String.valueOf(interceptedValue)) == false) {
 					response.setTransactionContext(transactionContext);
 
 					RemoteCoordinator coordinator = request.getTargetTransactionCoordinator();
