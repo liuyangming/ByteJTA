@@ -109,7 +109,7 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 		String serverHost = this.invocationContext == null ? null : this.invocationContext.getServerHost();
 		String serviceKey = this.invocationContext == null ? null : this.invocationContext.getServiceKey();
 		int serverPort = this.invocationContext == null ? 0 : this.invocationContext.getServerPort();
-		if (StringUtils.isNotBlank(serviceKey)) {
+		if (StringUtils.isNotBlank(serviceKey) && StringUtils.equalsIgnoreCase(serviceKey, "null") == false) {
 			return String.format("%s:%s:%s", serverHost, serviceKey, serverPort);
 		} else {
 			Object application = this.getParticipantsApplication(proxy, method, args);
