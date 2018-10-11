@@ -496,7 +496,7 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 		Document remotes = document.get("participants", Document.class);
 		for (Iterator<String> itr = remotes.keySet().iterator(); itr.hasNext();) {
 			String key = itr.next();
-			Document element = natives.get(key, Document.class);
+			Document element = remotes.get(key, Document.class);
 			XAResourceArchive resourceArchive = this.reconstructXAResourceArchive(element);
 			archive.getRemoteResources().add(resourceArchive);
 		}
