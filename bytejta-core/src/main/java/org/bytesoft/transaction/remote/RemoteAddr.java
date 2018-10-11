@@ -15,9 +15,13 @@
  */
 package org.bytesoft.transaction.remote;
 
+import java.io.Serializable;
+
 import org.apache.commons.lang3.StringUtils;
 
-public class RemoteAddr {
+public class RemoteAddr implements Serializable {
+	private static final long serialVersionUID = 1L;
+
 	protected String serverHost;
 	protected int serverPort;
 

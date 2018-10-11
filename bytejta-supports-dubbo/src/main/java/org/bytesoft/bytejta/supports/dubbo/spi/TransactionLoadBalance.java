@@ -17,17 +17,17 @@ package org.bytesoft.bytejta.supports.dubbo.spi;
 
 import java.util.List;
 
-import org.apache.commons.lang3.StringUtils;
 import org.bytesoft.bytejta.TransactionImpl;
 import org.bytesoft.bytejta.supports.dubbo.InvocationContext;
 import org.bytesoft.bytejta.supports.dubbo.InvocationContextRegistry;
 import org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry;
 import org.bytesoft.bytejta.supports.dubbo.ext.ILoadBalancer;
-import org.bytesoft.common.utils.CommonUtils;
+import org.bytesoft.bytejta.supports.internal.RemoteCoordinatorRegistry;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.archive.XAResourceArchive;
 import org.bytesoft.transaction.remote.RemoteAddr;
+import org.bytesoft.transaction.remote.RemoteNode;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 import org.springframework.core.env.Environment;
 
@@ -74,6 +74,7 @@ public final class TransactionLoadBalance implements LoadBalance {
 		}
 
 		TransactionBeanFactory beanFactory = TransactionBeanRegistry.getInstance().getBeanFactory();
+		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
 		TransactionManager transactionManager = beanFactory.getTransactionManager();
 		TransactionImpl transaction = //
 				(TransactionImpl) transactionManager.getTransactionQuietly();
@@ -86,15 +87,18 @@ public final class TransactionLoadBalance implements LoadBalance {
 			RemoteAddr invokerAddr = new RemoteAddr();
 			invokerAddr.setServerHost(invokerUrl.getHost());
 			invokerAddr.setServerPort(invokerUrl.getPort());
-			for (int j = 0; participantList != null && j < participantList.size(); j++) {
-				XAResourceArchive archive = participantList.get(j);
-				XAResourceDescriptor descriptor = archive.getDescriptor();
-				String identifier = descriptor.getIdentifier();
-				RemoteAddr remoteAddr = CommonUtils.getRemoteAddr(identifier);
-				if (remoteAddr.equals(invokerAddr)) {
-					return invoker;
-				} // end-if (remoteAddr.equals(invokerAddr))
+
+			RemoteNode remoteNode = participantRegistry.getRemoteNode(invokerAddr);
+			if (remoteNode == null) {
+				continue;
 			}
+
+			XAResourceDescriptor participant = transaction.getRemoteCoordinator(remoteNode.getServiceKey());
+			if (participant == null) {
+				continue;
+			}
+
+			return invoker;
 		}
 
 		this.fireInitializeIfNecessary();

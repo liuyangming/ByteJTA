@@ -55,9 +55,9 @@ public class RemoteResourceDescriptor implements XAResourceDescriptor {
 		throw new IllegalStateException();
 	}
 
-	public String toString() {
-		return String.format("<remote-resource| id= %s>", this.getIdentifier());
-	}
+	// public String toString() {
+	// return String.format("<remote-resource| id= %s>", this.getIdentifier());
+	// }
 
 	public void setTransactionTimeoutQuietly(int timeout) {
 	}

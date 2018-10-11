@@ -18,6 +18,8 @@ package org.bytesoft.transaction.remote;
 import org.apache.commons.lang3.StringUtils;
 
 public class RemoteNode extends RemoteAddr {
+	private static final long serialVersionUID = 1L;
+
 	protected String serviceKey;
 
 	public int hashCode() {

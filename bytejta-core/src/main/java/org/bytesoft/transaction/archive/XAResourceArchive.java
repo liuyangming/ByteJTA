@@ -119,9 +119,9 @@ public class XAResourceArchive implements XAResource {
 		descriptor.start(xid, flags);
 	}
 
-	public String toString() {
-		return String.format("xa-res-archive[descriptor: %s]", this.descriptor);
-	}
+	// public String toString() {
+	// return String.format("xa-res-archive[descriptor: %s]", this.descriptor);
+	// }
 
 	public XAResourceDescriptor getStickiness() {
 		return stickiness;
