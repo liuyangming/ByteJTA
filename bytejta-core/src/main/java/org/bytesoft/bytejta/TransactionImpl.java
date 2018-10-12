@@ -61,6 +61,7 @@ import org.bytesoft.transaction.internal.TransactionResourceListenerList;
 import org.bytesoft.transaction.logging.TransactionLogger;
 import org.bytesoft.transaction.remote.RemoteCoordinator;
 import org.bytesoft.transaction.remote.RemoteSvc;
+import org.bytesoft.transaction.supports.TransactionExtra;
 import org.bytesoft.transaction.supports.TransactionListener;
 import org.bytesoft.transaction.supports.TransactionResourceListener;
 import org.bytesoft.transaction.supports.TransactionTimer;
@@ -81,7 +82,7 @@ public class TransactionImpl implements Transaction {
 	private int transactionStatus;
 	private int transactionTimeout;
 	private int transactionVote;
-	private Object transactionalExtra;
+	private TransactionExtra transactionalExtra;
 	private final TransactionContext transactionContext;
 
 	private final TransactionResourceListenerList resourceListenerList = new TransactionResourceListenerList();
@@ -202,7 +203,7 @@ public class TransactionImpl implements Transaction {
 		try {
 			this.recoverIfNecessary(); // Recover if transaction is recovered from tx-log.
 
-			this.invokeParticipantCommit();
+			this.invokeParticipantCommit(false);
 		} catch (HeuristicMixedException ex) {
 			logger.error("[{}] recover: branch={}, status= mixed, message= {}",
 					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
@@ -225,7 +226,7 @@ public class TransactionImpl implements Transaction {
 			HeuristicRollbackException, SecurityException, IllegalStateException, CommitRequiredException, SystemException {
 		if (this.transactionContext.isRecoveried()) {
 			this.recover(); // Execute recoveryInit if transaction is recovered from tx-log.
-			this.invokeParticipantCommit();
+			this.invokeParticipantCommit(opc);
 		} else if (opc) {
 			this.participantOnePhaseCommit();
 		} else {
@@ -278,7 +279,7 @@ public class TransactionImpl implements Transaction {
 				// some RMs has already been committed.
 			}
 
-			this.invokeParticipantCommit();
+			this.invokeParticipantCommit(true);
 		} catch (RollbackRequiredException rrex) {
 			this.participantRollback();
 			HeuristicRollbackException hrex = new HeuristicRollbackException();
@@ -323,7 +324,7 @@ public class TransactionImpl implements Transaction {
 		try {
 			this.synchronizationList.beforeCompletion();
 			this.delistAllResource();
-			this.invokeParticipantCommit();
+			this.invokeParticipantCommit(false);
 		} catch (RollbackRequiredException rrex) {
 			this.participantRollback();
 			HeuristicRollbackException hrex = new HeuristicRollbackException();
@@ -388,7 +389,8 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	private void invokeParticipantCommit() throws HeuristicMixedException, HeuristicRollbackException, SystemException {
+	private void invokeParticipantCommit(boolean onePhaseCommit)
+			throws HeuristicMixedException, HeuristicRollbackException, SystemException {
 		TransactionXid xid = this.transactionContext.getXid();
 		TransactionArchive archive = this.getTransactionArchive();
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
@@ -403,7 +405,7 @@ public class TransactionImpl implements Transaction {
 		boolean unFinishExists = true;
 		try {
 			TransactionStrategy currentStrategy = this.getTransactionStrategy();
-			currentStrategy.commit(xid);
+			currentStrategy.commit(xid, onePhaseCommit);
 
 			unFinishExists = false;
 		} catch (HeuristicMixedException ex) {
@@ -609,7 +611,7 @@ public class TransactionImpl implements Transaction {
 
 			boolean unFinishExists = true;
 			try {
-				currentStrategy.commit(xid);
+				currentStrategy.commit(xid, false);
 				unFinishExists = false;
 			} catch (HeuristicMixedException ex) {
 				this.transactionListenerList.onCommitHeuristicMixed(xid);
@@ -808,9 +810,13 @@ public class TransactionImpl implements Transaction {
 			archive = new XAResourceArchive();
 			archive.setDescriptor(descriptor);
 			archive.setIdentified(true);
-			TransactionXid globalXid = this.transactionContext.getXid();
-			XidFactory xidFactory = this.beanFactory.getXidFactory();
-			archive.setXid(xidFactory.createBranchXid(globalXid));
+
+			if (this.transactionalExtra != null && this.transactionalExtra.getTransactionXid() != null) {
+				archive.setXid(this.transactionalExtra.getTransactionXid());
+			} else {
+				XidFactory xidFactory = this.beanFactory.getXidFactory();
+				archive.setXid(xidFactory.createBranchXid(this.transactionContext.getXid()));
+			}
 		} else {
 			flags = XAResource.TMJOIN;
 		}
@@ -1629,6 +1635,10 @@ public class TransactionImpl implements Transaction {
 		return archive == null ? null : archive.getDescriptor();
 	}
 
+	public TransactionXid getTransactionXid() {
+		throw new IllegalStateException();
+	}
+
 	public void setBeanFactory(TransactionBeanFactory tbf) {
 		this.beanFactory = tbf;
 	}
@@ -1649,11 +1659,11 @@ public class TransactionImpl implements Transaction {
 		this.transactionStrategy = transactionStrategy;
 	}
 
-	public Object getTransactionalExtra() {
+	public TransactionExtra getTransactionalExtra() {
 		return transactionalExtra;
 	}
 
-	public void setTransactionalExtra(Object transactionalExtra) {
+	public void setTransactionalExtra(TransactionExtra transactionalExtra) {
 		this.transactionalExtra = transactionalExtra;
 	}
 

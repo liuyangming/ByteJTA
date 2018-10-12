@@ -22,11 +22,12 @@ import javax.transaction.SystemException;
 
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.remote.RemoteSvc;
+import org.bytesoft.transaction.supports.TransactionExtra;
 import org.bytesoft.transaction.supports.TransactionListener;
 import org.bytesoft.transaction.supports.TransactionResourceListener;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 
-public interface Transaction extends javax.transaction.Transaction {
+public interface Transaction extends javax.transaction.Transaction, TransactionExtra {
 
 	public boolean isLocalTransaction();
 
@@ -50,9 +51,9 @@ public interface Transaction extends javax.transaction.Transaction {
 
 	public void registerTransactionResourceListener(TransactionResourceListener listener);
 
-	public Object getTransactionalExtra();
+	public TransactionExtra getTransactionalExtra();
 
-	public void setTransactionalExtra(Object transactionalExtra);
+	public void setTransactionalExtra(TransactionExtra transactionalExtra);
 
 	public XAResourceDescriptor getResourceDescriptor(String beanName);
 

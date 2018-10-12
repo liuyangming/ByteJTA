@@ -54,10 +54,10 @@ public class SimpleTransactionStrategy implements TransactionStrategy {
 
 	}
 
-	public void commit(Xid xid)
+	public void commit(Xid xid, boolean onePhaseCommit)
 			throws HeuristicMixedException, HeuristicRollbackException, IllegalStateException, SystemException {
 		try {
-			this.terminator.commit(xid, false);
+			this.terminator.commit(xid, onePhaseCommit);
 		} catch (XAException xaex) {
 			switch (xaex.errorCode) {
 			case XAException.XA_HEURCOM:

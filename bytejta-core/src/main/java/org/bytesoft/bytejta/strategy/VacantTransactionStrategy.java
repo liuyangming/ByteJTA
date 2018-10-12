@@ -32,7 +32,7 @@ public class VacantTransactionStrategy implements TransactionStrategy {
 		return XAResource.XA_RDONLY;
 	}
 
-	public void commit(Xid xid)
+	public void commit(Xid xid, boolean onePhaseCommit)
 			throws HeuristicMixedException, HeuristicRollbackException, IllegalStateException, SystemException {
 	}
 

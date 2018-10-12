@@ -66,14 +66,14 @@ public class CommonTransactionStrategy implements TransactionStrategy {
 
 	}
 
-	public void commit(Xid xid)
+	public void commit(Xid xid, boolean onePhaseCommit)
 			throws HeuristicMixedException, HeuristicRollbackException, IllegalStateException, SystemException {
 		boolean committedExists = false;
 		boolean rolledbackExists = false;
 		boolean unFinishExists = false;
 		boolean errorExists = false;
 		try {
-			this.nativeTerminator.commit(xid, false);
+			this.nativeTerminator.commit(xid, onePhaseCommit);
 			committedExists = true;
 		} catch (XAException ex) {
 			// error: XA_HEURHAZ, XA_HEURMIX, XA_HEURCOM, XA_HEURRB, XA_RDONLY, XAER_RMERR

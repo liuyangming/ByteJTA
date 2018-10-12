@@ -33,7 +33,7 @@ public interface TransactionStrategy /* extends TransactionBeanFactoryAware */ {
 
 	public int prepare(Xid xid) throws RollbackRequiredException, CommitRequiredException;
 
-	public void commit(Xid xid)
+	public void commit(Xid xid, boolean onePhaseCommit)
 			throws HeuristicMixedException, HeuristicRollbackException, IllegalStateException, SystemException;
 
 	public void rollback(Xid xid)

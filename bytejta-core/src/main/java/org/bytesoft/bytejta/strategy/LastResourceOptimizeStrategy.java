@@ -78,10 +78,10 @@ public class LastResourceOptimizeStrategy implements TransactionStrategy {
 		throw new CommitRequiredException();
 	}
 
-	public void commit(Xid xid)
+	public void commit(Xid xid, boolean onePhaseCommit)
 			throws HeuristicMixedException, HeuristicRollbackException, IllegalStateException, SystemException {
 		try {
-			this.terminatorTwo.commit(xid, false);
+			this.terminatorTwo.commit(xid, onePhaseCommit);
 		} catch (XAException ex) {
 			// error: XA_HEURHAZ, XA_HEURMIX, XA_HEURCOM, XA_HEURRB, XA_RDONLY, XAER_RMERR
 			switch (ex.errorCode) {
