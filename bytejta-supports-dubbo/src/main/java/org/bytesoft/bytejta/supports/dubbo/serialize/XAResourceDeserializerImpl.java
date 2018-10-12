@@ -15,13 +15,10 @@
  */
 package org.bytesoft.bytejta.supports.dubbo.serialize;
 
-import java.lang.reflect.Proxy;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
-import org.bytesoft.bytejta.supports.dubbo.DubboRemoteCoordinator;
-import org.bytesoft.bytejta.supports.dubbo.InvocationContext;
 import org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry;
 import org.bytesoft.bytejta.supports.internal.RemoteCoordinatorRegistry;
 import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
@@ -36,6 +33,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+
+import com.alibaba.dubbo.common.Constants;
+import com.alibaba.dubbo.config.ApplicationConfig;
+import com.alibaba.dubbo.config.ProtocolConfig;
+import com.alibaba.dubbo.config.ReferenceConfig;
+import com.alibaba.dubbo.config.RegistryConfig;
+import com.alibaba.dubbo.rpc.RpcException;
 
 public class XAResourceDeserializerImpl implements XAResourceDeserializer, ApplicationContextAware {
 	static final Logger logger = LoggerFactory.getLogger(XAResourceDeserializerImpl.class);
@@ -56,29 +60,11 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 			String application = CommonUtils.getApplication(identifier);
 			RemoteCoordinator participant = StringUtils.isBlank(application) ? null : registry.getParticipant(application);
 			if (participant == null) {
+				RemoteAddr remoteAddr = CommonUtils.getRemoteAddr(identifier);
 				RemoteNode remoteNode = CommonUtils.getRemoteNode(identifier);
 
-				InvocationContext invocationContext = new InvocationContext();
-				invocationContext.setServerHost(remoteNode.getServerHost());
-				invocationContext.setServiceKey(remoteNode.getServiceKey());
-				invocationContext.setServerPort(remoteNode.getServerPort());
-
-				TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
-				RemoteCoordinator consumeCoordinator = beanRegistry.getConsumeCoordinator();
-
-				DubboRemoteCoordinator dubboCoordinator = new DubboRemoteCoordinator();
-				dubboCoordinator.setInvocationContext(invocationContext);
-				dubboCoordinator.setRemoteCoordinator(consumeCoordinator);
-
-				participant = (RemoteCoordinator) Proxy.newProxyInstance(DubboRemoteCoordinator.class.getClassLoader(),
-						new Class[] { RemoteCoordinator.class }, dubboCoordinator);
-				dubboCoordinator.setProxyCoordinator(participant);
-
-				if (StringUtils.isNotBlank(application)) {
-					RemoteAddr remoteAddr = CommonUtils.getRemoteAddr(identifier);
-					registry.putParticipant(application, participant);
-					registry.putRemoteNode(remoteAddr, remoteNode);
-				}
+				this.initializeRemoteParticipantIfNecessary(application);
+				registry.putRemoteNode(remoteAddr, remoteNode);
 			}
 
 			RemoteResourceDescriptor descriptor = new RemoteResourceDescriptor();
@@ -91,6 +77,54 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 			return null;
 		}
 
+	}
+
+	private void initializeRemoteParticipantIfNecessary(final String system) throws RpcException {
+		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
+		final String application = StringUtils.trimToEmpty(system);
+		synchronized (application) {
+			RemoteCoordinator participant = participantRegistry.getParticipant(application);
+			if (participant == null) {
+				this.processInitRemoteParticipantIfNecessary(application);
+			}
+		} // end-synchronized (target)
+	}
+
+	private void processInitRemoteParticipantIfNecessary(String application) {
+		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
+		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
+
+		RemoteCoordinator participant = participantRegistry.getParticipant(application);
+		if (participant == null) {
+			ApplicationConfig applicationConfig = beanRegistry.getBean(ApplicationConfig.class);
+			RegistryConfig registryConfig = beanRegistry.getBean(RegistryConfig.class);
+			ProtocolConfig protocolConfig = beanRegistry.getBean(ProtocolConfig.class);
+
+			ReferenceConfig<RemoteCoordinator> referenceConfig = new ReferenceConfig<RemoteCoordinator>();
+			referenceConfig.setInterface(RemoteCoordinator.class);
+			referenceConfig.setTimeout(30 * 1000);
+			referenceConfig.setCluster("failfast");
+			referenceConfig.setFilter("bytejta");
+			referenceConfig.setGroup(application);
+			referenceConfig.setCheck(false);
+			referenceConfig.setRetries(0);
+			referenceConfig.setScope(Constants.SCOPE_REMOTE);
+
+			referenceConfig.setApplication(applicationConfig);
+			if (registryConfig != null) {
+				referenceConfig.setRegistry(registryConfig);
+			}
+			if (protocolConfig != null) {
+				referenceConfig.setProtocol(protocolConfig.getName());
+			} // end-if (protocolConfig != null)
+
+			RemoteCoordinator reference = referenceConfig.get();
+			if (reference == null) {
+				throw new RpcException("Cannot get the application name of the remote application.");
+			}
+
+			participantRegistry.putParticipant(application, reference);
+		}
 	}
 
 	public XAResourceDeserializer getResourceDeserializer() {

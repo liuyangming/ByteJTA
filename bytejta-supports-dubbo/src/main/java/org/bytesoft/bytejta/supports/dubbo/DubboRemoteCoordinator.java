@@ -127,7 +127,9 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 
 		String serverHost = this.invocationContext.getServerHost();
 		int serverPort = this.invocationContext.getServerPort();
-		RemoteAddr remoteAddr = CommonUtils.getRemoteAddr(String.format("%s:%s:%s", serverHost, null, serverPort));
+		RemoteAddr remoteAddr = new RemoteAddr();
+		remoteAddr.setServerHost(serverHost);
+		remoteAddr.setServerPort(serverPort);
 		RemoteNode remoteNode = participantRegistry.getRemoteNode(remoteAddr);
 		if (remoteNode != null) {
 			this.invocationContext.setServiceKey(remoteNode.getServiceKey());
@@ -136,15 +138,19 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 
 		Object result = this.invokeForSpecifiedDestination(proxy, method, args);
 		String application = CommonUtils.getApplication(String.valueOf(result));
+
+		if (StringUtils.isBlank(application) || StringUtils.equals(application, "null")) {
+			return null;
+		}
+
 		this.invocationContext.setServiceKey(application);
 
-		String instanceId = String.format("%s:%s:%s", serverHost, application, serverPort);
-		remoteNode = CommonUtils.getRemoteNode(instanceId);
-
-		if (StringUtils.isNotBlank(instanceId) && remoteAddr != null && remoteNode != null
-				&& participantRegistry.containsRemoteNode(remoteAddr) == false) {
-			participantRegistry.putParticipant(remoteNode.getServiceKey(), this.proxyCoordinator);
-			participantRegistry.putRemoteNode(remoteAddr, remoteNode);
+		if (participantRegistry.containsRemoteNode(remoteAddr) == false) {
+			RemoteNode targetNode = new RemoteNode();
+			targetNode.setServerHost(serverHost);
+			targetNode.setServiceKey(application);
+			targetNode.setServerPort(serverPort);
+			participantRegistry.putRemoteNode(remoteAddr, targetNode);
 		}
 
 		return application;

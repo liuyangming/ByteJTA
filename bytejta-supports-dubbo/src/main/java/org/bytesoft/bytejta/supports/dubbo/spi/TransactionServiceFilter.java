@@ -56,9 +56,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Propagation;
 
 import com.alibaba.com.caucho.hessian.io.HessianHandle;
+import com.alibaba.dubbo.common.Constants;
 import com.alibaba.dubbo.common.URL;
 import com.alibaba.dubbo.config.ApplicationConfig;
+import com.alibaba.dubbo.config.ProtocolConfig;
 import com.alibaba.dubbo.config.ReferenceConfig;
+import com.alibaba.dubbo.config.RegistryConfig;
 import com.alibaba.dubbo.rpc.Filter;
 import com.alibaba.dubbo.rpc.Invocation;
 import com.alibaba.dubbo.rpc.Invoker;
@@ -550,7 +553,7 @@ public class TransactionServiceFilter implements Filter {
 					DubboRemoteCoordinator.class.getClassLoader(), new Class[] { RemoteCoordinator.class }, dubboCoordinator);
 			dubboCoordinator.setProxyCoordinator(participant);
 
-			participantRegistry.putParticipant(application, participant);
+			this.initializeRemoteParticipantIfNecessary(application);
 
 			return participant;
 		}
@@ -609,7 +612,7 @@ public class TransactionServiceFilter implements Filter {
 				new Class[] { RemoteCoordinator.class }, dubboCoordinator);
 		dubboCoordinator.setProxyCoordinator(participant);
 
-		participantRegistry.putParticipant(application, participant);
+		this.initializeRemoteParticipantIfNecessary(application);
 		participantRegistry.putRemoteNode(remoteAddr, remoteNode);
 
 		return participant;
@@ -677,41 +680,26 @@ public class TransactionServiceFilter implements Filter {
 
 	private void registerRemoteParticipantIfNecessary(String instanceId) {
 		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
-		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
-		RemoteCoordinator consumeCoordinator = beanRegistry.getConsumeCoordinator();
 
 		RemoteAddr remoteAddr = CommonUtils.getRemoteAddr(instanceId);
 		RemoteNode remoteNode = CommonUtils.getRemoteNode(instanceId);
 
 		if (StringUtils.isNotBlank(instanceId) && remoteAddr != null && remoteNode != null
 				&& participantRegistry.containsRemoteNode(remoteAddr) == false) {
-			InvocationContext invocationContext = new InvocationContext();
-			invocationContext.setServerHost(remoteNode.getServerHost());
-			invocationContext.setServiceKey(remoteNode.getServiceKey());
-			invocationContext.setServerPort(remoteNode.getServerPort());
-
-			DubboRemoteCoordinator dubboCoordinator = new DubboRemoteCoordinator();
-			dubboCoordinator.setInvocationContext(invocationContext);
-			dubboCoordinator.setRemoteCoordinator(consumeCoordinator);
-
-			RemoteCoordinator participant = (RemoteCoordinator) Proxy.newProxyInstance(
-					DubboRemoteCoordinator.class.getClassLoader(), new Class[] { RemoteCoordinator.class }, dubboCoordinator);
-			dubboCoordinator.setProxyCoordinator(participant);
-
-			participantRegistry.putParticipant(remoteNode.getServiceKey(), participant);
+			this.initializeRemoteParticipantIfNecessary(remoteNode.getServiceKey());
 			participantRegistry.putRemoteNode(remoteAddr, remoteNode);
 		}
 	}
 
 	private void initializeRemoteParticipantIfNecessary(RemoteAddr remoteAddr) throws RpcException {
 		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
-		RemoteCoordinator participant = participantRegistry.getPhysicalInstance(remoteAddr);
-		if (participant == null) {
-			final String target = String.format("%s:%s", remoteAddr.getServerHost(), remoteAddr.getServerPort());
-			synchronized (target) {
+		final String target = String.format("%s:%s", remoteAddr.getServerHost(), remoteAddr.getServerPort());
+		synchronized (target) {
+			RemoteCoordinator participant = participantRegistry.getPhysicalInstance(remoteAddr);
+			if (participant == null) {
 				this.processInitRemoteParticipantIfNecessary(remoteAddr);
-			} // end-synchronized (target)
-		}
+			}
+		} // end-synchronized (target)
 	}
 
 	private void processInitRemoteParticipantIfNecessary(RemoteAddr remoteAddr) throws RpcException {
@@ -740,6 +728,54 @@ public class TransactionServiceFilter implements Filter {
 			}
 
 			participantRegistry.putPhysicalInstance(remoteAddr, reference);
+		}
+	}
+
+	private void initializeRemoteParticipantIfNecessary(final String system) throws RpcException {
+		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
+		final String application = StringUtils.trimToEmpty(system);
+		synchronized (application) {
+			RemoteCoordinator participant = participantRegistry.getParticipant(application);
+			if (participant == null) {
+				this.processInitRemoteParticipantIfNecessary(application);
+			}
+		} // end-synchronized (target)
+	}
+
+	private void processInitRemoteParticipantIfNecessary(String application) {
+		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
+		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
+
+		RemoteCoordinator participant = participantRegistry.getParticipant(application);
+		if (participant == null) {
+			ApplicationConfig applicationConfig = beanRegistry.getBean(ApplicationConfig.class);
+			RegistryConfig registryConfig = beanRegistry.getBean(RegistryConfig.class);
+			ProtocolConfig protocolConfig = beanRegistry.getBean(ProtocolConfig.class);
+
+			ReferenceConfig<RemoteCoordinator> referenceConfig = new ReferenceConfig<RemoteCoordinator>();
+			referenceConfig.setInterface(RemoteCoordinator.class);
+			referenceConfig.setTimeout(30 * 1000);
+			referenceConfig.setCluster("failfast");
+			referenceConfig.setFilter("bytejta");
+			referenceConfig.setGroup(application);
+			referenceConfig.setCheck(false);
+			referenceConfig.setRetries(0);
+			referenceConfig.setScope(Constants.SCOPE_REMOTE);
+
+			referenceConfig.setApplication(applicationConfig);
+			if (registryConfig != null) {
+				referenceConfig.setRegistry(registryConfig);
+			}
+			if (protocolConfig != null) {
+				referenceConfig.setProtocol(protocolConfig.getName());
+			} // end-if (protocolConfig != null)
+
+			RemoteCoordinator reference = referenceConfig.get();
+			if (reference == null) {
+				throw new RpcException("Cannot get the application name of the remote application.");
+			}
+
+			participantRegistry.putParticipant(application, reference);
 		}
 	}
 
