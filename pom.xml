@@ -4,7 +4,7 @@
 
 	<groupId>org.bytesoft</groupId>
 	<artifactId>bytejta-parent</artifactId>
-	<version>0.5.0-SNAPSHOT</version>
+	<version>0.5.0-ALPHA1</version>
 
 	<packaging>pom</packaging>
 
@@ -180,22 +180,22 @@
 			<dependency>
 				<groupId>org.bytesoft</groupId>
 				<artifactId>bytejta-core</artifactId>
-				<version>0.5.0-SNAPSHOT</version>
+				<version>0.5.0-ALPHA1</version>
 			</dependency>
 			<dependency>
 				<groupId>org.bytesoft</groupId>
 				<artifactId>bytejta-supports</artifactId>
-				<version>0.5.0-SNAPSHOT</version>
+				<version>0.5.0-ALPHA1</version>
 			</dependency>
 			<dependency>
 				<groupId>org.bytesoft</groupId>
 				<artifactId>bytejta-supports-springcloud</artifactId>
-				<version>0.5.0-SNAPSHOT</version>
+				<version>0.5.0-ALPHA1</version>
 			</dependency>
 			<dependency>
 				<groupId>org.bytesoft</groupId>
 				<artifactId>bytejta-supports-dubbo</artifactId>
-				<version>0.5.0-SNAPSHOT</version>
+				<version>0.5.0-ALPHA1</version>
 			</dependency>
 
 			<!-- logger -->
