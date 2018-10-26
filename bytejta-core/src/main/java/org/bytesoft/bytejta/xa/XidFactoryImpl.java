@@ -78,8 +78,8 @@ public class XidFactoryImpl implements XidFactory {
 
 	public TransactionXid createGlobalXid() {
 		byte[] unique = this.generateUniqueKey();
-		if (unique == null || unique.length != BRANCH_QUALIFIER_LENGTH) {
-			throw new IllegalStateException("The length of branchQulifier not equals to 16.");
+		if (unique == null || unique.length != GLOBAL_TRANSACTION_LENGTH) {
+			throw new IllegalStateException("The length of globalTransactionId not equals to 16.");
 		}
 
 		byte[] global = new byte[GLOBAL_TRANSACTION_LENGTH];
