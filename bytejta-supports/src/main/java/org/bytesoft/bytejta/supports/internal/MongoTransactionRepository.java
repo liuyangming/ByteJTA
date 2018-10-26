@@ -53,12 +53,10 @@ public class MongoTransactionRepository
 		implements TransactionRepository, TransactionEndpointAware, EnvironmentAware, TransactionBeanFactoryAware {
 	static final Logger logger = LoggerFactory.getLogger(MongoTransactionRepository.class);
 	static final String CONSTANTS_ROOT_PATH = "/org/bytesoft/bytejta";
-	static final String CONSTANTS_DB_NAME = "bytejta";
 	static final String CONSTANTS_TB_TRANSACTIONS = "transactions";
 	static final String CONSTANTS_TB_PARTICIPANTS = "participants";
 	static final String CONSTANTS_FD_GLOBAL = "gxid";
 	static final String CONSTANTS_FD_BRANCH = "bxid";
-	static final String CONSTANTS_FD_SYSTEM = "system";
 
 	@javax.annotation.Resource
 	private MongoClient mongoClient;
@@ -77,16 +75,14 @@ public class MongoTransactionRepository
 		TransactionRecovery transactionRecovery = this.beanFactory.getTransactionRecovery();
 		MongoCursor<Document> transactionCursor = null;
 		try {
-			MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
-			MongoCollection<Document> transactions = mdb.getCollection(CONSTANTS_TB_TRANSACTIONS);
+			String databaseName = CommonUtils.getApplication(this.endpoint).replaceAll("\\W", "_");
+			MongoDatabase database = this.mongoClient.getDatabase(databaseName);
+			MongoCollection<Document> transactions = database.getCollection(CONSTANTS_TB_TRANSACTIONS);
 
-			String application = CommonUtils.getApplication(this.endpoint);
 			byte[] global = xid.getGlobalTransactionId();
+			String globalKey = ByteUtils.byteArrayToString(global);
 
-			Bson globalFilter = Filters.eq(CONSTANTS_FD_GLOBAL, ByteUtils.byteArrayToString(global));
-			Bson systemFilter = Filters.eq(CONSTANTS_FD_SYSTEM, application);
-
-			FindIterable<Document> transactionItr = transactions.find(Filters.and(globalFilter, systemFilter));
+			FindIterable<Document> transactionItr = transactions.find(Filters.eq(CONSTANTS_FD_GLOBAL, globalKey));
 			transactionCursor = transactionItr.iterator();
 			transactionCursor = transactionItr.iterator();
 			if (transactionCursor.hasNext() == false) {
@@ -120,10 +116,9 @@ public class MongoTransactionRepository
 			byte[] global = transactionXid.getGlobalTransactionId();
 			String identifier = ByteUtils.byteArrayToString(global);
 
-			String application = CommonUtils.getApplication(this.endpoint);
-
-			MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
-			MongoCollection<Document> collection = mdb.getCollection(CONSTANTS_TB_TRANSACTIONS);
+			String databaseName = CommonUtils.getApplication(this.endpoint).replaceAll("\\W", "_");
+			MongoDatabase database = this.mongoClient.getDatabase(databaseName);
+			MongoCollection<Document> transactions = database.getCollection(CONSTANTS_TB_TRANSACTIONS);
 
 			Document target = new Document();
 			target.append("modified", this.endpoint);
@@ -135,10 +130,7 @@ public class MongoTransactionRepository
 			Document document = new Document();
 			document.append("$set", target);
 
-			Bson globalFilter = Filters.eq(CONSTANTS_FD_GLOBAL, identifier);
-			Bson systemFilter = Filters.eq(CONSTANTS_FD_SYSTEM, application);
-
-			UpdateResult result = collection.updateOne(Filters.and(globalFilter, systemFilter), document);
+			UpdateResult result = transactions.updateOne(Filters.eq(CONSTANTS_FD_GLOBAL, identifier), document);
 			if (result.getMatchedCount() != 1) {
 				throw new IllegalStateException(
 						String.format("Error occurred while updating transaction(matched= %s, modified= %s).",
@@ -154,17 +146,16 @@ public class MongoTransactionRepository
 		TransactionRecovery transactionRecovery = this.beanFactory.getTransactionRecovery();
 		MongoCursor<Document> transactionCursor = null;
 		try {
-			MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
-			MongoCollection<Document> transactions = mdb.getCollection(CONSTANTS_TB_TRANSACTIONS);
+			String databaseName = CommonUtils.getApplication(this.endpoint).replaceAll("\\W", "_");
+			MongoDatabase database = this.mongoClient.getDatabase(databaseName);
+			MongoCollection<Document> transactions = database.getCollection(CONSTANTS_TB_TRANSACTIONS);
 
-			String application = CommonUtils.getApplication(this.endpoint);
 			byte[] global = xid.getGlobalTransactionId();
 
 			Bson globalFilter = Filters.eq(CONSTANTS_FD_GLOBAL, ByteUtils.byteArrayToString(global));
-			Bson systemFilter = Filters.eq(CONSTANTS_FD_SYSTEM, application);
 			Bson errorFilter = Filters.eq("error", true);
 
-			FindIterable<Document> transactionItr = transactions.find(Filters.and(globalFilter, systemFilter, errorFilter));
+			FindIterable<Document> transactionItr = transactions.find(Filters.and(globalFilter, errorFilter));
 			transactionCursor = transactionItr.iterator();
 			if (transactionCursor.hasNext() == false) {
 				return null;
@@ -202,14 +193,11 @@ public class MongoTransactionRepository
 		List<Transaction> transactionList = new ArrayList<Transaction>();
 		MongoCursor<Document> transactionCursor = null;
 		try {
-			MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
-			MongoCollection<Document> transactions = mdb.getCollection(CONSTANTS_TB_TRANSACTIONS);
+			String databaseName = CommonUtils.getApplication(this.endpoint).replaceAll("\\W", "_");
+			MongoDatabase database = this.mongoClient.getDatabase(databaseName);
+			MongoCollection<Document> transactions = database.getCollection(CONSTANTS_TB_TRANSACTIONS);
 
-			String application = CommonUtils.getApplication(this.endpoint);
-			Bson systemFilter = Filters.eq(CONSTANTS_FD_SYSTEM, application);
-			Bson coordinatorFilter = Filters.eq("coordinator", true);
-
-			FindIterable<Document> transactionItr = transactions.find(Filters.and(systemFilter, coordinatorFilter));
+			FindIterable<Document> transactionItr = transactions.find(Filters.eq("coordinator", true));
 			transactionCursor = transactionItr.iterator();
 			for (; transactionCursor.hasNext();) {
 				Document document = transactionCursor.next();

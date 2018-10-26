@@ -24,7 +24,6 @@ import javax.transaction.xa.Xid;
 
 import org.apache.commons.io.IOUtils;
 import org.bson.Document;
-import org.bson.conversions.Bson;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.TransactionBeanFactory;
@@ -59,11 +58,9 @@ import com.mongodb.client.result.UpdateResult;
 public class MongoTransactionLogger implements TransactionLogger, TransactionResourceListener, EnvironmentAware,
 		TransactionEndpointAware, TransactionBeanFactoryAware, InitializingBean {
 	static Logger logger = LoggerFactory.getLogger(MongoTransactionLogger.class);
-	static final String CONSTANTS_DB_NAME = "bytejta";
 	static final String CONSTANTS_TB_TRANSACTIONS = "transactions";
 	static final String CONSTANTS_FD_GLOBAL = "gxid";
 	static final String CONSTANTS_FD_BRANCH = "bxid";
-	static final String CONSTANTS_FD_SYSTEM = "system";
 
 	static final int MONGODB_ERROR_DUPLICATE_KEY = 11000;
 
@@ -85,41 +82,11 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 
 	private void initializeIndexIfNecessary() {
 		this.createTransactionsGlobalTxKeyIndexIfNecessary();
-		this.createTransactionsApplicationIndexIfNecessary();
-	}
-
-	private void createTransactionsApplicationIndexIfNecessary() {
-		MongoDatabase database = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
-		MongoCollection<Document> transactions = database.getCollection(CONSTANTS_TB_TRANSACTIONS);
-		ListIndexesIterable<Document> transactionIndexList = transactions.listIndexes();
-		boolean applicationIndexExists = false;
-		MongoCursor<Document> applicationCursor = null;
-		try {
-			applicationCursor = transactionIndexList.iterator();
-			while (applicationIndexExists == false && applicationCursor.hasNext()) {
-				Document document = applicationCursor.next();
-				Boolean unique = document.getBoolean("unique");
-				Document key = (Document) document.get("key");
-
-				boolean systemExists = key.containsKey(CONSTANTS_FD_SYSTEM);
-				boolean lengthEquals = key.size() == 1;
-				applicationIndexExists = lengthEquals && systemExists;
-
-				if (applicationIndexExists && unique != null && unique) {
-					throw new IllegalStateException();
-				}
-			}
-		} finally {
-			IOUtils.closeQuietly(applicationCursor);
-		}
-
-		if (applicationIndexExists == false) {
-			transactions.createIndex(new Document(CONSTANTS_FD_SYSTEM, 1), new IndexOptions().unique(false));
-		}
 	}
 
 	private void createTransactionsGlobalTxKeyIndexIfNecessary() {
-		MongoDatabase database = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
+		String databaseName = CommonUtils.getApplication(this.endpoint).replaceAll("\\W", "_");
+		MongoDatabase database = this.mongoClient.getDatabase(databaseName);
 		MongoCollection<Document> transactions = database.getCollection(CONSTANTS_TB_TRANSACTIONS);
 		ListIndexesIterable<Document> transactionIndexList = transactions.listIndexes();
 		boolean transactionIndexExists = false;
@@ -132,9 +99,8 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 				Document key = (Document) document.get("key");
 
 				boolean globalExists = key.containsKey(CONSTANTS_FD_GLOBAL);
-				boolean systemExists = key.containsKey(CONSTANTS_FD_SYSTEM);
-				boolean lengthEquals = key.size() == 2;
-				transactionIndexExists = lengthEquals && globalExists && systemExists;
+				boolean lengthEquals = key.size() == 1;
+				transactionIndexExists = lengthEquals && globalExists;
 
 				if (transactionIndexExists && (unique == null || unique == false)) {
 					throw new IllegalStateException();
@@ -145,7 +111,7 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 		}
 
 		if (transactionIndexExists == false) {
-			Document index = new Document(CONSTANTS_FD_GLOBAL, 1).append(CONSTANTS_FD_SYSTEM, 1);
+			Document index = new Document(CONSTANTS_FD_GLOBAL, 1);
 			transactions.createIndex(index, new IndexOptions().unique(true));
 		}
 	}
@@ -159,36 +125,44 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 
 	public void createTransaction(TransactionArchive archive) {
 		try {
+			long version = this.versionManager.getInstanceVersion(this.endpoint);
+			if (version <= 0) {
+				throw new IllegalStateException(String.format("Invalid version(%s)!", this.endpoint));
+			}
+
 			TransactionXid transactionXid = (TransactionXid) archive.getXid();
 
-			MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
-			MongoCollection<Document> collection = mdb.getCollection(CONSTANTS_TB_TRANSACTIONS);
+			String databaseName = CommonUtils.getApplication(this.endpoint).replaceAll("\\W", "_");
+			MongoDatabase database = this.mongoClient.getDatabase(databaseName);
+			MongoCollection<Document> transactions = database.getCollection(CONSTANTS_TB_TRANSACTIONS);
 
 			String application = CommonUtils.getApplication(this.endpoint);
 
 			byte[] global = transactionXid.getGlobalTransactionId();
 			String identifier = ByteUtils.byteArrayToString(global);
 
-			long version = this.versionManager.getInstanceVersion(this.endpoint);
-			if (version <= 0) {
-				throw new IllegalStateException(String.format("Invalid version(%s)!", this.endpoint));
-			}
+			XAResourceArchive optimized = archive.getOptimizedResource();
 
-			Document document = this.constructMongoDocument(archive);
+			Document document = new Document();
 			document.append(CONSTANTS_FD_GLOBAL, identifier);
-			document.append(CONSTANTS_FD_SYSTEM, application);
-			document.append("created", this.endpoint);
-			document.append("modified", this.endpoint);
+			document.append("system", application);
 			document.append("propagated_by", archive.getPropagatedBy());
 			document.append("coordinator", archive.isCoordinator());
-			document.append("vote", archive.getVote());
-			document.append("status", archive.getStatus());
-			document.append("lock", 0);
-			document.append("locked_by", this.endpoint);
-			document.append("error", false);
 			document.append("version", version);
+			document.append("status", archive.getStatus());
+			document.append("vote", archive.getVote());
+			document.append("strategy", archive.getTransactionStrategyType());
+			document.append("created", this.endpoint);
+			document.append("modified", this.endpoint);
+			document.append("error", false);
+			document.append("participants", this.constructResourcesDocument(archive.getRemoteResources()));
+			document.append("xaresources", this.constructResourcesDocument(archive.getNativeResources()));
+			document.append("optimized",
+					optimized == null ? null : this.constructResourceDocument(archive.getOptimizedResource()));
+			document.append("recovered_at", archive.getRecoveredAt() == 0 ? null : new Date(archive.getRecoveredAt()));
+			document.append("recovered_times", archive.getRecoveredTimes());
 
-			collection.insertOne(document);
+			transactions.insertOne(document);
 		} catch (RuntimeException error) {
 			logger.error("Error occurred while creating transaction.", error);
 			this.beanFactory.getTransactionManager().setRollbackOnlyQuietly();
@@ -201,19 +175,23 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 			byte[] global = transactionXid.getGlobalTransactionId();
 			String identifier = ByteUtils.byteArrayToString(global);
 
-			MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
-			MongoCollection<Document> collection = mdb.getCollection(CONSTANTS_TB_TRANSACTIONS);
+			String databaseName = CommonUtils.getApplication(this.endpoint).replaceAll("\\W", "_");
+			MongoDatabase database = this.mongoClient.getDatabase(databaseName);
+			MongoCollection<Document> transactions = database.getCollection(CONSTANTS_TB_TRANSACTIONS);
 
-			Document variables = this.constructMongoDocument(archive);
+			Document variables = new Document();
+			variables.append("status", archive.getStatus());
+			variables.append("vote", archive.getVote());
+			variables.append("modified", this.endpoint);
+			variables.append("participants", this.constructResourcesDocument(archive.getRemoteResources()));
+			variables.append("xaresources", this.constructResourcesDocument(archive.getNativeResources()));
+			variables.append("recovered_at", archive.getRecoveredAt() == 0 ? null : new Date(archive.getRecoveredAt()));
+			variables.append("recovered_times", archive.getRecoveredTimes());
 
 			Document document = new Document();
 			document.append("$set", variables);
 
-			String application = CommonUtils.getApplication(this.endpoint);
-
-			Bson globalFilter = Filters.eq(CONSTANTS_FD_GLOBAL, identifier);
-			Bson systemFilter = Filters.eq(CONSTANTS_FD_SYSTEM, application);
-			UpdateResult result = collection.updateOne(Filters.and(globalFilter, systemFilter), document);
+			UpdateResult result = transactions.updateOne(Filters.eq(CONSTANTS_FD_GLOBAL, identifier), document);
 			if (result.getMatchedCount() != 1) {
 				throw new IllegalStateException(
 						String.format("Error occurred while updating transaction(matched= %s, modified= %s).",
@@ -225,87 +203,69 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 		}
 	}
 
-	public Document constructMongoDocument(TransactionArchive archive) {
-		Document variables = new Document();
-		variables.append("modified", this.endpoint);
-		variables.append("vote", archive.getVote());
-		variables.append("status", archive.getStatus());
-		variables.append("recovered_at", archive.getRecoveredAt() == 0 ? null : new Date(archive.getRecoveredAt()));
-		variables.append("recovered_times", archive.getRecoveredTimes());
+	private Document constructResourcesDocument(List<XAResourceArchive> resourceList) {
+		Document documents = new Document();
+		for (int i = 0; resourceList != null && i < resourceList.size(); i++) {
+			XAResourceArchive resource = resourceList.get(i);
+			TransactionXid resourceXid = (TransactionXid) resource.getXid();
+			byte[] branchByteArray = resourceXid.getBranchQualifier();
+			String branchKey = ByteUtils.byteArrayToString(branchByteArray);
 
-		List<XAResourceArchive> nativeList = archive.getNativeResources();
-		Document natives = new Document();
-		for (int i = 0; nativeList != null && i < nativeList.size(); i++) {
-			XAResourceArchive resourceArchive = nativeList.get(i);
-			TransactionXid resourceXid = (TransactionXid) resourceArchive.getXid();
-			byte[] branchQualifier = resourceXid.getBranchQualifier();
-			String branchKey = ByteUtils.byteArrayToString(branchQualifier);
+			Document document = this.constructResourceDocument(resource);
 
-			Document participant = this.constructMongoDocument(resourceArchive);
-
-			natives.append(branchKey, participant);
+			documents.append(branchKey, document);
 		}
-		variables.append("xaresources", natives);
 
-		List<XAResourceArchive> remoteList = archive.getRemoteResources();
-		Document remotes = new Document();
-		for (int i = 0; remoteList != null && i < remoteList.size(); i++) {
-			XAResourceArchive resourceArchive = remoteList.get(i);
-			TransactionXid resourceXid = (TransactionXid) resourceArchive.getXid();
-			byte[] branchQualifier = resourceXid.getBranchQualifier();
-			String branchKey = ByteUtils.byteArrayToString(branchQualifier);
-
-			Document participant = this.constructMongoDocument(resourceArchive);
-
-			remotes.append(branchKey, participant);
-		}
-		variables.append("participants", remotes);
-
-		return variables;
+		return documents;
 	}
 
-	public Document constructMongoDocument(XAResourceArchive resourceArchive) {
-		XAResourceDescriptor descriptor = resourceArchive.getDescriptor();
+	private Document constructResourceDocument(XAResourceArchive resource) {
+		TransactionXid resourceXid = (TransactionXid) resource.getXid();
+		byte[] globalByteArray = resourceXid.getGlobalTransactionId();
+		byte[] branchByteArray = resourceXid.getBranchQualifier();
+		String globalKey = ByteUtils.byteArrayToString(globalByteArray);
+		String branchKey = ByteUtils.byteArrayToString(branchByteArray);
+
+		XAResourceDescriptor descriptor = resource.getDescriptor();
 		String descriptorType = descriptor.getClass().getName();
 		String descriptorName = descriptor.getIdentifier();
 
-		int branchVote = resourceArchive.getVote();
-		boolean readonly = resourceArchive.isReadonly();
-		boolean committed = resourceArchive.isCommitted();
-		boolean rolledback = resourceArchive.isRolledback();
-		boolean completed = resourceArchive.isCompleted();
-		boolean heuristic = resourceArchive.isHeuristic();
+		int branchVote = resource.getVote();
+		boolean readonly = resource.isReadonly();
+		boolean committed = resource.isCommitted();
+		boolean rolledback = resource.isRolledback();
+		boolean completed = resource.isCompleted();
+		boolean heuristic = resource.isHeuristic();
 
-		Document participant = new Document();
-		participant.append("type", descriptorType);
-		participant.append("name", descriptorName);
+		Document document = new Document();
+		document.append(CONSTANTS_FD_GLOBAL, globalKey);
+		document.append(CONSTANTS_FD_BRANCH, branchKey);
 
-		participant.append("vote", branchVote);
-		participant.append("committed", committed);
-		participant.append("rolledback", rolledback);
-		participant.append("readonly", readonly);
-		participant.append("completed", completed);
-		participant.append("heuristic", heuristic);
+		document.append("type", descriptorType);
+		document.append("name", descriptorName);
 
-		participant.append("modified", this.endpoint);
+		document.append("vote", branchVote);
+		document.append("committed", committed);
+		document.append("rolledback", rolledback);
+		document.append("readonly", readonly);
+		document.append("completed", completed);
+		document.append("heuristic", heuristic);
 
-		return participant;
+		return document;
 	}
 
 	public void deleteTransaction(TransactionArchive archive) {
 		try {
 			TransactionXid transactionXid = (TransactionXid) archive.getXid();
 
-			MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
-			MongoCollection<Document> transactions = mdb.getCollection(CONSTANTS_TB_TRANSACTIONS);
-
-			String application = CommonUtils.getApplication(this.endpoint);
+			String databaseName = CommonUtils.getApplication(this.endpoint).replaceAll("\\W", "_");
+			MongoDatabase database = this.mongoClient.getDatabase(databaseName);
+			MongoCollection<Document> transactions = database.getCollection(CONSTANTS_TB_TRANSACTIONS);
 
 			byte[] globalTransactionId = transactionXid.getGlobalTransactionId();
-			Bson xidBson = Filters.eq(CONSTANTS_FD_GLOBAL, ByteUtils.byteArrayToString(globalTransactionId));
-			Bson created = Filters.eq(CONSTANTS_FD_SYSTEM, application);
+			String globalKey = ByteUtils.byteArrayToString(globalTransactionId);
 
-			DeleteResult result = transactions.deleteOne(Filters.and(xidBson, created));
+			DeleteResult result = transactions.deleteOne(Filters.eq(CONSTANTS_FD_GLOBAL, globalKey));
 			if (result.getDeletedCount() != 1) {
 				throw new IllegalStateException(
 						String.format("Error occurred while deleting transaction(deleted= %s).", result.getDeletedCount()));
@@ -371,10 +331,9 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 		participant.append("completed", completed);
 		participant.append("heuristic", heuristic);
 
-		participant.append("modified", this.endpoint);
-
-		MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
-		MongoCollection<Document> collection = mdb.getCollection(CONSTANTS_TB_TRANSACTIONS);
+		String databaseName = CommonUtils.getApplication(this.endpoint).replaceAll("\\W", "_");
+		MongoDatabase database = this.mongoClient.getDatabase(databaseName);
+		MongoCollection<Document> transactions = database.getCollection(CONSTANTS_TB_TRANSACTIONS);
 
 		Document participants = new Document();
 		participants.append(String.format("participants.%s", branchKey), participant);
@@ -382,12 +341,7 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 		Document document = new Document();
 		document.append("$set", participants);
 
-		String application = CommonUtils.getApplication(this.endpoint);
-
-		Bson globalFilter = Filters.eq(CONSTANTS_FD_GLOBAL, globalKey);
-		Bson systemFilter = Filters.eq(CONSTANTS_FD_SYSTEM, application);
-
-		UpdateResult result = collection.updateOne(Filters.and(globalFilter, systemFilter), document);
+		UpdateResult result = transactions.updateOne(Filters.eq(CONSTANTS_FD_GLOBAL, globalKey), document);
 		if (result.getMatchedCount() != 1) {
 			throw new IllegalStateException(
 					String.format("Error occurred while creating/updating participant(matched= %s, modified= %s).",
@@ -403,13 +357,9 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 			String globalKey = ByteUtils.byteArrayToString(global);
 			String branchKey = ByteUtils.byteArrayToString(branch);
 
-			MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
-			MongoCollection<Document> collection = mdb.getCollection(CONSTANTS_TB_TRANSACTIONS);
-
-			Bson globalFilter = Filters.eq(CONSTANTS_FD_GLOBAL, globalKey);
-			String application = CommonUtils.getApplication(this.endpoint);
-			Bson systemFilter = Filters.eq(CONSTANTS_FD_SYSTEM, application);
-			Bson filter = Filters.and(globalFilter, systemFilter);
+			String databaseName = CommonUtils.getApplication(this.endpoint).replaceAll("\\W", "_");
+			MongoDatabase database = this.mongoClient.getDatabase(databaseName);
+			MongoCollection<Document> transactions = database.getCollection(CONSTANTS_TB_TRANSACTIONS);
 
 			Document participants = new Document();
 			participants.append(String.format("participants.%s", branchKey), null);
@@ -417,7 +367,7 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 			Document document = new Document();
 			document.append("$unset", participants);
 
-			UpdateResult result = collection.updateOne(filter, document);
+			UpdateResult result = transactions.updateOne(Filters.eq(CONSTANTS_FD_GLOBAL, globalKey), document);
 			if (result.getMatchedCount() != 1) {
 				throw new IllegalStateException(
 						String.format("Error occurred while deleting participant(matched= %s, modified= %s).",
@@ -432,19 +382,16 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 	public void recover(TransactionRecoveryCallback callback) {
 		MongoCursor<Document> transactionCursor = null;
 		try {
-			MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
-			MongoCollection<Document> transactions = mdb.getCollection(CONSTANTS_TB_TRANSACTIONS);
+			String databaseName = CommonUtils.getApplication(this.endpoint).replaceAll("\\W", "_");
+			MongoDatabase database = this.mongoClient.getDatabase(databaseName);
+			MongoCollection<Document> transactions = database.getCollection(CONSTANTS_TB_TRANSACTIONS);
 
-			String application = CommonUtils.getApplication(this.endpoint);
-			Bson systemFilter = Filters.eq(CONSTANTS_FD_SYSTEM, application);
-			Bson coordinatorFilter = Filters.eq("coordinator", true);
-
-			FindIterable<Document> transactionItr = transactions.find(Filters.and(systemFilter, coordinatorFilter));
+			FindIterable<Document> transactionItr = transactions.find(Filters.eq("coordinator", true));
 			for (transactionCursor = transactionItr.iterator(); transactionCursor.hasNext();) {
 				Document document = transactionCursor.next();
 				boolean error = document.getBoolean("error");
 
-				String targetApplication = document.getString(CONSTANTS_FD_SYSTEM);
+				String targetApplication = document.getString("system");
 				long expectVersion = document.getLong("version");
 				long actualVersion = this.versionManager.getInstanceVersion(targetApplication);
 
@@ -475,15 +422,24 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 		String propagatedBy = document.getString("propagated_by");
 		boolean coordinator = document.getBoolean("coordinator");
 		int transactionStatus = document.getInteger("status");
+		int vote = document.getInteger("vote");
+		int strategy = document.getInteger("strategy");
 		Integer recoveredTimes = document.getInteger("recovered_times");
 		Date recoveredAt = document.getDate("recovered_at");
 
 		archive.setCoordinator(coordinator);
 		archive.setStatus(transactionStatus);
+		archive.setVote(vote);
 		archive.setPropagatedBy(propagatedBy);
+		archive.setTransactionStrategyType(strategy);
 
 		archive.setRecoveredAt(recoveredAt == null ? 0 : recoveredAt.getTime());
 		archive.setRecoveredTimes(recoveredTimes == null ? 0 : recoveredTimes);
+
+		Document optimized = document.get("optimized", Document.class);
+		if (optimized != null) {
+			archive.setOptimizedResource(this.reconstructXAResourceArchive(optimized));
+		}
 
 		Document natives = document.get("xaresources", Document.class);
 		for (Iterator<String> itr = natives.keySet().iterator(); itr.hasNext();) {

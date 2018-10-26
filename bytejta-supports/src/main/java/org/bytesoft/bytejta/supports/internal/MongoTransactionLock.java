@@ -64,12 +64,10 @@ public class MongoTransactionLock implements TransactionLock, MongoInstanceVersi
 		TransactionBeanFactoryAware, CuratorWatcher, ConnectionStateListener, BackgroundCallback, SmartInitializingSingleton {
 	static Logger logger = LoggerFactory.getLogger(MongoTransactionLock.class);
 	static final String CONSTANTS_ROOT_PATH = "/org/bytesoft/bytejta";
-	static final String CONSTANTS_DB_NAME = "bytejta";
 	static final String CONSTANTS_TB_LOCKS = "locks";
 	static final String CONSTANTS_TB_INSTS = "instances";
 	static final String CONSTANTS_FD_GLOBAL = "gxid";
 	static final String CONSTANTS_FD_BRANCH = "bxid";
-	static final String CONSTANTS_FD_SYSTEM = "system";
 
 	static final int MONGODB_ERROR_DUPLICATE_KEY = 11000;
 
@@ -127,11 +125,7 @@ public class MongoTransactionLock implements TransactionLock, MongoInstanceVersi
 		String parent = String.format("%s/%s/instances", CONSTANTS_ROOT_PATH, CommonUtils.getApplication(this.endpoint));
 		String path = String.format("%s/%s", parent, this.endpoint);
 		byte[] versionByteArray = ByteUtils.longToByteArray(this.instanceVersion);
-		try {
-			this.curatorFramework.create().withMode(CreateMode.EPHEMERAL).forPath(path, versionByteArray);
-		} catch (NodeExistsException error) {
-			this.curatorFramework.delete().inBackground(this).forPath(path);
-		}
+		this.curatorFramework.create().withMode(CreateMode.EPHEMERAL).forPath(path, versionByteArray);
 	}
 
 	private void initializeIndexIfNecessary() {
@@ -139,7 +133,8 @@ public class MongoTransactionLock implements TransactionLock, MongoInstanceVersi
 	}
 
 	private void createLocksIndexIfNecessary() {
-		MongoDatabase database = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
+		String databaseName = CommonUtils.getApplication(this.endpoint).replaceAll("\\W", "_");
+		MongoDatabase database = this.mongoClient.getDatabase(databaseName);
 		MongoCollection<Document> locks = database.getCollection(CONSTANTS_TB_LOCKS);
 		ListIndexesIterable<Document> lockIndexList = locks.listIndexes();
 		boolean transactionIndexExists = false;
@@ -152,9 +147,8 @@ public class MongoTransactionLock implements TransactionLock, MongoInstanceVersi
 				Document key = (Document) document.get("key");
 
 				boolean globalExists = key.containsKey(CONSTANTS_FD_GLOBAL);
-				boolean systemExists = key.containsKey(CONSTANTS_FD_SYSTEM);
-				boolean lengthEquals = key.size() == 2;
-				transactionIndexExists = lengthEquals && globalExists && systemExists;
+				boolean lengthEquals = key.size() == 1;
+				transactionIndexExists = lengthEquals && globalExists;
 
 				if (transactionIndexExists && (unique == null || unique == false)) {
 					throw new IllegalStateException();
@@ -165,13 +159,14 @@ public class MongoTransactionLock implements TransactionLock, MongoInstanceVersi
 		}
 
 		if (transactionIndexExists == false) {
-			Document index = new Document(CONSTANTS_FD_GLOBAL, 1).append(CONSTANTS_FD_SYSTEM, 1);
+			Document index = new Document(CONSTANTS_FD_GLOBAL, 1);
 			locks.createIndex(index, new IndexOptions().unique(true));
 		}
 	}
 
 	private void initializeClusterInstanceVersion() {
-		MongoDatabase database = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
+		String databaseName = CommonUtils.getApplication(this.endpoint).replaceAll("\\W", "_");
+		MongoDatabase database = this.mongoClient.getDatabase(databaseName);
 		MongoCollection<Document> instances = database.getCollection(CONSTANTS_TB_INSTS);
 
 		Bson condition = Filters.eq("_id", this.endpoint);
@@ -179,12 +174,8 @@ public class MongoTransactionLock implements TransactionLock, MongoInstanceVersi
 		Document increases = new Document();
 		increases.append("version", 1L);
 
-		Document variables = new Document();
-		variables.append(CONSTANTS_FD_SYSTEM, CommonUtils.getApplication(this.endpoint));
-
 		Document document = new Document();
 		document.append("$inc", increases);
-		document.append("$set", variables);
 
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions();
 		options.upsert(true);
@@ -220,14 +211,12 @@ public class MongoTransactionLock implements TransactionLock, MongoInstanceVersi
 		String instanceId = ByteUtils.byteArrayToString(global);
 
 		try {
-			MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
-			MongoCollection<Document> collection = mdb.getCollection(CONSTANTS_TB_LOCKS);
-
-			String application = CommonUtils.getApplication(this.endpoint);
+			String databaseName = CommonUtils.getApplication(this.endpoint).replaceAll("\\W", "_");
+			MongoDatabase database = this.mongoClient.getDatabase(databaseName);
+			MongoCollection<Document> collection = database.getCollection(CONSTANTS_TB_LOCKS);
 
 			Document document = new Document();
 			document.append(CONSTANTS_FD_GLOBAL, instanceId);
-			document.append(CONSTANTS_FD_SYSTEM, application);
 			document.append("identifier", identifier);
 
 			collection.insertOne(document);
@@ -249,18 +238,16 @@ public class MongoTransactionLock implements TransactionLock, MongoInstanceVersi
 		String instanceId = ByteUtils.byteArrayToString(global);
 
 		try {
-			MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
-			MongoCollection<Document> collection = mdb.getCollection(CONSTANTS_TB_LOCKS);
-
-			String application = CommonUtils.getApplication(this.endpoint);
+			String databaseName = CommonUtils.getApplication(this.endpoint).replaceAll("\\W", "_");
+			MongoDatabase database = this.mongoClient.getDatabase(databaseName);
+			MongoCollection<Document> collection = database.getCollection(CONSTANTS_TB_LOCKS);
 
 			Bson globalFilter = Filters.eq(CONSTANTS_FD_GLOBAL, instanceId);
-			Bson systemFilter = Filters.eq(CONSTANTS_FD_SYSTEM, application);
 			Bson instIdFilter = Filters.eq("identifier", source);
 
 			Document document = new Document("$set", new Document("identifier", target));
 
-			UpdateResult result = collection.updateOne(Filters.and(globalFilter, systemFilter, instIdFilter), document);
+			UpdateResult result = collection.updateOne(Filters.and(globalFilter, instIdFilter), document);
 			return result.getMatchedCount() == 1;
 		} catch (RuntimeException rex) {
 			logger.error("Error occurred while locking transaction(gxid= {}).", instanceId, rex);
@@ -273,15 +260,11 @@ public class MongoTransactionLock implements TransactionLock, MongoInstanceVersi
 		String instanceId = ByteUtils.byteArrayToString(global);
 
 		try {
-			MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
-			MongoCollection<Document> collection = mdb.getCollection(CONSTANTS_TB_LOCKS);
+			String databaseName = CommonUtils.getApplication(this.endpoint).replaceAll("\\W", "_");
+			MongoDatabase database = this.mongoClient.getDatabase(databaseName);
+			MongoCollection<Document> collection = database.getCollection(CONSTANTS_TB_LOCKS);
 
-			String application = CommonUtils.getApplication(this.endpoint);
-
-			Bson globalFilter = Filters.eq(CONSTANTS_FD_GLOBAL, instanceId);
-			Bson systemFilter = Filters.eq(CONSTANTS_FD_SYSTEM, application);
-
-			FindIterable<Document> findIterable = collection.find(Filters.and(globalFilter, systemFilter));
+			FindIterable<Document> findIterable = collection.find(Filters.eq(CONSTANTS_FD_GLOBAL, instanceId));
 			MongoCursor<Document> cursor = findIterable.iterator();
 			if (cursor.hasNext()) {
 				Document document = cursor.next();
@@ -304,16 +287,14 @@ public class MongoTransactionLock implements TransactionLock, MongoInstanceVersi
 		String instanceId = ByteUtils.byteArrayToString(global);
 
 		try {
-			MongoDatabase mdb = this.mongoClient.getDatabase(CONSTANTS_DB_NAME);
-			MongoCollection<Document> collection = mdb.getCollection(CONSTANTS_TB_LOCKS);
-
-			String system = CommonUtils.getApplication(this.endpoint);
+			String databaseName = CommonUtils.getApplication(this.endpoint).replaceAll("\\W", "_");
+			MongoDatabase database = this.mongoClient.getDatabase(databaseName);
+			MongoCollection<Document> collection = database.getCollection(CONSTANTS_TB_LOCKS);
 
 			Bson globalFilter = Filters.eq(CONSTANTS_FD_GLOBAL, instanceId);
-			Bson systemFilter = Filters.eq(CONSTANTS_FD_SYSTEM, system);
 			Bson instIdFilter = Filters.eq("identifier", identifier);
 
-			DeleteResult result = collection.deleteOne(Filters.and(globalFilter, systemFilter, instIdFilter));
+			DeleteResult result = collection.deleteOne(Filters.and(globalFilter, instIdFilter));
 			if (result.getDeletedCount() == 0) {
 				logger.warn("Error occurred while unlocking transaction(gxid= {}).", instanceId);
 			}
@@ -407,26 +388,6 @@ public class MongoTransactionLock implements TransactionLock, MongoInstanceVersi
 		String parent = String.format("%s/%s/instances", CONSTANTS_ROOT_PATH, CommonUtils.getApplication(this.endpoint));
 		this.curatorFramework.getChildren().usingWatcher(this).inBackground(this).forPath(parent);
 	}
-
-	// private ConnectionState getCuratorConnectionState(final KeeperState state) {
-	// if (state == null) {
-	// return null;
-	// } else {
-	// switch (state) {
-	// case SyncConnected:
-	// return ConnectionState.RECONNECTED;
-	// case Disconnected:
-	// return ConnectionState.LOST;
-	// case Expired:
-	// return ConnectionState.LOST;
-	// case AuthFailed:
-	// case ConnectedReadOnly:
-	// case SaslAuthenticated:
-	// default:
-	// return null;
-	// }
-	// }
-	// }
 
 	public long getInstanceVersion(String instanceId) {
 		Long version = this.instances.get(instanceId);
