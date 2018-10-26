@@ -89,7 +89,7 @@ public class TransactionManagerImpl
 		transactionRepository.putTransaction(globalXid, transaction);
 		// this.transactionStatistic.fireBeginTransaction(transaction);
 
-		logger.info("[{}] begin-transaction", ByteUtils.byteArrayToString(globalXid.getGlobalTransactionId()));
+		logger.info("{}> begin-transaction", ByteUtils.byteArrayToString(globalXid.getGlobalTransactionId()));
 	}
 
 	public void commit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException, SecurityException,

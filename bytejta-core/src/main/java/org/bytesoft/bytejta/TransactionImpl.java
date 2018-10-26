@@ -205,14 +205,14 @@ public class TransactionImpl implements Transaction {
 
 			this.invokeParticipantCommit(false);
 		} catch (HeuristicMixedException ex) {
-			logger.error("[{}] recover: branch={}, status= mixed, message= {}",
+			logger.error("{}> recover: branch={}, status= mixed, message= {}",
 					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
 					ByteUtils.byteArrayToString(xid.getBranchQualifier()), ex.getMessage(), ex);
 			SystemException sysEx = new SystemException();
 			sysEx.initCause(ex);
 			throw sysEx;
 		} catch (HeuristicRollbackException ex) {
-			logger.error("[{}] recover: branch={}, status= rolledback",
+			logger.error("{}> recover: branch={}, status= rolledback",
 					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
 					ByteUtils.byteArrayToString(xid.getBranchQualifier()), ex);
 			SystemException sysEx = new SystemException();
@@ -351,7 +351,7 @@ public class TransactionImpl implements Transaction {
 		TransactionArchive archive = this.getTransactionArchive();
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 
-		logger.info("[{}] prepare-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+		logger.info("{}> prepare-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
 		this.transactionStatus = Status.STATUS_PREPARING;
 		archive.setStatus(this.transactionStatus);
@@ -369,11 +369,11 @@ public class TransactionImpl implements Transaction {
 			throw ex;
 		} catch (RollbackRequiredException ex) {
 			this.transactionListenerList.onPrepareFailure(xid);
-			logger.info("[{}] prepare-transaction failed", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+			logger.info("{}> prepare-transaction failed", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 			throw ex;
 		} catch (RuntimeException ex) {
 			this.transactionListenerList.onPrepareFailure(xid);
-			logger.info("[{}] prepare-transaction failed", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+			logger.info("{}> prepare-transaction failed", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 			throw ex;
 		} finally {
 			if (unFinishExists == false) {
@@ -382,7 +382,7 @@ public class TransactionImpl implements Transaction {
 				this.transactionListenerList.onPrepareSuccess(xid);
 				transactionLogger.updateTransaction(archive);
 
-				logger.info("[{}] prepare-transaction complete successfully",
+				logger.info("{}> prepare-transaction complete successfully",
 						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 			}
 		}
@@ -395,7 +395,7 @@ public class TransactionImpl implements Transaction {
 		TransactionArchive archive = this.getTransactionArchive();
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 
-		logger.info("[{}] commit-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+		logger.info("{}> commit-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
 		this.transactionStatus = Status.STATUS_COMMITTING;
 		archive.setStatus(this.transactionStatus);
@@ -427,7 +427,7 @@ public class TransactionImpl implements Transaction {
 				this.transactionListenerList.onCommitSuccess(xid);
 				transactionLogger.updateTransaction(archive);
 
-				logger.info("[{}] commit-transaction complete successfully",
+				logger.info("{}> commit-transaction complete successfully",
 						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 			}
 		}
@@ -482,7 +482,7 @@ public class TransactionImpl implements Transaction {
 
 		try {
 			TransactionXid xid = this.transactionContext.getXid();
-			logger.info("[{}] commit-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+			logger.info("{}> commit-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
 			if (this.participantList.size() == 0) {
 				this.skipOnePhaseCommit();
@@ -493,7 +493,7 @@ public class TransactionImpl implements Transaction {
 				this.fireTwoPhaseCommit();
 			}
 
-			logger.info("[{}] commit-transaction complete successfully",
+			logger.info("{}> commit-transaction complete successfully",
 					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		} finally {
 			this.synchronizationList.afterCompletion(this.transactionStatus);
@@ -709,7 +709,7 @@ public class TransactionImpl implements Transaction {
 				throw new SystemException();
 			}
 
-			logger.info("[{}] delist: xares= {}, branch= {}, flags= {}",
+			logger.info("{}> delist: xares= {}, branch= {}, flags= {}",
 					ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
 					ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), flag);
 		} catch (XAException xae) {
@@ -887,7 +887,7 @@ public class TransactionImpl implements Transaction {
 	private boolean enlistResource(XAResourceArchive archive, int flag) throws SystemException, RollbackException {
 		try {
 			Xid branchXid = archive.getXid();
-			logger.info("[{}] enlist: xares= {}, branch= {}, flags: {}",
+			logger.info("{}> enlist: xares= {}, branch= {}, flags: {}",
 					ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
 					ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), flag);
 
@@ -964,7 +964,7 @@ public class TransactionImpl implements Transaction {
 			throw new RollbackException();
 		} else if (this.transactionStatus == Status.STATUS_ACTIVE) {
 			this.synchronizationList.registerSynchronizationQuietly(sync);
-			logger.debug("[{}] register-sync: sync= {}"//
+			logger.debug("{}> register-sync: sync= {}"//
 					, ByteUtils.byteArrayToString(this.transactionContext.getXid().getGlobalTransactionId()), sync);
 		} else {
 			throw new IllegalStateException();
@@ -1038,7 +1038,7 @@ public class TransactionImpl implements Transaction {
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		TransactionXid xid = this.transactionContext.getXid();
 
-		logger.info("[{}] rollback-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+		logger.info("{}> rollback-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
 		this.transactionStatus = Status.STATUS_ROLLING_BACK;
 		TransactionArchive archive = this.getTransactionArchive();
@@ -1075,7 +1075,7 @@ public class TransactionImpl implements Transaction {
 				this.transactionListenerList.onRollbackSuccess(xid);
 				transactionLogger.updateTransaction(archive);
 
-				logger.info("[{}] rollback-transaction complete successfully",
+				logger.info("{}> rollback-transaction complete successfully",
 						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 			}
 		}
@@ -1333,7 +1333,7 @@ public class TransactionImpl implements Transaction {
 				case XAException.XAER_NOTA:
 					break;
 				default:
-					logger.error("[{}] recover-resource failed. branch= {}",
+					logger.error("{}> recover-resource failed. branch= {}",
 							ByteUtils.byteArrayToString(globalXid.getGlobalTransactionId()),
 							ByteUtils.byteArrayToString(globalXid.getBranchQualifier()), ex);
 					throw new SystemException();
@@ -1355,7 +1355,7 @@ public class TransactionImpl implements Transaction {
 					xidRecovered = formatIdEquals && transactionIdEquals && (remoteFlag || qualifierEquals);
 				}
 			} catch (Exception ex) {
-				logger.error("[{}] recover-resource failed. branch= {}",
+				logger.error("{}> recover-resource failed. branch= {}",
 						ByteUtils.byteArrayToString(globalXid.getGlobalTransactionId()),
 						ByteUtils.byteArrayToString(globalXid.getBranchQualifier()), ex);
 				throw new SystemException();
@@ -1410,13 +1410,13 @@ public class TransactionImpl implements Transaction {
 					switch (xae.errorCode) {
 					case XAException.XAER_RMERR:
 						unFinishExists = true;
-						logger.error("[{}] forget: xares= {}, branch={}, error= {}",
+						logger.error("{}> forget: xares= {}, branch={}, error= {}",
 								ByteUtils.byteArrayToString(currentXid.getGlobalTransactionId()), archive,
 								ByteUtils.byteArrayToString(currentXid.getBranchQualifier()), xae.errorCode);
 						break;
 					case XAException.XAER_RMFAIL:
 						unFinishExists = true;
-						logger.error("[{}] forget: xares= {}, branch={}, error= {}",
+						logger.error("{}> forget: xares= {}, branch={}, error= {}",
 								ByteUtils.byteArrayToString(currentXid.getGlobalTransactionId()), archive,
 								ByteUtils.byteArrayToString(currentXid.getBranchQualifier()), xae.errorCode);
 						break;
@@ -1426,7 +1426,7 @@ public class TransactionImpl implements Transaction {
 						break;
 					default:
 						unFinishExists = true;
-						logger.error("[{}] forget: xares= {}, branch={}, error= {}",
+						logger.error("{}> forget: xares= {}, branch={}, error= {}",
 								ByteUtils.byteArrayToString(currentXid.getGlobalTransactionId()), archive,
 								ByteUtils.byteArrayToString(currentXid.getBranchQualifier()), xae.errorCode);
 					}

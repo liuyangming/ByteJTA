@@ -60,7 +60,7 @@ public class XATerminatorImpl implements XATerminator {
 				transactionLogger.updateParticipant(archive);
 			}
 
-			logger.info("[{}] prepare: xares= {}, branch= {}, vote= {}",
+			logger.info("{}> prepare: xares= {}, branch= {}, vote= {}",
 					ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
 					ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()), archive.getVote());
 		}
@@ -107,11 +107,11 @@ public class XATerminatorImpl implements XATerminator {
 			archive.setCommitted(true);
 			archive.setCompleted(true);
 
-			logger.info("[{}] commit: xares= {}, branch= {}, opc= {}",
+			logger.info("{}> commit: xares= {}, branch= {}, opc= {}",
 					ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
 					ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()), true);
 		} catch (XAException xaex) {
-			logger.error("[{}] Error occurred while committing xa-resource: xares= {}, branch= {}, code= {}",
+			logger.error("{}> Error occurred while committing xa-resource: xares= {}, branch= {}, code= {}",
 					ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
 					ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()), xaex.errorCode, xaex);
 
@@ -144,7 +144,7 @@ public class XATerminatorImpl implements XATerminator {
 				throw new XAException(XAException.XAER_RMERR);
 			}
 		} catch (RuntimeException rex) {
-			logger.error("[{}] Error occurred while committing xa-resource: xares= {}, branch= {}",
+			logger.error("{}> Error occurred while committing xa-resource: xares= {}, branch= {}",
 					ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
 					ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()), rex);
 			updateRequired = false;
@@ -188,11 +188,11 @@ public class XATerminatorImpl implements XATerminator {
 				committedExists = true;
 				archive.setCommitted(true);
 				archive.setCompleted(true);
-				logger.info("[{}] commit: xares= {}, branch= {}, onePhaseCommit= {}",
+				logger.info("{}> commit: xares= {}, branch= {}, onePhaseCommit= {}",
 						ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
 						ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), false);
 			} catch (XAException xaex) {
-				logger.error("[{}] Error occurred while committing xa-resource: xares= {}, branch= {}, code= {}",
+				logger.error("{}> Error occurred while committing xa-resource: xares= {}, branch= {}, code= {}",
 						ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
 						ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()), xaex.errorCode, xaex);
 
@@ -235,7 +235,7 @@ public class XATerminatorImpl implements XATerminator {
 					updateRequired = false;
 				}
 			} catch (RuntimeException rex) {
-				logger.error("[{}] Error occurred while committing xa-resource: xares= {}, branch= {}",
+				logger.error("{}> Error occurred while committing xa-resource: xares= {}, branch= {}",
 						ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
 						ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()), rex);
 				unFinishExists = true;
@@ -389,11 +389,11 @@ public class XATerminatorImpl implements XATerminator {
 				rolledbackExists = true;
 				archive.setRolledback(true);
 				archive.setCompleted(true);
-				logger.info("[{}] rollback: xares= {}, branch= {}",
+				logger.info("{}> rollback: xares= {}, branch= {}",
 						ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
 						ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()));
 			} catch (XAException xaex) {
-				logger.error("[{}] Error occurred while rolling back xa-resource: xares= {}, branch= {}, code= {}",
+				logger.error("{}> Error occurred while rolling back xa-resource: xares= {}, branch= {}, code= {}",
 						ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
 						ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()), xaex.errorCode, xaex);
 
@@ -438,7 +438,7 @@ public class XATerminatorImpl implements XATerminator {
 			} catch (RuntimeException rex) {
 				unFinishExists = true;
 				updateRequired = false;
-				logger.error("[{}] Error occurred while rolling back xa-resource: xares= {}, branch= {}",
+				logger.error("{}> Error occurred while rolling back xa-resource: xares= {}, branch= {}",
 						ByteUtils.byteArrayToString(archive.getXid().getGlobalTransactionId()), archive,
 						ByteUtils.byteArrayToString(archive.getXid().getBranchQualifier()), rex);
 			} finally {
@@ -569,12 +569,12 @@ public class XATerminatorImpl implements XATerminator {
 				// , XAER_NOTA, XAER_INVAL, or XAER_PROTO.
 				switch (xae.errorCode) {
 				case XAException.XAER_RMERR:
-					logger.error("[{}] forget: xares= {}, branch={}, error= {}",
+					logger.error("{}> forget: xares= {}, branch={}, error= {}",
 							ByteUtils.byteArrayToString(currentXid.getGlobalTransactionId()), archive,
 							ByteUtils.byteArrayToString(currentXid.getBranchQualifier()), xae.errorCode);
 					break;
 				case XAException.XAER_RMFAIL:
-					logger.error("[{}] forget: xares= {}, branch={}, error= {}",
+					logger.error("{}> forget: xares= {}, branch={}, error= {}",
 							ByteUtils.byteArrayToString(currentXid.getGlobalTransactionId()), archive,
 							ByteUtils.byteArrayToString(currentXid.getBranchQualifier()), xae.errorCode);
 					break;
@@ -583,7 +583,7 @@ public class XATerminatorImpl implements XATerminator {
 				case XAException.XAER_PROTO:
 					break;
 				default:
-					logger.error("[{}] forget: xares= {}, branch={}, error= {}",
+					logger.error("{}> forget: xares= {}, branch={}, error= {}",
 							ByteUtils.byteArrayToString(currentXid.getGlobalTransactionId()), archive,
 							ByteUtils.byteArrayToString(currentXid.getBranchQualifier()), xae.errorCode);
 				}

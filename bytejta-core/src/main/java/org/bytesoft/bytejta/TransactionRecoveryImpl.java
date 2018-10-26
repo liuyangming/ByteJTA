@@ -65,21 +65,21 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 				this.recoverTransaction(transaction);
 				value++;
 			} catch (CommitRequiredException ex) {
-				logger.debug("[{}] recover: branch={}, message= commit-required",
+				logger.debug("{}> recover: branch={}, message= commit-required",
 						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
 						ByteUtils.byteArrayToString(xid.getBranchQualifier()), ex);
 				continue;
 			} catch (RollbackRequiredException ex) {
-				logger.debug("[{}] recover: branch={}, message= rollback-required",
+				logger.debug("{}> recover: branch={}, message= rollback-required",
 						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
 						ByteUtils.byteArrayToString(xid.getBranchQualifier()), ex);
 				continue;
 			} catch (SystemException ex) {
-				logger.debug("[{}] recover: branch={}, message= {}", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+				logger.debug("{}> recover: branch={}, message= {}", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
 						ByteUtils.byteArrayToString(xid.getBranchQualifier()), ex.getMessage(), ex);
 				continue;
 			} catch (RuntimeException ex) {
-				logger.debug("[{}] recover: branch={}, message= {}", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
+				logger.debug("{}> recover: branch={}, message= {}", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()),
 						ByteUtils.byteArrayToString(xid.getBranchQualifier()), ex.getMessage(), ex);
 				continue;
 			}
