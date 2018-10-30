@@ -40,7 +40,7 @@ import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.core.env.Environment;
 
@@ -56,7 +56,7 @@ import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.UpdateResult;
 
 public class MongoTransactionLogger implements TransactionLogger, TransactionResourceListener, EnvironmentAware,
-		TransactionEndpointAware, TransactionBeanFactoryAware, InitializingBean {
+		TransactionEndpointAware, TransactionBeanFactoryAware, SmartInitializingSingleton {
 	static Logger logger = LoggerFactory.getLogger(MongoTransactionLogger.class);
 	static final String CONSTANTS_TB_TRANSACTIONS = "transactions";
 	static final String CONSTANTS_FD_GLOBAL = "gxid";
@@ -73,55 +73,6 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 	@javax.inject.Inject
 	private TransactionBeanFactory beanFactory;
 	private volatile boolean initializeEnabled = true;
-
-	public void afterPropertiesSet() throws Exception {
-		if (this.initializeEnabled) {
-			this.initializeIndexIfNecessary();
-		}
-	}
-
-	private void initializeIndexIfNecessary() {
-		this.createTransactionsGlobalTxKeyIndexIfNecessary();
-	}
-
-	private void createTransactionsGlobalTxKeyIndexIfNecessary() {
-		String databaseName = CommonUtils.getApplication(this.endpoint).replaceAll("\\W", "_");
-		MongoDatabase database = this.mongoClient.getDatabase(databaseName);
-		MongoCollection<Document> transactions = database.getCollection(CONSTANTS_TB_TRANSACTIONS);
-		ListIndexesIterable<Document> transactionIndexList = transactions.listIndexes();
-		boolean transactionIndexExists = false;
-		MongoCursor<Document> transactionCursor = null;
-		try {
-			transactionCursor = transactionIndexList.iterator();
-			while (transactionIndexExists == false && transactionCursor.hasNext()) {
-				Document document = transactionCursor.next();
-				Boolean unique = document.getBoolean("unique");
-				Document key = (Document) document.get("key");
-
-				boolean globalExists = key.containsKey(CONSTANTS_FD_GLOBAL);
-				boolean lengthEquals = key.size() == 1;
-				transactionIndexExists = lengthEquals && globalExists;
-
-				if (transactionIndexExists && (unique == null || unique == false)) {
-					throw new IllegalStateException();
-				}
-			}
-		} finally {
-			IOUtils.closeQuietly(transactionCursor);
-		}
-
-		if (transactionIndexExists == false) {
-			Document index = new Document(CONSTANTS_FD_GLOBAL, 1);
-			transactions.createIndex(index, new IndexOptions().unique(true));
-		}
-	}
-
-	public void onEnlistResource(Xid xid, XAResource xares) {
-	}
-
-	public void onDelistResource(Xid xid, XAResource xares) {
-		this.upsertParticipant((TransactionXid) xid, (XAResourceArchive) xares);
-	}
 
 	public void createTransaction(TransactionArchive archive) {
 		try {
@@ -501,6 +452,63 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 		participant.setDescriptor(descriptor);
 
 		return participant;
+	}
+
+	public void onEnlistResource(Xid xid, XAResource xares) {
+	}
+
+	public void onDelistResource(Xid xid, XAResource xares) {
+		this.upsertParticipant((TransactionXid) xid, (XAResourceArchive) xares);
+	}
+
+	public void afterSingletonsInstantiated() {
+		try {
+			this.afterPropertiesSet();
+		} catch (Exception error) {
+			throw new RuntimeException(error);
+		}
+	}
+
+	public void afterPropertiesSet() throws Exception {
+		if (this.initializeEnabled) {
+			this.initializeIndexIfNecessary();
+		}
+	}
+
+	private void initializeIndexIfNecessary() {
+		this.createTransactionsGlobalTxKeyIndexIfNecessary();
+	}
+
+	private void createTransactionsGlobalTxKeyIndexIfNecessary() {
+		String databaseName = CommonUtils.getApplication(this.endpoint).replaceAll("\\W", "_");
+		MongoDatabase database = this.mongoClient.getDatabase(databaseName);
+		MongoCollection<Document> transactions = database.getCollection(CONSTANTS_TB_TRANSACTIONS);
+		ListIndexesIterable<Document> transactionIndexList = transactions.listIndexes();
+		boolean transactionIndexExists = false;
+		MongoCursor<Document> transactionCursor = null;
+		try {
+			transactionCursor = transactionIndexList.iterator();
+			while (transactionIndexExists == false && transactionCursor.hasNext()) {
+				Document document = transactionCursor.next();
+				Boolean unique = document.getBoolean("unique");
+				Document key = (Document) document.get("key");
+
+				boolean globalExists = key.containsKey(CONSTANTS_FD_GLOBAL);
+				boolean lengthEquals = key.size() == 1;
+				transactionIndexExists = lengthEquals && globalExists;
+
+				if (transactionIndexExists && (unique == null || unique == false)) {
+					throw new IllegalStateException();
+				}
+			}
+		} finally {
+			IOUtils.closeQuietly(transactionCursor);
+		}
+
+		if (transactionIndexExists == false) {
+			Document index = new Document(CONSTANTS_FD_GLOBAL, 1);
+			transactions.createIndex(index, new IndexOptions().unique(true));
+		}
 	}
 
 	public Environment getEnvironment() {

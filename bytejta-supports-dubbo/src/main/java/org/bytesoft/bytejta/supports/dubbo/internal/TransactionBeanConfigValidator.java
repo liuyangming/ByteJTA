@@ -80,7 +80,7 @@ public class TransactionBeanConfigValidator implements BeanPostProcessor, BeanFa
 
 		String[] filterArray = filter == null ? new String[0] : filter.split("\\s*,\\s*");
 
-		if (retries == null || retries.intValue() != 0) {
+		if (retries != null && retries.intValue() != 0) {
 			throw new FatalBeanException(String.format("The value of attr 'retries'(beanId= %s) should be '0'.", beanName));
 			// } else if (loadbalance == null || StringUtils.equals("bytejta", loadbalance) == false) {
 			// throw new FatalBeanException(

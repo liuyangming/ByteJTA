@@ -59,8 +59,18 @@ public class TransactionEndpointAutoInjector implements InitializingBean, BeanPo
 		try {
 			com.alibaba.dubbo.config.ProtocolConfig protocolConfig = //
 					this.applicationContext.getBean(com.alibaba.dubbo.config.ProtocolConfig.class);
+			if (protocolConfig.getPort() == null) {
+				throw new IllegalStateException();
+			}
 			port = String.valueOf(protocolConfig.getPort());
 		} catch (NoSuchBeanDefinitionException error) {
+			String serverPort = ConfigUtils.getProperty("dubbo.protocol.dubbo.port");
+			if (StringUtils.isBlank(serverPort)) {
+				throw new FatalBeanException("No configuration of class com.alibaba.dubbo.config.ProtocolConfig was found.");
+			}
+
+			port = serverPort;
+		} catch (IllegalStateException error) {
 			String serverPort = ConfigUtils.getProperty("dubbo.protocol.dubbo.port");
 			if (StringUtils.isBlank(serverPort)) {
 				throw new FatalBeanException("No configuration of class com.alibaba.dubbo.config.ProtocolConfig was found.");
