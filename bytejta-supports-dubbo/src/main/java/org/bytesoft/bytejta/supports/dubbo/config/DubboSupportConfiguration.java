@@ -31,6 +31,8 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.EnvironmentAware;
@@ -49,12 +51,15 @@ import com.alibaba.dubbo.config.ProtocolConfig;
 import com.alibaba.dubbo.config.ReferenceConfig;
 import com.alibaba.dubbo.config.RegistryConfig;
 import com.alibaba.dubbo.config.ServiceConfig;
+import com.mongodb.ServerAddress;
+import com.mongodb.client.MongoClients;
 
 @ImportResource({ "classpath:bytejta-supports-dubbo.xml" })
 @EnableAspectJAutoProxy(proxyTargetClass = true)
 @EnableTransactionManagement
 public class DubboSupportConfiguration implements TransactionManagementConfigurer, ApplicationContextAware, EnvironmentAware {
 	static final Logger logger = LoggerFactory.getLogger(DubboSupportConfiguration.class);
+	static final String CONSTANT_MONGODBURI = "spring.data.mongodb.uri";
 
 	static final String CONSTANTS_SKEN_ID = "skeleton@org.bytesoft.transaction.remote.RemoteCoordinator";
 	static final String CONSTANTS_STUB_ID = "stub@org.bytesoft.transaction.remote.RemoteCoordinator";
@@ -70,6 +75,29 @@ public class DubboSupportConfiguration implements TransactionManagementConfigure
 		jtaTransactionManager.setTransactionManager(this.applicationContext.getBean(TransactionManager.class));
 		jtaTransactionManager.setUserTransaction(this.applicationContext.getBean(UserTransaction.class));
 		return jtaTransactionManager;
+	}
+
+	@ConditionalOnMissingBean(com.mongodb.client.MongoClient.class)
+	@ConditionalOnProperty(CONSTANT_MONGODBURI)
+	@org.springframework.context.annotation.Bean
+	public com.mongodb.client.MongoClient mongoClient(@Autowired(required = false) com.mongodb.MongoClient mongoClient) {
+		if (mongoClient == null) {
+			return MongoClients.create(this.environment.getProperty(CONSTANT_MONGODBURI));
+		} else {
+			List<ServerAddress> addressList = mongoClient.getAllAddress();
+			StringBuilder ber = new StringBuilder();
+			for (int i = 0; addressList != null && i < addressList.size(); i++) {
+				ServerAddress address = addressList.get(i);
+				String host = address.getHost();
+				int port = address.getPort();
+				if (i == 0) {
+					ber.append(host).append(":").append(port);
+				} else {
+					ber.append(",").append(host).append(":").append(port);
+				}
+			}
+			return MongoClients.create(String.format("mongodb://%s", ber.toString()));
+		}
 	}
 
 	@Bean(CONSTANTS_SKEN_ID)
