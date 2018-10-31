@@ -74,7 +74,7 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 	private TransactionBeanFactory beanFactory;
 	private volatile boolean initializeEnabled = true;
 
-	public void createTransaction(TransactionArchive archive) {
+	public void createTransactionImmediately(TransactionArchive archive) {
 		try {
 			long version = this.versionManager.getInstanceVersion(this.endpoint);
 			if (version <= 0) {
@@ -114,10 +114,22 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 			document.append("recovered_times", archive.getRecoveredTimes());
 
 			transactions.insertOne(document);
+		} catch (com.mongodb.MongoWriteException error) {
+			com.mongodb.WriteError writeError = error.getError();
+			if (MONGODB_ERROR_DUPLICATE_KEY == writeError.getCode()) {
+				this.updateTransaction(archive);
+			} else {
+				logger.error("Error occurred while creating transaction.", error);
+				this.beanFactory.getTransactionManager().setRollbackOnlyQuietly();
+			}
 		} catch (RuntimeException error) {
 			logger.error("Error occurred while creating transaction.", error);
 			this.beanFactory.getTransactionManager().setRollbackOnlyQuietly();
 		}
+	}
+
+	public void createTransaction(TransactionArchive archive) {
+		this.updateTransaction(archive);
 	}
 
 	public void updateTransaction(TransactionArchive archive) {
@@ -125,6 +137,7 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 			TransactionXid transactionXid = (TransactionXid) archive.getXid();
 			byte[] global = transactionXid.getGlobalTransactionId();
 			String identifier = ByteUtils.byteArrayToString(global);
+			XAResourceArchive optimized = archive.getOptimizedResource();
 
 			String databaseName = CommonUtils.getApplication(this.endpoint).replaceAll("\\W", "_");
 			MongoDatabase database = this.mongoClient.getDatabase(databaseName);
@@ -133,9 +146,12 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 			Document variables = new Document();
 			variables.append("status", archive.getStatus());
 			variables.append("vote", archive.getVote());
+			variables.append("strategy", archive.getTransactionStrategyType());
 			variables.append("modified", this.endpoint);
 			variables.append("participants", this.constructResourcesDocument(archive.getRemoteResources()));
 			variables.append("xaresources", this.constructResourcesDocument(archive.getNativeResources()));
+			variables.append("optimized",
+					optimized == null ? null : this.constructResourceDocument(archive.getOptimizedResource()));
 			variables.append("recovered_at", archive.getRecoveredAt() == 0 ? null : new Date(archive.getRecoveredAt()));
 			variables.append("recovered_times", archive.getRecoveredTimes());
 

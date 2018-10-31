@@ -714,6 +714,8 @@ public class TransactionServiceFilter implements Filter {
 		RemoteCoordinator participant = participantRegistry.getPhysicalInstance(remoteAddr);
 		if (participant == null) {
 			ApplicationConfig applicationConfig = beanRegistry.getBean(ApplicationConfig.class);
+			RegistryConfig registryConfig = beanRegistry.getBean(RegistryConfig.class);
+			ProtocolConfig protocolConfig = beanRegistry.getBean(ProtocolConfig.class);
 
 			ReferenceConfig<RemoteCoordinator> referenceConfig = new ReferenceConfig<RemoteCoordinator>();
 			referenceConfig.setInterface(RemoteCoordinator.class);
@@ -724,8 +726,15 @@ public class TransactionServiceFilter implements Filter {
 			referenceConfig.setCheck(false);
 			referenceConfig.setRetries(0);
 			referenceConfig.setUrl(String.format("%s:%s", remoteAddr.getServerHost(), remoteAddr.getServerPort()));
+			referenceConfig.setScope(Constants.SCOPE_REMOTE);
 
 			referenceConfig.setApplication(applicationConfig);
+			if (registryConfig != null) {
+				referenceConfig.setRegistry(registryConfig);
+			}
+			if (protocolConfig != null) {
+				referenceConfig.setProtocol(protocolConfig.getName());
+			} // end-if (protocolConfig != null)
 
 			RemoteCoordinator reference = referenceConfig.get();
 			if (reference == null) {

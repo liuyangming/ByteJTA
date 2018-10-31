@@ -143,13 +143,11 @@ public class TransactionImpl implements Transaction {
 			throw new RollbackRequiredException();
 		}
 
+		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		TransactionXid xid = this.transactionContext.getXid();
 
-		TransactionArchive archive = this.getTransactionArchive();
-
-		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		this.transactionStatus = Status.STATUS_PREPARING;
-		archive.setStatus(this.transactionStatus);
+		TransactionArchive archive = this.getTransactionArchive();
 		transactionLogger.createTransaction(archive);
 		this.transactionListenerList.onPrepareStart(xid);
 
@@ -347,14 +345,12 @@ public class TransactionImpl implements Transaction {
 	}
 
 	private void invokeParticipantPrepare() throws RollbackRequiredException, CommitRequiredException {
-		TransactionXid xid = this.transactionContext.getXid();
-		TransactionArchive archive = this.getTransactionArchive();
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
-
+		TransactionXid xid = this.transactionContext.getXid();
 		logger.info("{}> prepare-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
 		this.transactionStatus = Status.STATUS_PREPARING;
-		archive.setStatus(this.transactionStatus);
+		TransactionArchive archive = this.getTransactionArchive();
 		this.transactionListenerList.onPrepareStart(xid);
 		transactionLogger.updateTransaction(archive);
 
@@ -391,14 +387,12 @@ public class TransactionImpl implements Transaction {
 
 	private void invokeParticipantCommit(boolean onePhaseCommit)
 			throws HeuristicMixedException, HeuristicRollbackException, SystemException {
-		TransactionXid xid = this.transactionContext.getXid();
-		TransactionArchive archive = this.getTransactionArchive();
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
-
+		TransactionXid xid = this.transactionContext.getXid();
 		logger.info("{}> commit-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
 		this.transactionStatus = Status.STATUS_COMMITTING;
-		archive.setStatus(this.transactionStatus);
+		TransactionArchive archive = this.getTransactionArchive();
 		this.transactionListenerList.onCommitStart(xid);
 		transactionLogger.updateTransaction(archive);
 
@@ -556,19 +550,15 @@ public class TransactionImpl implements Transaction {
 	public synchronized void fireTwoPhaseCommit()
 			throws HeuristicRollbackException, HeuristicMixedException, CommitRequiredException, SystemException {
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
-
-		TransactionStrategy currentStrategy = this.getTransactionStrategy();
-
-		TransactionXid xid = this.transactionContext.getXid();
+		this.transactionStatus = Status.STATUS_PREPARING;// .setStatusPreparing();
 
 		TransactionArchive archive = this.getTransactionArchive();// new TransactionArchive();
-		this.transactionStatus = Status.STATUS_PREPARING;// .setStatusPreparing();
-		archive.setStatus(this.transactionStatus);
 		transactionLogger.createTransaction(archive);
 
+		TransactionXid xid = this.transactionContext.getXid();
 		this.transactionListenerList.onPrepareStart(xid);
 
-		// boolean committed = false;
+		TransactionStrategy currentStrategy = this.getTransactionStrategy();
 		int vote = XAResource.XA_RDONLY;
 		try {
 			vote = currentStrategy.prepare(xid);
@@ -1037,12 +1027,10 @@ public class TransactionImpl implements Transaction {
 	private void invokeParticipantRollback() throws SystemException {
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		TransactionXid xid = this.transactionContext.getXid();
-
 		logger.info("{}> rollback-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
 		this.transactionStatus = Status.STATUS_ROLLING_BACK;
 		TransactionArchive archive = this.getTransactionArchive();
-		archive.setStatus(this.transactionStatus);
 		this.transactionListenerList.onRollbackStart(xid);
 		transactionLogger.updateTransaction(archive); // don't create!
 
@@ -1504,10 +1492,13 @@ public class TransactionImpl implements Transaction {
 	}
 
 	public TransactionStrategy getTransactionStrategy() {
-		if (this.transactionStrategy == null) {
-			this.transactionStrategy = this.initGetTransactionStrategy();
+		TransactionStrategy strategy = //
+				this.transactionStrategy == null ? this.initGetTransactionStrategy() : this.transactionStrategy;
+		if (Status.STATUS_ACTIVE == this.transactionStatus || Status.STATUS_MARKED_ROLLBACK == this.transactionStatus) {
+			return strategy;
+		} else {
+			return this.transactionStrategy = this.transactionStrategy == null ? strategy : this.transactionStrategy;
 		}
-		return this.transactionStrategy;
 	}
 
 	private TransactionStrategy initGetTransactionStrategy() {

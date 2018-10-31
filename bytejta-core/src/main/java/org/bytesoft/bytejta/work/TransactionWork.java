@@ -102,6 +102,14 @@ public class TransactionWork implements Work, TransactionBeanFactoryAware {
 		this.delayOfStoping = delayOfStoping;
 	}
 
+	public long getRecoveryInterval() {
+		return recoveryInterval;
+	}
+
+	public void setRecoveryInterval(long recoveryInterval) {
+		this.recoveryInterval = recoveryInterval;
+	}
+
 	public TransactionBeanFactory getBeanFactory() {
 		return this.beanFactory;
 	}

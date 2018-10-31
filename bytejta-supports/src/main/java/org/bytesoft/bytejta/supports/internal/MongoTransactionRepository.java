@@ -68,6 +68,8 @@ public class MongoTransactionRepository
 	private TransactionBeanFactory beanFactory;
 
 	public void putTransaction(TransactionXid transactionXid, Transaction transaction) {
+		MongoTransactionLogger transactionLogger = (MongoTransactionLogger) this.beanFactory.getTransactionLogger();
+		transactionLogger.createTransactionImmediately(transaction.getTransactionArchive());
 	}
 
 	public Transaction getTransaction(TransactionXid xid) throws TransactionException {

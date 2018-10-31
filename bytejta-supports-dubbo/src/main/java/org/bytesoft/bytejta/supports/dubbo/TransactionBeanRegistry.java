@@ -26,6 +26,7 @@ import org.bytesoft.transaction.remote.RemoteCoordinator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.EnvironmentAware;
@@ -97,7 +98,11 @@ public class TransactionBeanRegistry implements TransactionBeanFactoryAware, App
 	}
 
 	public <T> T getBean(Class<T> requiredType) {
-		return this.applicationContext.getBean(requiredType);
+		try {
+			return this.applicationContext.getBean(requiredType);
+		} catch (NoSuchBeanDefinitionException error) {
+			return null; // ignore
+		}
 	}
 
 	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
