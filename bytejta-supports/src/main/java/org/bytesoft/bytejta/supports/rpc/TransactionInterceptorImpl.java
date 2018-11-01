@@ -39,7 +39,7 @@ public class TransactionInterceptorImpl implements TransactionInterceptor, Trans
 	static final Logger logger = LoggerFactory.getLogger(TransactionInterceptorImpl.class);
 
 	@javax.inject.Inject
-	private TransactionBeanFactory beanFactory;
+	protected TransactionBeanFactory beanFactory;
 
 	public void beforeSendRequest(TransactionRequest request) throws IllegalStateException {
 		TransactionManager transactionManager = this.beanFactory.getTransactionManager();

@@ -15,6 +15,7 @@
  */
 package org.bytesoft.bytejta.supports.spring;
 
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.Iterator;
 import java.util.Map;
@@ -57,16 +58,23 @@ public class ManagedConnectionFactoryPostProcessor
 	}
 
 	public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
-		return bean;
+		return this.wrapManagedConnectionFactoryIfNecessary(bean, beanName);
 	}
 
 	public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+		return this.wrapManagedConnectionFactoryIfNecessary(bean, beanName);
+	}
+
+	private Object wrapManagedConnectionFactoryIfNecessary(Object bean, String beanName) throws BeansException {
 		Class<?> clazz = bean.getClass();
 		ClassLoader cl = clazz.getClassLoader();
 
 		Class<?>[] interfaces = clazz.getInterfaces();
 
-		if (LocalXADataSource.class.isInstance(bean)) {
+		InvocationHandler invocationHandler = Proxy.isProxyClass(clazz) ? Proxy.getInvocationHandler(bean) : null;
+		if (invocationHandler != null && ManagedConnectionFactoryHandler.class.isInstance(invocationHandler)) {
+			return bean;
+		} else if (LocalXADataSource.class.isInstance(bean)) {
 			LocalXADataSource target = (LocalXADataSource) bean;
 			this.initializeTransactionManagerIfNecessary(target);
 			return bean;

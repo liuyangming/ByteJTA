@@ -16,6 +16,8 @@
 
 	<bean class="org.bytesoft.bytejta.supports.dubbo.internal.TransactionBeanConfigValidator" />
 	<bean class="org.bytesoft.bytejta.supports.dubbo.internal.TransactionEndpointAutoInjector" />
+	<bean class="org.bytesoft.bytejta.supports.dubbo.internal.TransactionParticipantRegistrant" />
+
 	<bean class="org.bytesoft.bytejta.supports.spring.TransactionDebuggablePostProcessor" />
 
 	<bean class="org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry" factory-method="getInstance" />

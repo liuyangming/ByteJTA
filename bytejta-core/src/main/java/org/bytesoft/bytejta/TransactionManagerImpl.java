@@ -28,6 +28,7 @@ import javax.transaction.NotSupportedException;
 import javax.transaction.RollbackException;
 import javax.transaction.Status;
 import javax.transaction.SystemException;
+import javax.transaction.xa.Xid;
 
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.transaction.RollbackRequiredException;
@@ -52,7 +53,8 @@ public class TransactionManagerImpl
 	@javax.inject.Inject
 	private TransactionBeanFactory beanFactory;
 	private int timeoutSeconds = 5 * 60;
-	private final Map<Thread, Transaction> associatedTxMap = new ConcurrentHashMap<Thread, Transaction>();
+	private final Map<Thread, Transaction> thread2txMap = new ConcurrentHashMap<Thread, Transaction>();
+	private final Map<Xid, Transaction> xid2txMap = new ConcurrentHashMap<Xid, Transaction>();
 	private boolean debuggingEnabled;
 
 	public void begin() throws NotSupportedException, SystemException {
@@ -185,11 +187,17 @@ public class TransactionManagerImpl
 	}
 
 	public void associateThread(Transaction transaction) {
-		this.associatedTxMap.put(Thread.currentThread(), transaction);
+		TransactionContext transactionContext = transaction.getTransactionContext();
+		TransactionXid transactionXid = transactionContext.getXid();
+		this.xid2txMap.put(transactionXid, transaction);
+		this.thread2txMap.put(Thread.currentThread(), transaction);
 	}
 
 	public Transaction desociateThread() {
-		return this.associatedTxMap.remove(Thread.currentThread());
+		Transaction transaction = this.thread2txMap.remove(Thread.currentThread());
+		TransactionContext transactionContext = transaction.getTransactionContext();
+		this.xid2txMap.remove(transactionContext.getXid());
+		return transaction;
 	}
 
 	public Transaction suspend() throws RollbackRequiredException, SystemException {
@@ -218,8 +226,12 @@ public class TransactionManagerImpl
 		return transaction == null ? Status.STATUS_NO_TRANSACTION : transaction.getTransactionStatus();
 	}
 
+	public Transaction getTransaction(Xid transactionXid) {
+		return this.xid2txMap.get(transactionXid);
+	}
+
 	public Transaction getTransaction(Thread thread) {
-		return this.associatedTxMap.get(thread);
+		return this.thread2txMap.get(thread);
 	}
 
 	public Transaction getTransactionQuietly() {
@@ -233,7 +245,7 @@ public class TransactionManagerImpl
 	}
 
 	public Transaction getTransaction() throws SystemException {
-		return this.associatedTxMap.get(Thread.currentThread());
+		return this.thread2txMap.get(Thread.currentThread());
 	}
 
 	public void setRollbackOnlyQuietly() {
@@ -266,7 +278,7 @@ public class TransactionManagerImpl
 
 	public void timingExecution() {
 		List<Transaction> expiredTransactions = new ArrayList<Transaction>();
-		List<Transaction> activeTransactions = new ArrayList<Transaction>(this.associatedTxMap.values());
+		List<Transaction> activeTransactions = new ArrayList<Transaction>(this.thread2txMap.values());
 		long current = System.currentTimeMillis();
 		Iterator<Transaction> activeItr = activeTransactions.iterator();
 		while (activeItr.hasNext()) {

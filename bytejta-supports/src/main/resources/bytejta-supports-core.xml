@@ -32,7 +32,8 @@
 	<!-- <bean id="bytejtaTransactionLock" class="org.bytesoft.bytejta.VacantTransactionLock" /> -->
 
 	<bean id="bytejtaXidFactory" class="org.bytesoft.bytejta.xa.XidFactoryImpl" />
-	<bean id="bytejtaTransactionInterceptor" class="org.bytesoft.bytejta.supports.rpc.TransactionInterceptorImpl" />
+	<!-- <bean id="bytejtaTransactionInterceptor" class="org.bytesoft.bytejta.supports.rpc.TransactionInterceptorImpl" /> -->
+	<bean id="bytejtaTransactionInterceptor" class="org.bytesoft.bytejta.supports.cluster.TransactionInterceptorImpl" />
 
 	<bean id="bytejtaCommandManager" class="org.bytesoft.bytejta.supports.internal.TransactionCommandDispatcher" />
 

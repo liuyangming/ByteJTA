@@ -24,6 +24,7 @@ import javax.transaction.xa.XAException;
 import org.apache.commons.io.IOUtils;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.bytesoft.bytejta.TransactionManagerImpl;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.Transaction;
@@ -68,11 +69,20 @@ public class MongoTransactionRepository
 	private TransactionBeanFactory beanFactory;
 
 	public void putTransaction(TransactionXid transactionXid, Transaction transaction) {
-		MongoTransactionLogger transactionLogger = (MongoTransactionLogger) this.beanFactory.getTransactionLogger();
-		transactionLogger.createTransactionImmediately(transaction.getTransactionArchive());
 	}
 
 	public Transaction getTransaction(TransactionXid xid) throws TransactionException {
+		TransactionManagerImpl transactionManager = //
+				(TransactionManagerImpl) this.beanFactory.getTransactionManager();
+		Transaction transaction = transactionManager.getTransaction(xid);
+		if (transaction != null) {
+			return transaction;
+		}
+
+		return this.getTransactionFromMongoDB(xid);
+	}
+
+	private Transaction getTransactionFromMongoDB(TransactionXid xid) throws TransactionException {
 		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
 		TransactionRecovery transactionRecovery = this.beanFactory.getTransactionRecovery();
 		MongoCursor<Document> transactionCursor = null;
@@ -108,7 +118,7 @@ public class MongoTransactionRepository
 		}
 	}
 
-	public Transaction removeTransaction(TransactionXid xid) {
+	public Transaction removeTransaction(TransactionXid transactionXid) {
 		return null;
 	}
 
