@@ -66,6 +66,9 @@ public class TransactionArchiveDeserializer implements ArchiveDeserializer {
 			}
 		}
 
+		long recoveredMillis = archive.getRecoveredAt();
+		int recoveredTimes = archive.getRecoveredTimes();
+
 		XAResourceArchive optimizedArchive = archive.getOptimizedResource();
 
 		List<XAResourceArchive> nativeArchiveList = archive.getNativeResources();
@@ -78,7 +81,7 @@ public class TransactionArchiveDeserializer implements ArchiveDeserializer {
 
 		int transactionStrategy = archive.getTransactionStrategyType();
 
-		int length = 3 + 3 + 1 + 4 + 1 + nameByteArray.length + 2;
+		int length = 3 + 3 + 1 + 4 + 1 + nameByteArray.length + 2 + 8 + 1;
 		byte[][] nativeByteArray = new byte[nativeArchiveNumber][];
 		for (int i = 0; i < nativeArchiveNumber; i++) {
 			XAResourceArchive resourceArchive = nativeArchiveList.get(i);
@@ -145,6 +148,11 @@ public class TransactionArchiveDeserializer implements ArchiveDeserializer {
 		System.arraycopy(portByteArray, 0, byteArray, position, 2);
 		position = position + 2;
 
+		byteArray[position++] = (byte) (recoveredTimes - 128);
+		byte[] millisByteArray = ByteUtils.longToByteArray(recoveredMillis);
+		System.arraycopy(millisByteArray, 0, byteArray, position, millisByteArray.length);
+		position = position + millisByteArray.length;
+
 		for (int i = 0; i < nativeArchiveNumber; i++) {
 			byte[] elementByteArray = nativeByteArray[i];
 			System.arraycopy(elementByteArray, 0, byteArray, position, elementByteArray.length);
@@ -166,7 +174,6 @@ public class TransactionArchiveDeserializer implements ArchiveDeserializer {
 	}
 
 	public Object deserialize(TransactionXid xid, byte[] array) {
-
 		ByteBuffer buffer = ByteBuffer.wrap(array);
 
 		TransactionArchive archive = new TransactionArchive();
@@ -208,6 +215,14 @@ public class TransactionArchiveDeserializer implements ArchiveDeserializer {
 
 		int port = 32768 + buffer.getShort();
 		archive.setPropagatedBy(String.format("%s:%s:%s", host, name, port));
+
+		int recoveredTimes = 128 + buffer.get();
+		byte[] millisByteArray = new byte[8];
+		buffer.get(millisByteArray);
+		long recoveredAt = ByteUtils.byteArrayToLong(millisByteArray);
+
+		archive.setRecoveredTimes(recoveredTimes);
+		archive.setRecoveredAt(recoveredAt);
 
 		for (int i = 0; i < nativeArchiveNumber; i++) {
 			int length = buffer.getShort();

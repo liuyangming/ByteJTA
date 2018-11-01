@@ -55,17 +55,17 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 			Object bean = this.applicationContext.getBean(identifier);
 			XAResourceDescriptor resolvedResource = this.deserializeResource(identifier, bean);
 			if (resolvedResource == null) {
-				logger.error("can not find a matching xa-resource(identifier= {})!", identifier);
+				logger.error("can not find a matching xa-resource(beanId= {})!", identifier);
 				return null;
 			}
 
 			this.cachedResourceMap.put(identifier, resolvedResource);
 			return resolvedResource;
 		} catch (BeansException bex) {
-			logger.error("can not find a matching xa-resource(identifier= {})!", identifier);
+			logger.error("can not find a matching xa-resource(beanId= {})!", identifier);
 			return null;
 		} catch (Exception ex) {
-			logger.error("can not find a matching xa-resource(identifier= {})!", identifier, ex);
+			logger.error("can not find a matching xa-resource(beanId= {})!", identifier, ex);
 			return null;
 		}
 

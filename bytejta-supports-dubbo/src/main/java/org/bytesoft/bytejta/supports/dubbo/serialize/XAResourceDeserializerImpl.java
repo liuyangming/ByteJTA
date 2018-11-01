@@ -107,6 +107,7 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 			referenceConfig.setInterface(RemoteCoordinator.class);
 			referenceConfig.setTimeout(15000);
 			referenceConfig.setCluster("failfast");
+			referenceConfig.setLoadbalance("bytejta");
 			referenceConfig.setFilter("bytejta");
 			referenceConfig.setGroup(application);
 			referenceConfig.setCheck(false);

@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
 
 public class TransactionRecoveryImpl implements TransactionRecovery, TransactionBeanFactoryAware {
 	static final Logger logger = LoggerFactory.getLogger(TransactionRecoveryImpl.class);
+	static final long SECOND_MILLIS = 1000L;
 
 	private TransactionRecoveryListener listener;
 	@javax.inject.Inject
@@ -61,6 +62,13 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 			Transaction transaction = transactions.get(i);
 			TransactionContext transactionContext = transaction.getTransactionContext();
 			TransactionXid xid = transactionContext.getXid();
+			int recoveredTimes = transactionContext.getRecoveredTimes() > 10 ? 10 : transactionContext.getRecoveredTimes();
+			long recoverMillis = transactionContext.getCreatedTime() + SECOND_MILLIS * 60L * (long) Math.pow(2, recoveredTimes);
+
+			if (System.currentTimeMillis() < recoverMillis) {
+				continue;
+			} // end-if (System.currentTimeMillis() < recoverMillis)
+
 			try {
 				this.recoverTransaction(transaction);
 				value++;
@@ -185,6 +193,8 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		transactionContext.setRecoveried(true);
 		transactionContext.setCoordinator(archive.isCoordinator());
 		transactionContext.setPropagatedBy(archive.getPropagatedBy());
+		transactionContext.setRecoveredTimes(archive.getRecoveredTimes());
+		transactionContext.setCreatedTime(archive.getRecoveredAt());
 
 		TransactionImpl transaction = new TransactionImpl(transactionContext);
 		transaction.setBeanFactory(this.beanFactory);

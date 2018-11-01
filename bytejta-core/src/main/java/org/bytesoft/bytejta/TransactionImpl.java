@@ -201,6 +201,9 @@ public class TransactionImpl implements Transaction {
 		try {
 			this.recoverIfNecessary(); // Recover if transaction is recovered from tx-log.
 
+			this.transactionContext.setRecoveredTimes(this.transactionContext.getRecoveredTimes() + 1);
+			this.transactionContext.setCreatedTime(System.currentTimeMillis());
+
 			this.invokeParticipantCommit(false);
 		} catch (HeuristicMixedException ex) {
 			logger.error("{}> recover: branch={}, status= mixed, message= {}",
@@ -993,6 +996,9 @@ public class TransactionImpl implements Transaction {
 
 	public synchronized void recoveryRollback() throws RollbackRequiredException, SystemException {
 		this.recoverIfNecessary(); // Recover if transaction is recovered from tx-log.
+
+		this.transactionContext.setRecoveredTimes(this.transactionContext.getRecoveredTimes() + 1);
+		this.transactionContext.setCreatedTime(System.currentTimeMillis());
 
 		this.invokeParticipantRollback();
 	}

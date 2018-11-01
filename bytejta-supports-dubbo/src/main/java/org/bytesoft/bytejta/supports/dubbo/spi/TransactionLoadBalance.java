@@ -23,6 +23,7 @@ import org.bytesoft.bytejta.supports.dubbo.InvocationContextRegistry;
 import org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry;
 import org.bytesoft.bytejta.supports.dubbo.ext.ILoadBalancer;
 import org.bytesoft.bytejta.supports.internal.RemoteCoordinatorRegistry;
+import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.archive.XAResourceArchive;
@@ -80,6 +81,7 @@ public final class TransactionLoadBalance implements LoadBalance {
 				(TransactionImpl) transactionManager.getTransactionQuietly();
 		List<XAResourceArchive> participantList = transaction == null ? null : transaction.getRemoteParticipantList();
 
+		RemoteAddr instanceAddr = null;
 		for (int i = 0; invokers != null && participantList != null && participantList.isEmpty() == false
 				&& i < invokers.size(); i++) {
 			Invoker<T> invoker = invokers.get(i);
@@ -98,7 +100,19 @@ public final class TransactionLoadBalance implements LoadBalance {
 				continue;
 			}
 
+			String identifier = participant.getIdentifier();
+			RemoteAddr remoteAddr = CommonUtils.getRemoteAddr(identifier);
+			if (invokerAddr.equals(remoteAddr) == false) {
+				instanceAddr = remoteAddr;
+				continue;
+			}
+
 			return invoker;
+		}
+
+		if (instanceAddr != null) {
+			throw new RpcException(
+					String.format("Invoker(%s:%s) is not found!", instanceAddr.getServerHost(), instanceAddr.getServerPort()));
 		}
 
 		this.fireInitializeIfNecessary();

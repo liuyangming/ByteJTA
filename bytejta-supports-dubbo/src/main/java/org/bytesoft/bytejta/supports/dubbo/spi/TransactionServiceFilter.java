@@ -721,6 +721,7 @@ public class TransactionServiceFilter implements Filter {
 			referenceConfig.setInterface(RemoteCoordinator.class);
 			referenceConfig.setTimeout(15000);
 			referenceConfig.setCluster("failfast");
+			referenceConfig.setLoadbalance("bytejta");
 			referenceConfig.setFilter("bytejta");
 			referenceConfig.setGroup("org-bytesoft-bytejta");
 			referenceConfig.setCheck(false);
@@ -773,6 +774,7 @@ public class TransactionServiceFilter implements Filter {
 			referenceConfig.setInterface(RemoteCoordinator.class);
 			referenceConfig.setTimeout(15000);
 			referenceConfig.setCluster("failfast");
+			referenceConfig.setLoadbalance("bytejta");
 			referenceConfig.setFilter("bytejta");
 			referenceConfig.setGroup(application);
 			referenceConfig.setCheck(false);
