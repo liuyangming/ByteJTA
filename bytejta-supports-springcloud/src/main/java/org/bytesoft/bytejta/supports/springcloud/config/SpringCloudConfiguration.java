@@ -17,7 +17,6 @@ package org.bytesoft.bytejta.supports.springcloud.config;
 
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
@@ -45,7 +44,6 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.http.HttpMessageConverters;
 import org.springframework.cloud.openfeign.support.ResponseEntityDecoder;
@@ -66,9 +64,6 @@ import org.springframework.transaction.annotation.TransactionManagementConfigure
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 
-import com.mongodb.ServerAddress;
-import com.mongodb.client.MongoClients;
-
 import feign.codec.ErrorDecoder;
 
 @PropertySource(value = "bytejta:loadbalancer.config", factory = TransactionPropertySourceFactory.class)
@@ -80,8 +75,6 @@ public class SpringCloudConfiguration implements TransactionManagementConfigurer
 	static final String CONSTANT_INCLUSIONS = "org.bytesoft.bytejta.feign.inclusions";
 	static final String CONSTANT_EXCLUSIONS = "org.bytesoft.bytejta.feign.exclusions";
 	static final String FEIGN_FACTORY_CLASS = "org.springframework.cloud.netflix.feign.FeignClientFactoryBean";
-
-	static final String CONSTANT_MONGODBURI = "spring.data.mongodb.uri";
 
 	private ApplicationContext applicationContext;
 	private String identifier;
@@ -100,29 +93,6 @@ public class SpringCloudConfiguration implements TransactionManagementConfigurer
 				= new org.springframework.transaction.jta.JtaTransactionManager();
 		jtaTransactionManager.setTransactionManager(TransactionBeanFactoryImpl.getInstance().getTransactionManager());
 		return jtaTransactionManager;
-	}
-
-	@ConditionalOnMissingBean(com.mongodb.client.MongoClient.class)
-	@ConditionalOnProperty(CONSTANT_MONGODBURI)
-	@org.springframework.context.annotation.Bean
-	public com.mongodb.client.MongoClient mongoClient(@Autowired(required = false) com.mongodb.MongoClient mongoClient) {
-		if (mongoClient == null) {
-			return MongoClients.create(this.environment.getProperty(CONSTANT_MONGODBURI));
-		} else {
-			List<ServerAddress> addressList = mongoClient.getAllAddress();
-			StringBuilder ber = new StringBuilder();
-			for (int i = 0; addressList != null && i < addressList.size(); i++) {
-				ServerAddress address = addressList.get(i);
-				String host = address.getHost();
-				int port = address.getPort();
-				if (i == 0) {
-					ber.append(host).append(":").append(port);
-				} else {
-					ber.append(",").append(host).append(":").append(port);
-				}
-			}
-			return MongoClients.create(String.format("mongodb://%s", ber.toString()));
-		}
 	}
 
 	@org.springframework.context.annotation.Bean
@@ -200,6 +170,7 @@ public class SpringCloudConfiguration implements TransactionManagementConfigurer
 
 	@org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean(ClientHttpRequestFactory.class)
 	@org.springframework.context.annotation.Bean
+	@SuppressWarnings("deprecation")
 	public ClientHttpRequestFactory defaultRequestFactory() {
 		return new org.springframework.http.client.Netty4ClientHttpRequestFactory();
 	}

@@ -20,21 +20,13 @@
 
 	<bean id="transactionManager" class="org.bytesoft.bytejta.TransactionManagerImpl" />
 	<bean id="bytejtaTransactionCoordinator" class="org.bytesoft.bytejta.TransactionCoordinator" />
-	<bean id="bytejtaTransactionRecovery" class="org.bytesoft.bytejta.supports.internal.MongoTransactionRecovery" />
-	<bean id="bytejtaTransactionRepository" class="org.bytesoft.bytejta.supports.internal.MongoTransactionRepository" />
-	<bean id="bytejtaTransactionLogger" class="org.bytesoft.bytejta.supports.internal.MongoTransactionLogger" />
-	<bean id="bytejtaTransactionLock" class="org.bytesoft.bytejta.supports.internal.MongoTransactionLock" />
 
-	<!-- <bean id="bytejtaTransactionRepository" class="org.bytesoft.bytejta.TransactionRepositoryImpl" /> -->
-	<!-- <bean id="bytejtaTransactionLogger" class="org.bytesoft.bytejta.logging.SampleTransactionLogger" init-method="construct" 
-		/> -->
-	<!-- <bean id="bytejtaTransactionRecovery" class="org.bytesoft.bytejta.TransactionRecoveryImpl" /> -->
-	<!-- <bean id="bytejtaTransactionLock" class="org.bytesoft.bytejta.VacantTransactionLock" /> -->
+	<bean id="bytejtaTransactionRepository" class="org.bytesoft.bytejta.TransactionRepositoryImpl" />
+	<bean id="bytejtaTransactionLogger" class="org.bytesoft.bytejta.logging.SampleTransactionLogger" init-method="construct" />
+	<bean id="bytejtaTransactionRecovery" class="org.bytesoft.bytejta.TransactionRecoveryImpl" />
+	<bean id="bytejtaTransactionLock" class="org.bytesoft.bytejta.VacantTransactionLock" />
 
 	<bean id="bytejtaXidFactory" class="org.bytesoft.bytejta.xa.XidFactoryImpl" />
-	<!-- <bean id="bytejtaTransactionInterceptor" class="org.bytesoft.bytejta.supports.rpc.TransactionInterceptorImpl" /> -->
-	<bean id="bytejtaTransactionInterceptor" class="org.bytesoft.bytejta.supports.cluster.TransactionInterceptorImpl" />
-
-	<bean id="bytejtaCommandManager" class="org.bytesoft.bytejta.supports.internal.TransactionCommandDispatcher" />
+	<bean id="bytejtaTransactionInterceptor" class="org.bytesoft.bytejta.supports.rpc.TransactionInterceptorImpl" />
 
 </beans>
