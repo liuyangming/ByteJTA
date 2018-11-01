@@ -16,12 +16,14 @@
 package org.bytesoft.bytejta.logging;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.PostConstruct;
 import javax.transaction.xa.Xid;
 
 import org.apache.commons.lang3.StringUtils;
@@ -50,7 +52,22 @@ public class SampleTransactionLogger extends VirtualLoggingSystemImpl
 
 	@javax.inject.Inject
 	private TransactionBeanFactory beanFactory;
-	private String endpoint;
+	private String identifier;
+
+	@PostConstruct
+	public void construct() throws IOException {
+		this.initializeIfNecessary();
+	}
+
+	private void initializeIfNecessary() throws IllegalStateException {
+		if (StringUtils.isNotBlank(this.identifier)) {
+			try {
+				super.construct();
+			} catch (IOException error) {
+				throw new IllegalStateException("Error occurred while initializing tx-log!", error);
+			}
+		} // end-if (StringUtils.isNotBlank(this.endpoint))
+	}
 
 	public void createTransaction(TransactionArchive archive) {
 		ArchiveDeserializer deserializer = this.beanFactory.getArchiveDeserializer();
@@ -303,8 +320,8 @@ public class SampleTransactionLogger extends VirtualLoggingSystemImpl
 	}
 
 	public File getDefaultDirectory() {
-		String address = StringUtils.trimToEmpty(this.endpoint);
-		File directory = new File(String.format("bytejta/%s", address.replaceAll("[^a-zA-Z_0-9]", "_")));
+		String address = StringUtils.trimToEmpty(this.identifier);
+		File directory = new File(String.format("bytejta/%s", address.replaceAll("\\W", "_")));
 		if (directory.exists() == false) {
 			try {
 				boolean created = directory.mkdirs();
@@ -335,11 +352,12 @@ public class SampleTransactionLogger extends VirtualLoggingSystemImpl
 	}
 
 	public String getEndpoint() {
-		return endpoint;
+		return identifier;
 	}
 
 	public void setEndpoint(String identifier) {
-		this.endpoint = identifier;
+		this.identifier = identifier;
+		this.initializeIfNecessary();
 	}
 
 	public TransactionBeanFactory getBeanFactory() {

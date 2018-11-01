@@ -22,7 +22,7 @@
 	<bean id="bytejtaTransactionCoordinator" class="org.bytesoft.bytejta.TransactionCoordinator" />
 
 	<bean id="bytejtaTransactionRepository" class="org.bytesoft.bytejta.TransactionRepositoryImpl" />
-	<bean id="bytejtaTransactionLogger" class="org.bytesoft.bytejta.logging.SampleTransactionLogger" init-method="construct" />
+	<bean id="bytejtaTransactionLogger" class="org.bytesoft.bytejta.logging.SampleTransactionLogger" />
 	<bean id="bytejtaTransactionRecovery" class="org.bytesoft.bytejta.TransactionRecoveryImpl" />
 	<bean id="bytejtaTransactionLock" class="org.bytesoft.bytejta.VacantTransactionLock" />
 

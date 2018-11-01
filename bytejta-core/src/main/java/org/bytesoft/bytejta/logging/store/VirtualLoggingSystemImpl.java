@@ -55,8 +55,16 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 	private VirtualLoggingFile slaver;
 
 	private boolean optimized = true;
+	private boolean initialized;
 
-	public void construct() throws IOException {
+	public synchronized void construct() throws IOException {
+		if (this.initialized == false) {
+			this.initialize();
+			this.initialized = true;
+		}
+	}
+
+	private void initialize() throws IOException {
 		if (this.directory == null) {
 			this.directory = this.getDefaultDirectory();
 		}
