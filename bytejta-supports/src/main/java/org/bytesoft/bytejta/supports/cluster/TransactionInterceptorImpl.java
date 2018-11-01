@@ -55,10 +55,12 @@ public class TransactionInterceptorImpl extends org.bytesoft.bytejta.supports.rp
 		TransactionManager transactionManager = this.beanFactory.getTransactionManager();
 		TransactionLogger transactionLogger = this.beanFactory.getTransactionLogger();
 
-		Transaction transaction = transactionManager.getTransactionQuietly();
+		TransactionImpl transaction = (TransactionImpl) transactionManager.getTransactionQuietly();
 		if (transaction == null) {
 			super.beforeSendResponse(response);
 		} else {
+			transaction.delistAllResourceQuietly();
+
 			int oldStatus = transaction.getTransactionStatus();
 			transactionLogger.updateTransaction(transaction.getTransactionArchive());
 			int newStatus = transaction.getTransactionStatus();

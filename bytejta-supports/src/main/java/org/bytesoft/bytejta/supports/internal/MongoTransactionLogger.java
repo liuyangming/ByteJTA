@@ -197,6 +197,8 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 		String descriptorType = descriptor.getClass().getName();
 		String descriptorName = descriptor.getIdentifier();
 
+		boolean delisted = resource.isDelisted();
+		boolean suspended = resource.isSuspended();
 		int branchVote = resource.getVote();
 		boolean readonly = resource.isReadonly();
 		boolean committed = resource.isCommitted();
@@ -211,12 +213,14 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 		document.append("type", descriptorType);
 		document.append("name", descriptorName);
 
+		document.append("heuristic", heuristic);
 		document.append("vote", branchVote);
 		document.append("committed", committed);
 		document.append("rolledback", rolledback);
 		document.append("readonly", readonly);
 		document.append("completed", completed);
-		document.append("heuristic", heuristic);
+		document.append("suspended", suspended);
+		document.append("delisted", delisted);
 
 		return document;
 	}
@@ -280,6 +284,8 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 		String descriptorType = descriptor.getClass().getName();
 		String descriptorName = descriptor.getIdentifier();
 
+		boolean delisted = archive.isDelisted();
+		boolean suspended = archive.isSuspended();
 		int branchVote = archive.getVote();
 		boolean readonly = archive.isReadonly();
 		boolean committed = archive.isCommitted();
@@ -297,6 +303,8 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 		participant.append("readonly", readonly);
 		participant.append("completed", completed);
 		participant.append("heuristic", heuristic);
+		participant.append("suspended", suspended);
+		participant.append("delisted", delisted);
 
 		String databaseName = CommonUtils.getApplication(this.endpoint).replaceAll("\\W", "_");
 		MongoDatabase database = this.mongoClient.getDatabase(databaseName);
@@ -444,6 +452,8 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 		boolean readonly = document.getBoolean("readonly");
 		boolean completed = document.getBoolean("completed");
 		boolean heuristic = document.getBoolean("heuristic");
+		boolean suspended = document.getBoolean("suspended");
+		boolean delisted = document.getBoolean("delisted");
 
 		byte[] globalTransactionId = ByteUtils.stringToByteArray(gxid);
 		byte[] branchQualifier = ByteUtils.stringToByteArray(bxid);
@@ -458,6 +468,8 @@ public class MongoTransactionLogger implements TransactionLogger, TransactionRes
 			throw new IllegalStateException();
 		}
 
+		participant.setSuspended(suspended);
+		participant.setDelisted(delisted);
 		participant.setVote(vote);
 		participant.setCommitted(committed);
 		participant.setRolledback(rolledback);

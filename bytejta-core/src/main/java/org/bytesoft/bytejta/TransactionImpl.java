@@ -1124,7 +1124,7 @@ public class TransactionImpl implements Transaction {
 
 	}
 
-	private void delistAllResourceQuietly() {
+	public void delistAllResourceQuietly() {
 		try {
 			this.delistAllResource();
 		} catch (RollbackRequiredException rrex) {
