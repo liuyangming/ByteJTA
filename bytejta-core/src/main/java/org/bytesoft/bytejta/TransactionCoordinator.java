@@ -456,7 +456,7 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 	}
 
 	public String getApplication() {
-		return this.endpoint;
+		return CommonUtils.getApplication(this.endpoint);
 	}
 
 	public TransactionBeanFactory getBeanFactory() {

@@ -71,8 +71,7 @@ public class ManagedConnectionFactoryPostProcessor
 
 		Class<?>[] interfaces = clazz.getInterfaces();
 
-		InvocationHandler invocationHandler = Proxy.isProxyClass(clazz) ? Proxy.getInvocationHandler(bean) : null;
-		if (invocationHandler != null && ManagedConnectionFactoryHandler.class.isInstance(invocationHandler)) {
+		if (this.hasAlreadyBeenWrappedBySelf(bean)) /* wrapped */ {
 			return bean;
 		} else if (LocalXADataSource.class.isInstance(bean)) {
 			LocalXADataSource target = (LocalXADataSource) bean;
@@ -92,6 +91,15 @@ public class ManagedConnectionFactoryPostProcessor
 			return Proxy.newProxyInstance(cl, interfaces, interceptor);
 		} else {
 			return bean;
+		}
+	}
+
+	private boolean hasAlreadyBeenWrappedBySelf(Object bean) {
+		if (Proxy.isProxyClass(bean.getClass()) == false) {
+			return false;
+		} else {
+			InvocationHandler handler = Proxy.getInvocationHandler(bean);
+			return ManagedConnectionFactoryHandler.class.isInstance(handler);
 		}
 	}
 

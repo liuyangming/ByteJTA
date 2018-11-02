@@ -16,6 +16,7 @@
 package org.bytesoft.bytejta.supports.resource;
 
 import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 
@@ -37,7 +38,15 @@ public class ManagedConnectionFactoryHandler implements InvocationHandler {
 		Class<?> declaringClass = method.getDeclaringClass();
 		Class<?> returningClass = method.getReturnType();
 
-		Object resultObject = method.invoke(this.delegate, args);
+		Object resultObject = null;
+		try {
+			resultObject = method.invoke(this.delegate, args);
+		} catch (InvocationTargetException ex) {
+			throw ex.getTargetException();
+		} catch (IllegalAccessException ex) {
+			throw new RuntimeException(ex);
+		}
+
 		Class<?> clazz = resultObject.getClass();
 		ClassLoader cl = clazz.getClassLoader();
 
@@ -51,23 +60,6 @@ public class ManagedConnectionFactoryHandler implements InvocationHandler {
 			}
 		} // end-for (int i = 0; i < interfaces.length; i++)
 
-		// if (LocalXADataSource.class.isInstance(this.delegate) && XADataSource.class.equals(declaringClass)
-		// && javax.sql.XAConnection.class.equals(returningClass)) {
-		// ManagedConnectionHandler interceptor = new ManagedConnectionHandler(resultObject);
-		// interceptor.setIdentifier(this.identifier);
-		//
-		// Object finalObject = null;
-		// if (containsReturningClass) {
-		// finalObject = Proxy.newProxyInstance(cl, interfaces, interceptor);
-		// } else {
-		// Class<?>[] interfaceArray = new Class<?>[interfaces.length + 2];
-		// System.arraycopy(interfaces, 0, interfaceArray, 0, interfaces.length);
-		// interfaceArray[interfaces.length] = javax.sql.XAConnection.class;
-		// interfaceArray[interfaces.length + 1] = javax.sql.DataSource.class;
-		// finalObject = Proxy.newProxyInstance(cl, interfaceArray, interceptor);
-		// }
-		// return (javax.sql.XAConnection) finalObject;
-		// } else
 		if (XADataSource.class.equals(declaringClass) && javax.sql.XAConnection.class.equals(returningClass)) {
 			ManagedConnectionHandler interceptor = new ManagedConnectionHandler(resultObject);
 			interceptor.setIdentifier(this.identifier);

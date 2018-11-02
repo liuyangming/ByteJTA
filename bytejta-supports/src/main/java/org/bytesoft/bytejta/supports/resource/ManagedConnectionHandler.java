@@ -16,6 +16,7 @@
 package org.bytesoft.bytejta.supports.resource;
 
 import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 
@@ -38,7 +39,15 @@ public class ManagedConnectionHandler implements InvocationHandler {
 		Class<?> declaringClass = method.getDeclaringClass();
 		Class<?> returningClass = method.getReturnType();
 
-		Object resultObject = method.invoke(this.delegate, args);
+		Object resultObject = null;
+		try {
+			resultObject = method.invoke(this.delegate, args);
+		} catch (InvocationTargetException ex) {
+			throw ex.getTargetException();
+		} catch (IllegalAccessException ex) {
+			throw new RuntimeException(ex);
+		}
+
 		if (resultObject != null && XAResourceDescriptor.class.isInstance(resultObject)) {
 			return resultObject;
 		}

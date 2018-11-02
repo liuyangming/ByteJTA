@@ -20,6 +20,8 @@ import javax.transaction.UserTransaction;
 import org.bytesoft.transaction.TransactionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.EnvironmentAware;
@@ -33,6 +35,7 @@ import org.springframework.transaction.jta.JtaTransactionManager;
 
 @ImportResource({ "classpath:bytejta-supports-dubbo.xml" })
 @EnableAspectJAutoProxy(proxyTargetClass = true)
+@EnableAutoConfiguration(exclude = { DataSourceAutoConfiguration.class })
 @EnableTransactionManagement
 public class DubboSupportConfiguration implements TransactionManagementConfigurer, ApplicationContextAware, EnvironmentAware {
 	static final Logger logger = LoggerFactory.getLogger(DubboSupportConfiguration.class);
