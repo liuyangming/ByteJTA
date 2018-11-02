@@ -51,7 +51,6 @@ import org.bytesoft.transaction.RollbackRequiredException;
 import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionContext;
-import org.bytesoft.transaction.TransactionParticipant;
 import org.bytesoft.transaction.TransactionRepository;
 import org.bytesoft.transaction.archive.TransactionArchive;
 import org.bytesoft.transaction.archive.XAResourceArchive;
@@ -653,7 +652,7 @@ public class TransactionImpl implements Transaction {
 	}
 
 	public boolean delistResource(XAResourceDescriptor descriptor, int flag) throws IllegalStateException, SystemException {
-		TransactionParticipant transactionCoordinator = this.beanFactory.getNativeParticipant();
+		RemoteCoordinator transactionCoordinator = (RemoteCoordinator) this.beanFactory.getNativeParticipant();
 		if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
 			RemoteSvc nativeSvc = CommonUtils.getRemoteSvc(transactionCoordinator.getIdentifier());
 			RemoteSvc parentSvc = CommonUtils.getRemoteSvc(String.valueOf(this.transactionContext.getPropagatedBy()));
@@ -843,7 +842,7 @@ public class TransactionImpl implements Transaction {
 				if (CommonResourceDescriptor.class.isInstance(descriptor)) {
 					this.nativeParticipantList.add(archive);
 				} else if (RemoteResourceDescriptor.class.isInstance(descriptor)) {
-					TransactionParticipant transactionCoordinator = this.beanFactory.getNativeParticipant();
+					RemoteCoordinator transactionCoordinator = (RemoteCoordinator) this.beanFactory.getNativeParticipant();
 
 					RemoteSvc nativeSvc = CommonUtils.getRemoteSvc(transactionCoordinator.getIdentifier());
 					RemoteSvc parentSvc = CommonUtils.getRemoteSvc(String.valueOf(this.transactionContext.getPropagatedBy()));

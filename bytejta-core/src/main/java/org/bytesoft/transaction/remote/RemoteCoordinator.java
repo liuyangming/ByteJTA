@@ -19,6 +19,8 @@ import org.bytesoft.transaction.TransactionParticipant;
 
 public interface RemoteCoordinator extends TransactionParticipant {
 
+	public String getIdentifier();
+
 	public RemoteAddr getRemoteAddr();
 
 	public RemoteNode getRemoteNode();

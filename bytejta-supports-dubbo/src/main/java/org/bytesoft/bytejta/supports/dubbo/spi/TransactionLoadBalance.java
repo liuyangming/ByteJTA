@@ -18,7 +18,6 @@ package org.bytesoft.bytejta.supports.dubbo.spi;
 import java.util.List;
 
 import org.bytesoft.bytejta.TransactionImpl;
-import org.bytesoft.bytejta.supports.dubbo.InvocationContext;
 import org.bytesoft.bytejta.supports.dubbo.InvocationContextRegistry;
 import org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry;
 import org.bytesoft.bytejta.supports.dubbo.ext.ILoadBalancer;
@@ -61,7 +60,7 @@ public final class TransactionLoadBalance implements LoadBalance {
 
 	public <T> Invoker<T> select(List<Invoker<T>> invokers, URL url, Invocation invocation) throws RpcException {
 		InvocationContextRegistry registry = InvocationContextRegistry.getInstance();
-		InvocationContext invocationContext = registry.getInvocationContext();
+		RemoteNode invocationContext = registry.getInvocationContext();
 		if (invocationContext == null) {
 			return this.selectConfigedInvoker(invokers, url, invocation);
 		} else {
@@ -125,8 +124,8 @@ public final class TransactionLoadBalance implements LoadBalance {
 
 	}
 
-	public <T> Invoker<T> selectSpecificInvoker(List<Invoker<T>> invokers, URL url, Invocation invocation,
-			InvocationContext context) throws RpcException {
+	public <T> Invoker<T> selectSpecificInvoker(List<Invoker<T>> invokers, URL url, Invocation invocation, RemoteNode context)
+			throws RpcException {
 		RemoteAddr remoteAddr = new RemoteAddr();
 		remoteAddr.setServerHost(context.getServerHost());
 		remoteAddr.setServerPort(context.getServerPort());

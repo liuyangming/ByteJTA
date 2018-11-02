@@ -33,11 +33,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DubboRemoteCoordinator implements InvocationHandler {
+	public static final int KEY_PARTICIPANT_TYPE_GLOBAL = 0;
+	public static final int KEY_PARTICIPANT_TYPE_SYSTEM = 0;
+	public static final int KEY_PARTICIPANT_TYPE_EXACT = 0;
+
 	static final Logger logger = LoggerFactory.getLogger(DubboRemoteCoordinator.class);
 
-	private InvocationContext invocationContext;
-	private RemoteCoordinator proxyCoordinator;
 	private RemoteCoordinator remoteCoordinator;
+	private int coordinatorType; // 0, global; 1, system; 2, direct
+	private RemoteNode invocationContext;
+	private RemoteCoordinator proxyCoordinator;
 
 	public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
@@ -50,13 +55,11 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 			if (Object.class.equals(clazz)) {
 				return method.invoke(this, args);
 			} else if (TransactionParticipant.class.equals(clazz)) {
+				throw new XAException(XAException.XAER_RMFAIL);
+			} else if (RemoteCoordinator.class.equals(clazz)) {
 				if ("getIdentifier".equals(methodName)) {
 					return this.getParticipantsIdentifier(proxy, method, args);
-				} else {
-					throw new XAException(XAException.XAER_RMFAIL);
-				}
-			} else if (RemoteCoordinator.class.equals(clazz)) {
-				if ("getApplication".equals(methodName)) {
+				} else if ("getApplication".equals(methodName)) {
 					return this.getParticipantsApplication(proxy, method, args);
 				} else if ("getRemoteAddr".equals(methodName) && RemoteAddr.class.equals(returnType)) {
 					String identifier = this.getParticipantsIdentifier(proxy, method, args);
@@ -200,12 +203,20 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 				this.invocationContext.getServiceKey(), this.invocationContext.getServerPort());
 	}
 
-	public InvocationContext getInvocationContext() {
+	public RemoteNode getInvocationContext() {
 		return invocationContext;
 	}
 
-	public void setInvocationContext(InvocationContext invocationContext) {
+	public void setInvocationContext(RemoteNode invocationContext) {
 		this.invocationContext = invocationContext;
+	}
+
+	public int getCoordinatorType() {
+		return coordinatorType;
+	}
+
+	public void setCoordinatorType(int coordinatorType) {
+		this.coordinatorType = coordinatorType;
 	}
 
 	public RemoteCoordinator getProxyCoordinator() {

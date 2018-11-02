@@ -20,7 +20,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Proxy;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -30,7 +29,6 @@ import javax.transaction.xa.Xid;
 
 import org.apache.commons.lang3.StringUtils;
 import org.bytesoft.bytejta.supports.dubbo.DubboRemoteCoordinator;
-import org.bytesoft.bytejta.supports.dubbo.InvocationContext;
 import org.bytesoft.bytejta.supports.dubbo.TransactionBeanRegistry;
 import org.bytesoft.bytejta.supports.internal.RemoteCoordinatorRegistry;
 import org.bytesoft.bytejta.supports.internal.RemoteCoordinatorRegistry.InvocationDef;
@@ -74,6 +72,11 @@ import com.caucho.hessian.io.HessianOutput;
 
 public class TransactionServiceFilter implements Filter {
 	static final String KEY_XA_RESOURCE_START = "start";
+	static final String KEY_XA_GET_IDENTIFIER = "getIdentifier";
+	static final String KEY_XA_GET_APPLICATION = "getApplication";
+	static final String KEY_XA_GET_REMOTEADDR = "getRemoteAddr";
+	static final String KEY_XA_GET_REMOTENODE = "getRemoteNode";
+
 	static final Logger logger = LoggerFactory.getLogger(TransactionServiceFilter.class);
 
 	public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
@@ -85,26 +88,33 @@ public class TransactionServiceFilter implements Filter {
 	}
 
 	public Result providerInvoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
-		URL url = RpcContext.getContext().getUrl();
-		String interfaceClazz = url.getServiceInterface();
-		if (StringUtils.equals(invocation.getMethodName(), KEY_XA_RESOURCE_START)
-				&& Arrays.equals(invocation.getParameterTypes(), new Class<?>[] { Xid.class, Integer.TYPE })) {
-			return this.providerInvokeForKey(invoker, invocation);
-		} else if (XAResource.class.getName().equals(interfaceClazz)) {
-			return this.providerInvokeForJTA(invoker, invocation);
-		} else if (TransactionParticipant.class.getName().equals(interfaceClazz)) {
-			return this.providerInvokeForJTA(invoker, invocation);
-		} else if (RemoteCoordinator.class.getName().equals(interfaceClazz)) {
-			return this.providerInvokeForJTA(invoker, invocation);
-		} else {
+		String interfaceClazz = RpcContext.getContext().getUrl().getServiceInterface();
+
+		boolean participantFlag = TransactionParticipant.class.getName().equals(interfaceClazz);
+		boolean xaResourceFlag = XAResource.class.getName().equals(interfaceClazz);
+		boolean coordinatorFlag = RemoteCoordinator.class.getName().equals(interfaceClazz);
+
+		if (participantFlag == false && xaResourceFlag == false && coordinatorFlag == false) {
 			return this.providerInvokeForSVC(invoker, invocation);
+		} else if (StringUtils.equals(invocation.getMethodName(), KEY_XA_RESOURCE_START)) {
+			return this.providerInvokeForKey(invoker, invocation);
+		} else if (StringUtils.equals(invocation.getMethodName(), KEY_XA_GET_IDENTIFIER)) {
+			return this.providerInvokeForKey(invoker, invocation);
+		} else if (StringUtils.equals(invocation.getMethodName(), KEY_XA_GET_APPLICATION)) {
+			return this.providerInvokeForKey(invoker, invocation);
+		} else if (StringUtils.equals(invocation.getMethodName(), KEY_XA_GET_REMOTEADDR)) {
+			return this.providerInvokeForKey(invoker, invocation);
+		} else if (StringUtils.equals(invocation.getMethodName(), KEY_XA_GET_REMOTENODE)) {
+			return this.providerInvokeForKey(invoker, invocation);
+		} else {
+			return this.providerInvokeForJTA(invoker, invocation);
 		}
 	}
 
 	public Result providerInvokeForKey(Invoker<?> invoker, Invocation invocation) throws RpcException {
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
-		TransactionParticipant transactionCoordinator = beanFactory.getNativeParticipant();
+		RemoteCoordinator transactionCoordinator = (RemoteCoordinator) beanFactory.getNativeParticipant();
 
 		String instanceId = StringUtils.trimToEmpty(invocation.getAttachment(RemoteCoordinator.class.getName()));
 
@@ -126,7 +136,7 @@ public class TransactionServiceFilter implements Filter {
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
 		XidFactory xidFactory = beanFactory.getXidFactory();
 		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
-		TransactionParticipant transactionCoordinator = beanFactory.getNativeParticipant();
+		RemoteCoordinator transactionCoordinator = (RemoteCoordinator) beanFactory.getNativeParticipant();
 
 		Class<?>[] parameterTypeArray = invocation.getParameterTypes();
 		Class<?> parameterType = (parameterTypeArray == null || parameterTypeArray.length == 0) ? null : parameterTypeArray[0];
@@ -266,7 +276,7 @@ public class TransactionServiceFilter implements Filter {
 	private Result convertResultForProvider(RpcResult result, String propagatedBy, boolean attachRequired) {
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
-		TransactionParticipant transactionCoordinator = beanFactory.getNativeParticipant();
+		RemoteCoordinator transactionCoordinator = (RemoteCoordinator) beanFactory.getNativeParticipant();
 
 		Object value = result.getValue();
 
@@ -286,7 +296,7 @@ public class TransactionServiceFilter implements Filter {
 	private Result createErrorResultForProvider(Throwable throwable, String propagatedBy, boolean attachRequired) {
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
-		TransactionParticipant transactionCoordinator = beanFactory.getNativeParticipant();
+		RemoteCoordinator transactionCoordinator = (RemoteCoordinator) beanFactory.getNativeParticipant();
 
 		RpcResult result = new RpcResult();
 
@@ -359,26 +369,33 @@ public class TransactionServiceFilter implements Filter {
 	}
 
 	public Result consumerInvoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
-		URL url = RpcContext.getContext().getUrl();
-		String interfaceClazz = url.getServiceInterface();
-		if (StringUtils.equals(invocation.getMethodName(), KEY_XA_RESOURCE_START)
-				&& Arrays.equals(invocation.getParameterTypes(), new Class<?>[] { Xid.class, Integer.TYPE })) {
-			return this.consumerInvokeForKey(invoker, invocation);
-		} else if (XAResource.class.getName().equals(interfaceClazz)) {
-			return this.consumerInvokeForJTA(invoker, invocation);
-		} else if (TransactionParticipant.class.getName().equals(interfaceClazz)) {
-			return this.consumerInvokeForJTA(invoker, invocation);
-		} else if (RemoteCoordinator.class.getName().equals(interfaceClazz)) {
-			return this.consumerInvokeForJTA(invoker, invocation);
-		} else {
+		String interfaceClazz = RpcContext.getContext().getUrl().getServiceInterface();
+
+		boolean participantFlag = TransactionParticipant.class.getName().equals(interfaceClazz);
+		boolean xaResourceFlag = XAResource.class.getName().equals(interfaceClazz);
+		boolean coordinatorFlag = RemoteCoordinator.class.getName().equals(interfaceClazz);
+
+		if (participantFlag == false && xaResourceFlag == false && coordinatorFlag == false) {
 			return this.consumerInvokeForSVC(invoker, invocation);
+		} else if (StringUtils.equals(invocation.getMethodName(), KEY_XA_RESOURCE_START)) {
+			return this.consumerInvokeForKey(invoker, invocation);
+		} else if (StringUtils.equals(invocation.getMethodName(), KEY_XA_GET_IDENTIFIER)) {
+			return this.consumerInvokeForKey(invoker, invocation);
+		} else if (StringUtils.equals(invocation.getMethodName(), KEY_XA_GET_APPLICATION)) {
+			return this.consumerInvokeForKey(invoker, invocation);
+		} else if (StringUtils.equals(invocation.getMethodName(), KEY_XA_GET_REMOTEADDR)) {
+			return this.consumerInvokeForKey(invoker, invocation);
+		} else if (StringUtils.equals(invocation.getMethodName(), KEY_XA_GET_REMOTENODE)) {
+			return this.consumerInvokeForKey(invoker, invocation);
+		} else {
+			return this.consumerInvokeForJTA(invoker, invocation);
 		}
 	}
 
 	public Result consumerInvokeForKey(Invoker<?> invoker, Invocation invocation) throws RpcException {
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
-		TransactionParticipant transactionCoordinator = beanFactory.getNativeParticipant();
+		RemoteCoordinator transactionCoordinator = (RemoteCoordinator) beanFactory.getNativeParticipant();
 
 		Map<String, String> attachments = invocation.getAttachments();
 		attachments.put(RemoteCoordinator.class.getName(), transactionCoordinator.getIdentifier());
@@ -400,6 +417,24 @@ public class TransactionServiceFilter implements Filter {
 			String instanceId = StringUtils.trimToEmpty(String.valueOf(wrapped.getVariable(RemoteCoordinator.class.getName())));
 
 			this.registerRemoteParticipantIfNecessary(instanceId);
+
+			String interfaceClazz = RpcContext.getContext().getUrl().getServiceInterface();
+			boolean participantFlag = TransactionParticipant.class.getName().equals(interfaceClazz);
+			boolean xaResourceFlag = XAResource.class.getName().equals(interfaceClazz);
+			boolean coordinatorFlag = RemoteCoordinator.class.getName().equals(interfaceClazz);
+			boolean resultInitRequired = (participantFlag || xaResourceFlag || coordinatorFlag) && result.getValue() == null;
+			if (resultInitRequired) {
+				if (StringUtils.equals(invocation.getMethodName(), KEY_XA_GET_IDENTIFIER)) {
+					result.setValue(instanceId);
+				} else if (StringUtils.equals(invocation.getMethodName(), KEY_XA_GET_APPLICATION)) {
+					result.setValue(instanceId);
+				} else if (StringUtils.equals(invocation.getMethodName(), KEY_XA_GET_REMOTEADDR)) {
+					result.setValue(CommonUtils.getRemoteAddr(instanceId));
+				} else if (StringUtils.equals(invocation.getMethodName(), KEY_XA_GET_REMOTENODE)) {
+					result.setValue(CommonUtils.getRemoteNode(instanceId));
+				}
+			} // end-if (resultInitRequired)
+
 		} // end-if (InvocationResult.class.isInstance(value))
 
 		return result;
@@ -408,7 +443,7 @@ public class TransactionServiceFilter implements Filter {
 	public Result consumerInvokeForJTA(Invoker<?> invoker, Invocation invocation) throws RpcException {
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
-		TransactionParticipant transactionCoordinator = beanFactory.getNativeParticipant();
+		RemoteCoordinator transactionCoordinator = (RemoteCoordinator) beanFactory.getNativeParticipant();
 
 		Map<String, String> attachments = invocation.getAttachments();
 		attachments.put(RemoteCoordinator.class.getName(), transactionCoordinator.getIdentifier());
@@ -434,7 +469,7 @@ public class TransactionServiceFilter implements Filter {
 		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
-		TransactionParticipant transactionCoordinator = beanFactory.getNativeParticipant();
+		RemoteCoordinator transactionCoordinator = (RemoteCoordinator) beanFactory.getNativeParticipant();
 		TransactionManager transactionManager = beanFactory.getTransactionManager();
 		Transaction transaction = transactionManager.getTransactionQuietly();
 		TransactionContext nativeTransactionContext = transaction == null ? null : transaction.getTransactionContext();
@@ -521,8 +556,6 @@ public class TransactionServiceFilter implements Filter {
 
 	private RemoteCoordinator getParticipantByRemoteAddr(Invoker<?> invoker, InvocationDef invocationDef) {
 		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
-		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
-		RemoteCoordinator consumeCoordinator = beanRegistry.getConsumeCoordinator();
 
 		URL targetUrl = invoker.getUrl();
 		String targetAddr = targetUrl.getIp();
@@ -532,24 +565,24 @@ public class TransactionServiceFilter implements Filter {
 		remoteAddr.setServerHost(targetAddr);
 		remoteAddr.setServerPort(targetPort);
 
-		RemoteCoordinator target = participantRegistry.getPhysicalInstance(remoteAddr);
-		if (target != null) {
-			return target;
-		}
+		if (participantRegistry.containsPhysicalInstance(remoteAddr) == false) {
+			this.initializeRemoteParticipantIfNecessary(remoteAddr);
+		} // end-if (participantRegistry.containsPhysicalInstance(remoteAddr) == false)
 
-		InvocationContext invocationContext = new InvocationContext();
+		RemoteNode invocationContext = new RemoteNode();
 		invocationContext.setServerHost(targetAddr);
 		invocationContext.setServerPort(targetPort);
 
+		RemoteCoordinator remoteCoordinator = participantRegistry.getPhysicalInstance(remoteAddr);
+
 		DubboRemoteCoordinator dubboCoordinator = new DubboRemoteCoordinator();
 		dubboCoordinator.setInvocationContext(invocationContext);
-		dubboCoordinator.setRemoteCoordinator(consumeCoordinator);
+		dubboCoordinator.setRemoteCoordinator(remoteCoordinator);
+		dubboCoordinator.setCoordinatorType(DubboRemoteCoordinator.KEY_PARTICIPANT_TYPE_EXACT);
 
 		RemoteCoordinator participant = (RemoteCoordinator) Proxy.newProxyInstance(
 				DubboRemoteCoordinator.class.getClassLoader(), new Class[] { RemoteCoordinator.class }, dubboCoordinator);
 		dubboCoordinator.setProxyCoordinator(participant);
-
-		this.initializeRemoteParticipantIfNecessary(remoteAddr);
 
 		return participant;
 	}
@@ -559,7 +592,7 @@ public class TransactionServiceFilter implements Filter {
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
 		TransactionInterceptor transactionInterceptor = beanFactory.getTransactionInterceptor();
-		TransactionParticipant transactionCoordinator = beanFactory.getNativeParticipant();
+		RemoteCoordinator transactionCoordinator = (RemoteCoordinator) beanFactory.getNativeParticipant();
 
 		Map<String, String> attachments = invocation.getAttachments();
 		attachments.put(RemoteCoordinator.class.getName(), transactionCoordinator.getIdentifier());
@@ -622,7 +655,7 @@ public class TransactionServiceFilter implements Filter {
 
 		if (StringUtils.isNotBlank(instanceId) && remoteAddr != null && remoteNode != null
 				&& participantRegistry.containsRemoteNode(remoteAddr) == false) {
-			this.initializeRemoteParticipantIfNecessary(remoteNode.getServiceKey());
+			// this.initializeRemoteParticipantIfNecessary(remoteNode.getServiceKey());
 			participantRegistry.putRemoteNode(remoteAddr, remoteNode);
 		}
 	}
@@ -678,59 +711,20 @@ public class TransactionServiceFilter implements Filter {
 				throw new RpcException("Cannot get the application name of the remote application.");
 			}
 
+			// RemoteNode invocationContext = new RemoteNode();
+			// invocationContext.setServerHost(remoteAddr.getServerHost());
+			// invocationContext.setServerPort(remoteAddr.getServerPort());
+			//
+			// DubboRemoteCoordinator dubboCoordinator = new DubboRemoteCoordinator();
+			// dubboCoordinator.setInvocationContext(invocationContext);
+			// dubboCoordinator.setRemoteCoordinator(reference);
+			// dubboCoordinator.setCoordinatorType(DubboRemoteCoordinator.KEY_PARTICIPANT_TYPE_EXACT);
+			//
+			// RemoteCoordinator proxyCoordinator = (RemoteCoordinator) Proxy.newProxyInstance(
+			// DubboRemoteCoordinator.class.getClassLoader(), new Class[] { RemoteCoordinator.class }, dubboCoordinator);
+			// dubboCoordinator.setProxyCoordinator(proxyCoordinator);
+
 			participantRegistry.putPhysicalInstance(remoteAddr, reference);
-		}
-	}
-
-	private void initializeRemoteParticipantIfNecessary(final String system) throws RpcException {
-		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
-		final String application = StringUtils.trimToEmpty(system).intern();
-		RemoteCoordinator remoteParticipant = participantRegistry.getParticipant(application);
-		if (remoteParticipant == null) {
-			synchronized (application) {
-				RemoteCoordinator participant = participantRegistry.getParticipant(application);
-				if (participant == null) {
-					this.processInitRemoteParticipantIfNecessary(application);
-				}
-			} // end-synchronized (target)
-		} // end-if (remoteParticipant == null)
-	}
-
-	private void processInitRemoteParticipantIfNecessary(String application) {
-		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
-		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
-
-		RemoteCoordinator participant = participantRegistry.getParticipant(application);
-		if (participant == null) {
-			ApplicationConfig applicationConfig = beanRegistry.getBean(ApplicationConfig.class);
-			RegistryConfig registryConfig = beanRegistry.getBean(RegistryConfig.class);
-			ProtocolConfig protocolConfig = beanRegistry.getBean(ProtocolConfig.class);
-
-			ReferenceConfig<RemoteCoordinator> referenceConfig = new ReferenceConfig<RemoteCoordinator>();
-			referenceConfig.setInterface(RemoteCoordinator.class);
-			referenceConfig.setTimeout(15000);
-			referenceConfig.setCluster("failfast");
-			referenceConfig.setLoadbalance("bytejta");
-			referenceConfig.setFilter("bytejta");
-			referenceConfig.setGroup(application);
-			referenceConfig.setCheck(false);
-			referenceConfig.setRetries(0);
-			referenceConfig.setScope(Constants.SCOPE_REMOTE);
-
-			referenceConfig.setApplication(applicationConfig);
-			if (registryConfig != null) {
-				referenceConfig.setRegistry(registryConfig);
-			}
-			if (protocolConfig != null) {
-				referenceConfig.setProtocol(protocolConfig.getName());
-			} // end-if (protocolConfig != null)
-
-			RemoteCoordinator reference = referenceConfig.get();
-			if (reference == null) {
-				throw new RpcException("Cannot get the application name of the remote application.");
-			}
-
-			participantRegistry.putParticipant(application, reference);
 		}
 	}
 

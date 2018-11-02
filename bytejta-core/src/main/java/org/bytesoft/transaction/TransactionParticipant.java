@@ -25,8 +25,6 @@ public interface TransactionParticipant extends XAResource {
 
 	public void forgetQuietly(Xid xid);
 
-	public String getIdentifier();
-
 	public Transaction start(TransactionContext transactionContext, int flags) throws XAException;
 
 }

@@ -18,10 +18,12 @@ package org.bytesoft.bytejta.supports.dubbo;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.bytesoft.transaction.remote.RemoteNode;
+
 public final class InvocationContextRegistry {
 	private static final InvocationContextRegistry instance = new InvocationContextRegistry();
 
-	private final Map<Thread, InvocationContext> contexts = new ConcurrentHashMap<Thread, InvocationContext>();
+	private final Map<Thread, RemoteNode> contexts = new ConcurrentHashMap<Thread, RemoteNode>();
 
 	private InvocationContextRegistry() {
 		if (instance != null) {
@@ -33,15 +35,15 @@ public final class InvocationContextRegistry {
 		return instance;
 	}
 
-	public void associateInvocationContext(InvocationContext context) {
+	public void associateInvocationContext(RemoteNode context) {
 		this.contexts.put(Thread.currentThread(), context);
 	}
 
-	public InvocationContext desociateInvocationContext() {
+	public RemoteNode desociateInvocationContext() {
 		return this.contexts.remove(Thread.currentThread());
 	}
 
-	public InvocationContext getInvocationContext() {
+	public RemoteNode getInvocationContext() {
 		return this.contexts.get(Thread.currentThread());
 	}
 
