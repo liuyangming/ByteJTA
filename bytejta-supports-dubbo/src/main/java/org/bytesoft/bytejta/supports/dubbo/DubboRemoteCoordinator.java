@@ -199,7 +199,7 @@ public class DubboRemoteCoordinator implements InvocationHandler {
 	}
 
 	public String toString() {
-		return String.format("<<remote-resource| id= %s:%s:%s>", this.invocationContext.getServerHost(),
+		return String.format("<remote-resource| id= %s:%s:%s>", this.invocationContext.getServerHost(),
 				this.invocationContext.getServiceKey(), this.invocationContext.getServerPort());
 	}
 
