@@ -25,8 +25,11 @@ import javax.resource.spi.ManagedConnectionFactory;
 import javax.sql.XADataSource;
 import javax.transaction.TransactionManager;
 
+import org.apache.commons.dbcp2.managed.BasicManagedDataSource;
+import org.bytesoft.bytejta.TransactionBeanFactoryImpl;
 import org.bytesoft.bytejta.supports.jdbc.LocalXADataSource;
 import org.bytesoft.bytejta.supports.resource.ManagedConnectionFactoryHandler;
+import org.bytesoft.transaction.TransactionBeanFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -71,11 +74,16 @@ public class ManagedConnectionFactoryPostProcessor
 
 		Class<?>[] interfaces = clazz.getInterfaces();
 
-		if (this.hasAlreadyBeenWrappedBySelf(bean)) /* wrapped */ {
+		if (this.hasAlreadyBeenWrappedBySelf(bean)) /* managed-connection-factory has already been wrapped */ {
 			return bean;
 		} else if (LocalXADataSource.class.isInstance(bean)) {
 			LocalXADataSource target = (LocalXADataSource) bean;
 			this.initializeTransactionManagerIfNecessary(target);
+			return bean;
+		} else if (BasicManagedDataSource.class.isInstance(bean)) /* spring boot auto configuration */ {
+			BasicManagedDataSource managedDataSource = (BasicManagedDataSource) bean;
+			TransactionBeanFactory beanFactory = TransactionBeanFactoryImpl.getInstance();
+			managedDataSource.setTransactionManager(beanFactory.getTransactionManager());
 			return bean;
 		} else if (XADataSource.class.isInstance(bean)) {
 			ManagedConnectionFactoryHandler interceptor = new ManagedConnectionFactoryHandler(bean);
