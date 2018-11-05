@@ -19,8 +19,9 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
+import javax.transaction.UserTransaction;
+
 import org.apache.commons.lang3.StringUtils;
-import org.bytesoft.bytejta.TransactionBeanFactoryImpl;
 import org.bytesoft.bytejta.supports.springcloud.SpringCloudBeanRegistry;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionClientRegistry;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignBeanPostProcessor;
@@ -33,6 +34,7 @@ import org.bytesoft.bytejta.supports.springcloud.property.TransactionPropertySou
 import org.bytesoft.bytejta.supports.springcloud.web.TransactionHandlerInterceptor;
 import org.bytesoft.bytejta.supports.springcloud.web.TransactionRequestInterceptor;
 import org.bytesoft.common.utils.CommonUtils;
+import org.bytesoft.transaction.TransactionManager;
 import org.bytesoft.transaction.aware.TransactionEndpointAware;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.MutablePropertyValues;
@@ -94,7 +96,8 @@ public class SpringCloudConfiguration implements TransactionManagementConfigurer
 	public PlatformTransactionManager annotationDrivenTransactionManager() {
 		org.springframework.transaction.jta.JtaTransactionManager jtaTransactionManager //
 				= new org.springframework.transaction.jta.JtaTransactionManager();
-		jtaTransactionManager.setTransactionManager(TransactionBeanFactoryImpl.getInstance().getTransactionManager());
+		jtaTransactionManager.setTransactionManager(this.applicationContext.getBean(TransactionManager.class));
+		jtaTransactionManager.setUserTransaction(this.applicationContext.getBean(UserTransaction.class));
 		return jtaTransactionManager;
 	}
 
