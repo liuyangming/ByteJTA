@@ -29,6 +29,7 @@ import org.apache.commons.dbcp2.managed.BasicManagedDataSource;
 import org.bytesoft.bytejta.TransactionBeanFactoryImpl;
 import org.bytesoft.bytejta.supports.jdbc.LocalXADataSource;
 import org.bytesoft.bytejta.supports.resource.ManagedConnectionFactoryHandler;
+import org.bytesoft.bytejta.supports.resource.jdbc.XADataSourceImpl;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.SmartInitializingSingleton;
@@ -86,9 +87,11 @@ public class ManagedConnectionFactoryPostProcessor
 			managedDataSource.setTransactionManager(beanFactory.getTransactionManager());
 			return bean;
 		} else if (XADataSource.class.isInstance(bean)) {
-			ManagedConnectionFactoryHandler interceptor = new ManagedConnectionFactoryHandler(bean);
-			interceptor.setIdentifier(beanName);
-			return Proxy.newProxyInstance(cl, interfaces, interceptor);
+			XADataSource xaDataSource = (XADataSource) bean;
+			XADataSourceImpl wrappedDataSource = new XADataSourceImpl();
+			wrappedDataSource.setIdentifier(beanName);
+			wrappedDataSource.setXaDataSource(xaDataSource);
+			return wrappedDataSource;
 		} else if (XAConnectionFactory.class.isInstance(bean)) {
 			ManagedConnectionFactoryHandler interceptor = new ManagedConnectionFactoryHandler(bean);
 			interceptor.setIdentifier(beanName);
@@ -103,12 +106,16 @@ public class ManagedConnectionFactoryPostProcessor
 	}
 
 	private boolean hasAlreadyBeenWrappedBySelf(Object bean) {
+		if (XADataSourceImpl.class.isInstance(bean)) {
+			return true;
+		}
+
 		if (Proxy.isProxyClass(bean.getClass()) == false) {
 			return false;
-		} else {
-			InvocationHandler handler = Proxy.getInvocationHandler(bean);
-			return ManagedConnectionFactoryHandler.class.isInstance(handler);
 		}
+
+		InvocationHandler handler = Proxy.getInvocationHandler(bean);
+		return ManagedConnectionFactoryHandler.class.isInstance(handler);
 	}
 
 	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
