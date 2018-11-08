@@ -31,12 +31,21 @@ public class RemoteResourceDescriptor implements XAResourceDescriptor {
 	public static final int X_SAME_CLUSTER = 501;
 
 	private RemoteCoordinator delegate;
+	private String identifier;
 
 	public void setIdentifier(String identifier) {
+		this.identifier = identifier;
 	}
 
 	public String getIdentifier() {
-		return this.delegate == null ? null : this.delegate.getIdentifier();
+		if (StringUtils.isNotBlank(this.identifier)) {
+			return this.identifier;
+		} else if (this.delegate == null) {
+			return null;
+		}
+
+		this.identifier = this.delegate.getIdentifier();
+		return this.identifier;
 	}
 
 	public RemoteAddr getRemoteAddr() {
