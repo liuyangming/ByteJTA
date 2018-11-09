@@ -17,6 +17,7 @@ package org.bytesoft.bytejta.supports.dubbo.config;
 
 import javax.transaction.UserTransaction;
 
+import org.bytesoft.bytejta.supports.resource.properties.ConnectorResourcePropertySourceFactory;
 import org.bytesoft.transaction.TransactionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,12 +28,14 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.context.annotation.ImportResource;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.env.Environment;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.transaction.annotation.TransactionManagementConfigurer;
 import org.springframework.transaction.jta.JtaTransactionManager;
 
+@PropertySource(value = "bytejta:connector.config", factory = ConnectorResourcePropertySourceFactory.class)
 @ImportResource({ "classpath:bytejta-supports-dubbo.xml" })
 @EnableAspectJAutoProxy(proxyTargetClass = true)
 @EnableAutoConfiguration(exclude = { DataSourceAutoConfiguration.class })

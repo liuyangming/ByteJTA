@@ -22,6 +22,7 @@ import java.util.Set;
 import javax.transaction.UserTransaction;
 
 import org.apache.commons.lang3.StringUtils;
+import org.bytesoft.bytejta.supports.resource.properties.ConnectorResourcePropertySourceFactory;
 import org.bytesoft.bytejta.supports.springcloud.SpringCloudBeanRegistry;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionClientRegistry;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignBeanPostProcessor;
@@ -71,6 +72,7 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import feign.codec.ErrorDecoder;
 
 @PropertySource(value = "bytejta:loadbalancer.config", factory = TransactionPropertySourceFactory.class)
+@PropertySource(value = "bytejta:connector.config", factory = ConnectorResourcePropertySourceFactory.class)
 @ImportResource({ "classpath:bytejta-supports-springcloud.xml" })
 @EnableAspectJAutoProxy(proxyTargetClass = true)
 @EnableAutoConfiguration(exclude = { DataSourceAutoConfiguration.class })
