@@ -34,8 +34,8 @@ import org.slf4j.LoggerFactory;
 
 public class DubboRemoteCoordinator implements InvocationHandler {
 	public static final int KEY_PARTICIPANT_TYPE_GLOBAL = 0;
-	public static final int KEY_PARTICIPANT_TYPE_SYSTEM = 0;
-	public static final int KEY_PARTICIPANT_TYPE_EXACT = 0;
+	public static final int KEY_PARTICIPANT_TYPE_SYSTEM = 1;
+	public static final int KEY_PARTICIPANT_TYPE_EXACT = 2;
 
 	static final Logger logger = LoggerFactory.getLogger(DubboRemoteCoordinator.class);
 
