@@ -77,9 +77,19 @@ public class LocalXAResource implements XAResource {
 			if (rs.next() == false) {
 				throw new XAException(XAException.XAER_NOTA);
 			}
-		} catch (XAException xaex) {
-			throw xaex;
-		} catch (Exception ex) {
+		} catch (SQLException ex) {
+			try {
+				this.isTableExists(connection);
+			} catch (SQLException sqlEx) {
+				logger.warn("Error occurred while recovering local-xa-resource.", ex);
+				throw new XAException(XAException.XAER_RMFAIL);
+			} catch (RuntimeException rex) {
+				logger.warn("Error occurred while recovering local-xa-resource.", ex);
+				throw new XAException(XAException.XAER_RMFAIL);
+			}
+
+			throw new XAException(XAException.XAER_RMERR);
+		} catch (RuntimeException ex) {
 			logger.warn("Error occurred while recovering local-xa-resource.", ex);
 			throw new XAException(XAException.XAER_RMERR);
 		} finally {

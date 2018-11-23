@@ -163,8 +163,6 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 			stmt.executeBatch();
 			conn.commit();
 		} catch (Exception ex) {
-			logger.error("Error occurred while forgetting resources.", ex);
-
 			try {
 				conn.rollback();
 			} catch (Exception sqlEx) {
@@ -180,17 +178,11 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 			}
 
 			if (tableExists) {
+				logger.error("Error occurred while forgetting resources.", ex);
 				throw new XAException(XAException.XAER_RMERR);
 			}
 		} finally {
-			if (autoCommit != null) {
-				try {
-					conn.setAutoCommit(autoCommit);
-				} catch (SQLException sqlEx) {
-					logger.error("Error occurred while configuring attribute 'autoCommit'.", sqlEx);
-				}
-			}
-
+			this.setAutoCommitIfNecessary(conn, autoCommit);
 			this.closeQuietly(stmt);
 			this.closeQuietly(conn);
 		}
@@ -209,12 +201,22 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 
 		Connection conn = null;
 		PreparedStatement stmt = null;
+		Boolean autoCommit = null;
 		try {
 			conn = this.dataSource.getConnection();
+			autoCommit = conn.getAutoCommit();
+			conn.setAutoCommit(false);
 			stmt = conn.prepareStatement("delete from bytejta where xid = ?");
 			stmt.setString(1, identifier);
 			stmt.executeUpdate();
+			conn.commit();
 		} catch (Exception ex) {
+			try {
+				conn.rollback();
+			} catch (Exception sqlEx) {
+				logger.error("Error occurred while rolling back local resources.", sqlEx);
+			}
+
 			boolean tableExists = false;
 			try {
 				tableExists = this.isTableExists(conn);
@@ -224,12 +226,24 @@ public class RecoveredResource extends LocalXAResource implements XAResource {
 			}
 
 			if (tableExists) {
+				logger.warn("Error occurred while forgeting local-xa-resource.", ex);
 				throw new XAException(XAException.XAER_RMERR);
 			}
 		} finally {
+			this.setAutoCommitIfNecessary(conn, autoCommit);
 			this.closeQuietly(stmt);
 			this.closeQuietly(conn);
 		}
+	}
+
+	private void setAutoCommitIfNecessary(Connection conn, Boolean autoCommit) {
+		if (autoCommit != null) {
+			try {
+				conn.setAutoCommit(autoCommit);
+			} catch (SQLException sqlEx) {
+				logger.error("Error occurred while configuring attribute 'autoCommit'.", sqlEx);
+			}
+		} // end-if (autoCommit != null)
 	}
 
 	public DataSource getDataSource() {
