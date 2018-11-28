@@ -53,8 +53,8 @@
 			<artifactId>aspectjweaver</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.mongodb</groupId>
-			<artifactId>mongo-java-driver</artifactId>
+			<groupId>org.apache.zookeeper</groupId>
+			<artifactId>zookeeper</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.curator</groupId>
