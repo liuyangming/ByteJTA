@@ -27,10 +27,11 @@ import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.core.Ordered;
 
 @org.springframework.core.annotation.Order(org.springframework.core.Ordered.HIGHEST_PRECEDENCE)
 public class TransactionBeanFactoryAutoInjector
-		implements BeanPostProcessor, SmartInitializingSingleton, ApplicationContextAware {
+		implements BeanPostProcessor, Ordered, SmartInitializingSingleton, ApplicationContextAware {
 	static final Logger logger = LoggerFactory.getLogger(TransactionBeanFactoryAutoInjector.class);
 
 	private ApplicationContext applicationContext;
@@ -65,6 +66,10 @@ public class TransactionBeanFactoryAutoInjector
 					this.applicationContext.getBean(TransactionBeanFactory.class);
 			aware.setBeanFactory(beanFactory);
 		} // end-if (aware.getBeanFactory() == null)
+	}
+
+	public int getOrder() {
+		return Ordered.HIGHEST_PRECEDENCE;
 	}
 
 	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {

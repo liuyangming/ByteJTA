@@ -36,9 +36,10 @@ import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.core.Ordered;
 
 public class ManagedConnectionFactoryPostProcessor
-		implements BeanPostProcessor, SmartInitializingSingleton, ApplicationContextAware {
+		implements BeanPostProcessor, Ordered, SmartInitializingSingleton, ApplicationContextAware {
 	static String BEAN_TRANSACTION_MANAGER = "transactionManager";
 
 	private ApplicationContext applicationContext;
@@ -116,6 +117,10 @@ public class ManagedConnectionFactoryPostProcessor
 
 		InvocationHandler handler = Proxy.getInvocationHandler(bean);
 		return ManagedConnectionFactoryHandler.class.isInstance(handler);
+	}
+
+	public int getOrder() {
+		return Ordered.LOWEST_PRECEDENCE;
 	}
 
 	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
