@@ -16,13 +16,13 @@
 package org.bytesoft.common.utils;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.UnknownHostException;
 import java.util.Enumeration;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.bytesoft.transaction.remote.RemoteAddr;
 import org.bytesoft.transaction.remote.RemoteNode;
@@ -89,77 +89,44 @@ public class CommonUtils {
 	}
 
 	public static String getInstanceKey(String identifier) {
-		if (StringUtils.isBlank(identifier)) {
+		RemoteNode remoteNode = CommonUtils.getRemoteNode(identifier);
+		if (remoteNode == null) {
 			return null;
 		} else {
-			String[] values = identifier.split("\\s*:\\s*");
-			return values.length == 3 ? values[1] : String.format("%s:%s", values[0], values[2]);
+			return String.format("%s:%s", remoteNode.getServerHost(), remoteNode.getServerPort());
 		}
 	}
 
 	public static boolean applicationEquals(String source, String target) {
-		if (StringUtils.isBlank(source) && StringUtils.isNotBlank(target)) {
+		String sourceApplication = CommonUtils.getApplication(source);
+		String targetApplication = CommonUtils.getApplication(target);
+		if (StringUtils.isBlank(sourceApplication) || StringUtils.isBlank(targetApplication)) {
 			return false;
-		} else if (StringUtils.isBlank(target) && StringUtils.isNotBlank(source)) {
-			return false;
-		} else if (StringUtils.isBlank(target) && StringUtils.isBlank(source)) {
-			return false; // treat as different nodes.
 		} else {
-			String[] sourceArray = source.split("\\s*:\\s*");
-			String[] targetArray = target.split("\\s*:\\s*");
-			if (sourceArray.length != targetArray.length) {
-				return false;
-			} else if (sourceArray.length != 3) {
-				return false;
-			} else {
-				String sourceName = sourceArray[1];
-				String targetName = targetArray[1];
-				return StringUtils.equalsIgnoreCase(sourceName, targetName);
-			}
+			return StringUtils.equalsIgnoreCase(sourceApplication, targetApplication);
 		}
 	}
 
 	public static boolean instanceKeyEquals(String source, String target) {
-		if (StringUtils.isBlank(source) && StringUtils.isNotBlank(target)) {
+		RemoteAddr sourceAddr = CommonUtils.getRemoteAddr(source);
+		RemoteAddr targetAddr = CommonUtils.getRemoteAddr(target);
+		if (sourceAddr == null || targetAddr == null) {
 			return false;
-		} else if (StringUtils.isBlank(target) && StringUtils.isNotBlank(source)) {
-			return false;
-		} else if (StringUtils.isBlank(target) && StringUtils.isBlank(source)) {
-			return false; // treat as different nodes.
 		} else {
-			String[] sourceArray = source.split("\\s*:\\s*");
-			String[] targetArray = target.split("\\s*:\\s*");
-			if (sourceArray.length != targetArray.length) {
-				return false;
-			} else {
-				String sourceAddr = sourceArray[0];
-				String targetAddr = targetArray[0];
-				String sourcePort = sourceArray[sourceArray.length - 1];
-				String targetPort = targetArray[targetArray.length - 1];
-				return StringUtils.equalsIgnoreCase(sourceAddr, targetAddr)
-						&& StringUtils.equalsIgnoreCase(sourcePort, targetPort);
-			}
+			String sourceHost = sourceAddr.getServerHost();
+			String targetHost = targetAddr.getServerHost();
+			int sourcePort = sourceAddr.getServerPort();
+			int targetPort = targetAddr.getServerPort();
+			return StringUtils.equalsIgnoreCase(sourceHost, targetHost) && sourcePort == targetPort;
 		}
 	}
 
 	public static boolean equals(Object o1, Object o2) {
-		if (o1 != null) {
-			return o1.equals(o2);
-		} else if (o2 != null) {
-			return o2.equals(o1);
-		} else {
-			return true;
-		}
+		return java.util.Objects.equals(o1, o2);
 	}
 
 	public static void closeQuietly(Closeable closeable) {
-		if (closeable != null) {
-			try {
-				closeable.close();
-			} catch (IOException ex) {
-				logger.debug("Error occurred while closing resource {}.", closeable);
-			}
-		}
+		IOUtils.closeQuietly(closeable);
 	}
 
 	public static String getInetAddress() {

@@ -32,6 +32,7 @@ public class TransactionContext implements Serializable, Cloneable {
 	protected long createdTime;
 	protected long expiredTime;
 	protected boolean rollbackOnly;
+	protected long configFlags;
 
 	public TransactionContext clone() {
 		TransactionContext that = new TransactionContext();
@@ -39,6 +40,7 @@ public class TransactionContext implements Serializable, Cloneable {
 		that.createdTime = System.currentTimeMillis();
 		that.expiredTime = this.expiredTime;
 		that.rollbackOnly = this.rollbackOnly;
+		that.configFlags = this.configFlags;
 		return that;
 	}
 
@@ -88,6 +90,14 @@ public class TransactionContext implements Serializable, Cloneable {
 
 	public void setExpiredTime(long expiredTime) {
 		this.expiredTime = expiredTime;
+	}
+
+	public long getConfigFlags() {
+		return configFlags;
+	}
+
+	public void setConfigFlags(long configFlags) {
+		this.configFlags = configFlags;
 	}
 
 	public boolean isPropagated() {
