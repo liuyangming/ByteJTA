@@ -57,6 +57,8 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 	private boolean optimized = true;
 	private boolean initialized;
 
+	private int switchInterval = 60;
+
 	public synchronized void construct() throws IOException {
 		if (this.initialized == false) {
 			this.initialize();
@@ -137,7 +139,7 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 		while (this.released == false) {
 			try {
 				this.timingLock.lock();
-				this.timingCondition.await(30, TimeUnit.SECONDS);
+				this.timingCondition.await(this.switchInterval, TimeUnit.SECONDS);
 			} catch (Exception ex) {
 				logger.debug(ex.getMessage(), ex);
 			} finally {
@@ -146,7 +148,6 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 
 			this.syncMasterAndSlaver();
 			this.swapMasterAndSlaver();
-
 		}
 	}
 
@@ -435,6 +436,14 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 		logging.setTrigger(this);
 		logging.setIdentifier(this.getLoggingIdentifier().getBytes());
 		return logging;
+	}
+
+	public int getSwitchInterval() {
+		return switchInterval;
+	}
+
+	public void setSwitchInterval(int switchInterval) {
+		this.switchInterval = switchInterval;
 	}
 
 	public boolean isOptimized() {
