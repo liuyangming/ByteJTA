@@ -332,12 +332,16 @@ public class ConnectionImpl implements Connection {
 		TransactionManager transactionManager = beanFactory.getTransactionManager();
 
 		Transaction transaction = transactionManager.getTransactionQuietly();
-		if (transaction != null) {
-			int transactionStatus = transaction.getTransactionStatus();
-			if (Status.STATUS_ACTIVE != transactionStatus && Status.STATUS_MARKED_ROLLBACK != transactionStatus) {
-				throw new SQLException("Operation is disabled during the inactive phase of the transaction!");
-			}
-		} // end-if (transaction != null)
+		if (transaction == null) {
+			return; // return quietly
+		} // end-if (transaction == null)
+
+		int transactionStatus = transaction.getTransactionStatus();
+		if (Status.STATUS_ACTIVE != transactionStatus && Status.STATUS_MARKED_ROLLBACK != transactionStatus) {
+			throw new SQLException("Operation is disabled during the inactive phase of the transaction!");
+		} else if (transaction.isTiming() == false) {
+			throw new SQLException("Operation is disabled during the inactive phase of the transaction!");
+		}
 	}
 
 	public XAConnectionImpl getManagedConnection() {

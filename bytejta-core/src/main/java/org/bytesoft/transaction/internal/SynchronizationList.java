@@ -23,25 +23,44 @@ import javax.transaction.Synchronization;
 public class SynchronizationList implements Synchronization {
 	private final List<Synchronization> synchronizations = new ArrayList<Synchronization>();
 
+	private boolean beforeCompletionInvoked;
+	private boolean finishCompletionInvoked;
+
 	public void registerSynchronizationQuietly(Synchronization sync) {
 		SynchronizationImpl synchronization = new SynchronizationImpl(sync);
 		this.synchronizations.add(synchronization);
 	}
 
 	public void beforeCompletion() {
-		int length = this.synchronizations.size();
-		for (int i = 0; i < length; i++) {
-			Synchronization synchronization = this.synchronizations.get(i);
-			synchronization.beforeCompletion();
-		} // end-for
+		if (this.beforeCompletionInvoked == false) {
+			int length = this.synchronizations.size();
+			for (int i = 0; i < length; i++) {
+				Synchronization synchronization = this.synchronizations.get(i);
+				try {
+					synchronization.beforeCompletion();
+				} catch (RuntimeException error) {
+					// ignore
+				}
+			} // end-for
+
+			this.beforeCompletionInvoked = true;
+		} // end-if (this.beforeCompletionInvoked == false)
 	}
 
 	public void afterCompletion(int status) {
-		int length = this.synchronizations.size();
-		for (int i = 0; i < length; i++) {
-			Synchronization synchronization = this.synchronizations.get(i);
-			synchronization.afterCompletion(status);
-		} // end-for
+		if (this.finishCompletionInvoked == false) {
+			int length = this.synchronizations.size();
+			for (int i = 0; i < length; i++) {
+				Synchronization synchronization = this.synchronizations.get(i);
+				try {
+					synchronization.afterCompletion(status);
+				} catch (RuntimeException error) {
+					// ignore
+				}
+			} // end-for
+
+			this.finishCompletionInvoked = true;
+		} // end-if (this.finishCompletionInvoked == false)
 	}
 
 }

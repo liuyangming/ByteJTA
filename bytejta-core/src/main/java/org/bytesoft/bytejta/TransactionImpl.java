@@ -269,6 +269,7 @@ public class TransactionImpl implements Transaction {
 			return;
 		} /* else active, preparing, prepared, committing {} */
 
+		this.beanFactory.getTransactionTimer().stopTiming(this);
 		try {
 			this.synchronizationList.beforeCompletion();
 			this.delistAllResource();
@@ -322,8 +323,10 @@ public class TransactionImpl implements Transaction {
 		} /* else preparing, prepared, committing {} */
 
 		try {
-			this.synchronizationList.beforeCompletion();
-			this.delistAllResource();
+			this.beanFactory.getTransactionTimer().stopTiming(this);
+			this.synchronizationList.beforeCompletion(); // should has already been invoked
+			this.delistAllResource(); // should has already been invoked
+
 			this.invokeParticipantCommit(false);
 		} catch (RollbackRequiredException rrex) {
 			this.participantRollback();
@@ -453,30 +456,30 @@ public class TransactionImpl implements Transaction {
 		// stop-timing
 		beanFactory.getTransactionTimer().stopTiming(this);
 
-		// before-completion
-		this.synchronizationList.beforeCompletion();
-
-		// delist all resources
 		try {
-			this.delistAllResource();
-		} catch (RollbackRequiredException rrex) {
-			this.fireRollback();
-			HeuristicRollbackException hrex = new HeuristicRollbackException();
-			hrex.initCause(rrex);
-			throw hrex;
-		} catch (SystemException ex) {
-			this.fireRollback();
-			HeuristicRollbackException hrex = new HeuristicRollbackException();
-			hrex.initCause(ex);
-			throw hrex;
-		} catch (RuntimeException rex) {
-			this.fireRollback();
-			HeuristicRollbackException hrex = new HeuristicRollbackException();
-			hrex.initCause(rex);
-			throw hrex;
-		}
+			// before-completion
+			this.synchronizationList.beforeCompletion();
 
-		try {
+			// delist all resources
+			try {
+				this.delistAllResource();
+			} catch (RollbackRequiredException rrex) {
+				this.fireRollback();
+				HeuristicRollbackException hrex = new HeuristicRollbackException();
+				hrex.initCause(rrex);
+				throw hrex;
+			} catch (SystemException ex) {
+				this.fireRollback();
+				HeuristicRollbackException hrex = new HeuristicRollbackException();
+				hrex.initCause(ex);
+				throw hrex;
+			} catch (RuntimeException rex) {
+				this.fireRollback();
+				HeuristicRollbackException hrex = new HeuristicRollbackException();
+				hrex.initCause(rex);
+				throw hrex;
+			}
+
 			TransactionXid xid = this.transactionContext.getXid();
 			logger.info("{}> commit-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
@@ -1019,8 +1022,10 @@ public class TransactionImpl implements Transaction {
 			this.invokeParticipantRollback();
 		} else {
 			try {
+				this.beanFactory.getTransactionTimer().stopTiming(this);
 				this.synchronizationList.beforeCompletion();
 				this.delistAllResourceQuietly();
+
 				this.invokeParticipantRollback();
 			} finally {
 				this.synchronizationList.afterCompletion(this.transactionStatus);
