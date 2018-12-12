@@ -65,7 +65,7 @@ public class TransactionParticipantRegistrant
 		globalServiceConfig.setLoadbalance("bytejta");
 		globalServiceConfig.setFilter("bytejta");
 		globalServiceConfig.setGroup("org-bytesoft-bytejta");
-		globalServiceConfig.setRetries(0);
+		globalServiceConfig.setRetries(-1);
 		globalServiceConfig.setTimeout(15000);
 
 		ServiceConfig<RemoteCoordinator> applicationServiceConfig = new ServiceConfig<RemoteCoordinator>();
@@ -75,7 +75,7 @@ public class TransactionParticipantRegistrant
 		applicationServiceConfig.setLoadbalance("bytejta");
 		applicationServiceConfig.setFilter("bytejta");
 		applicationServiceConfig.setGroup(CommonUtils.getApplication(this.endpoint));
-		applicationServiceConfig.setRetries(0);
+		applicationServiceConfig.setRetries(-1);
 		applicationServiceConfig.setTimeout(15000);
 
 		try {
@@ -128,7 +128,7 @@ public class TransactionParticipantRegistrant
 		referenceConfig.setFilter("bytejta");
 		referenceConfig.setGroup("org-bytesoft-bytejta");
 		referenceConfig.setCheck(false);
-		referenceConfig.setRetries(0);
+		referenceConfig.setRetries(-1);
 		referenceConfig.setScope(Constants.SCOPE_REMOTE);
 
 		try {

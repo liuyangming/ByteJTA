@@ -111,7 +111,7 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 			referenceConfig.setFilter("bytejta");
 			referenceConfig.setGroup(application);
 			referenceConfig.setCheck(false);
-			referenceConfig.setRetries(0);
+			referenceConfig.setRetries(-1);
 			referenceConfig.setScope(Constants.SCOPE_REMOTE);
 
 			referenceConfig.setApplication(applicationConfig);

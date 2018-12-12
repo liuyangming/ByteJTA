@@ -694,7 +694,7 @@ public class TransactionServiceFilter implements Filter {
 			referenceConfig.setFilter("bytejta");
 			referenceConfig.setGroup("org-bytesoft-bytejta");
 			referenceConfig.setCheck(false);
-			referenceConfig.setRetries(0);
+			referenceConfig.setRetries(-1);
 			referenceConfig.setUrl(String.format("%s:%s", remoteAddr.getServerHost(), remoteAddr.getServerPort()));
 			referenceConfig.setScope(Constants.SCOPE_REMOTE);
 

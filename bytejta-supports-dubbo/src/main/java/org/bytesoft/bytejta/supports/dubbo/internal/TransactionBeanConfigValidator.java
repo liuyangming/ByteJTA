@@ -80,8 +80,8 @@ public class TransactionBeanConfigValidator implements BeanPostProcessor, BeanFa
 
 		String[] filterArray = filter == null ? new String[0] : filter.split("\\s*,\\s*");
 
-		if (retries != null && retries.intValue() != 0) {
-			throw new FatalBeanException(String.format("The value of attr 'retries'(beanId= %s) should be '0'.", beanName));
+		if (retries != null && retries.intValue() >= 0) {
+			throw new FatalBeanException(String.format("The value of attr 'retries'(beanId= %s) should be '-1'.", beanName));
 		} else if (loadbalance == null || StringUtils.equals("bytejta", loadbalance) == false) {
 			throw new FatalBeanException(
 					String.format("The value of attr 'loadbalance'(beanId= %s) should be 'bytejta'.", beanName));
@@ -112,8 +112,8 @@ public class TransactionBeanConfigValidator implements BeanPostProcessor, BeanFa
 						|| String.valueOf(group.getValue()).startsWith("x-bytejta-")) == false) {
 			throw new FatalBeanException(String.format(
 					"The value of attr 'group'(beanId= %s) should be 'x-bytejta' or starts with 'x-bytejta-'.", beanName));
-		} else if (retries == null || retries.getValue() == null || "0".equals(retries.getValue()) == false) {
-			throw new FatalBeanException(String.format("The value of attr 'retries'(beanId= %s) should be '0'.", beanName));
+		} else if (retries == null || retries.getValue() == null || "-1".equals(retries.getValue()) == false) {
+			throw new FatalBeanException(String.format("The value of attr 'retries'(beanId= %s) should be '-1'.", beanName));
 		} else if (loadbalance == null || loadbalance.getValue() == null || "bytejta".equals(loadbalance.getValue()) == false) {
 			throw new FatalBeanException(
 					String.format("The value of attr 'loadbalance'(beanId= %s) should be 'bytejta'.", beanName));
