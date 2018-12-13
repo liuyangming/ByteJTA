@@ -16,11 +16,11 @@
 package org.bytesoft.bytejta.supports.springcloud.feign;
 
 import java.io.IOException;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Map;
 
 import org.bytesoft.bytejta.supports.springcloud.SpringCloudBeanRegistry;
-import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.common.utils.SerializeUtils;
 import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionBeanFactory;
@@ -52,7 +52,7 @@ public class TransactionFeignInterceptor
 			TransactionContext transactionContext = transaction.getTransactionContext();
 			byte[] byteArray = SerializeUtils.serializeObject(transactionContext);
 
-			String transactionText = ByteUtils.byteArrayToString(byteArray);
+			String transactionText = Base64.getEncoder().encodeToString(byteArray);
 
 			Map<String, Collection<String>> headers = template.headers();
 			if (headers.containsKey(HEADER_TRANCACTION_KEY) == false) {

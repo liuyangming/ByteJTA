@@ -15,6 +15,8 @@
  */
 package org.bytesoft.bytejta.supports.springcloud.web;
 
+import java.util.Base64;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -23,7 +25,6 @@ import org.bytesoft.bytejta.supports.rpc.TransactionRequestImpl;
 import org.bytesoft.bytejta.supports.rpc.TransactionResponseImpl;
 import org.bytesoft.bytejta.supports.springcloud.SpringCloudBeanRegistry;
 import org.bytesoft.bytejta.supports.springcloud.controller.TransactionCoordinatorController;
-import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.common.utils.SerializeUtils;
 import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionBeanFactory;
@@ -79,7 +80,7 @@ public class TransactionHandlerInterceptor implements HandlerInterceptor, Transa
 		TransactionBeanFactory beanFactory = beanRegistry.getBeanFactory();
 		TransactionInterceptor transactionInterceptor = beanFactory.getTransactionInterceptor();
 
-		byte[] byteArray = transactionText == null ? new byte[0] : ByteUtils.stringToByteArray(transactionText);
+		byte[] byteArray = transactionText == null ? new byte[0] : Base64.getDecoder().decode(transactionText);
 
 		TransactionContext transactionContext = null;
 		if (byteArray != null && byteArray.length > 0) {
@@ -97,7 +98,7 @@ public class TransactionHandlerInterceptor implements HandlerInterceptor, Transa
 		TransactionManager transactionManager = beanFactory.getTransactionManager();
 		Transaction transaction = transactionManager.getTransactionQuietly();
 		byte[] responseByteArray = SerializeUtils.serializeObject(transaction.getTransactionContext());
-		String responseTransactionStr = ByteUtils.byteArrayToString(responseByteArray);
+		String responseTransactionStr = Base64.getEncoder().encodeToString(responseByteArray);
 		response.setHeader(HEADER_TRANCACTION_KEY, responseTransactionStr);
 		response.setHeader(HEADER_PROPAGATION_KEY, this.identifier);
 

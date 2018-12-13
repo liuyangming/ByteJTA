@@ -17,6 +17,7 @@ package org.bytesoft.bytejta.supports.springcloud.web;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -26,7 +27,6 @@ import org.bytesoft.bytejta.supports.rpc.TransactionRequestImpl;
 import org.bytesoft.bytejta.supports.rpc.TransactionResponseImpl;
 import org.bytesoft.bytejta.supports.springcloud.SpringCloudBeanRegistry;
 import org.bytesoft.bytejta.supports.springcloud.loadbalancer.TransactionLoadBalancerInterceptor;
-import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.common.utils.SerializeUtils;
 import org.bytesoft.transaction.TransactionBeanFactory;
@@ -200,7 +200,7 @@ public class TransactionRequestInterceptor
 		TransactionContext transactionContext = transaction.getTransactionContext();
 
 		byte[] reqByteArray = SerializeUtils.serializeObject(transactionContext);
-		String reqTransactionStr = ByteUtils.byteArrayToString(reqByteArray);
+		String reqTransactionStr = Base64.getEncoder().encodeToString(reqByteArray);
 
 		HttpHeaders reqHeaders = httpRequest.getHeaders();
 		reqHeaders.add(HEADER_TRANCACTION_KEY, reqTransactionStr);
@@ -223,8 +223,10 @@ public class TransactionRequestInterceptor
 		String respTransactionStr = respHeaders.getFirst(HEADER_TRANCACTION_KEY);
 		String respPropagationStr = respHeaders.getFirst(HEADER_PROPAGATION_KEY);
 
-		byte[] byteArray = ByteUtils.stringToByteArray(StringUtils.trimToNull(respTransactionStr));
-		TransactionContext serverContext = (TransactionContext) SerializeUtils.deserializeObject(byteArray);
+		String transactionText = StringUtils.trimToNull(respTransactionStr);
+		byte[] byteArray = StringUtils.isBlank(transactionText) ? null : Base64.getDecoder().decode(transactionText);
+		TransactionContext serverContext = byteArray == null || byteArray.length == 0 //
+				? null : (TransactionContext) SerializeUtils.deserializeObject(byteArray);
 
 		TransactionResponseImpl txResp = new TransactionResponseImpl();
 		txResp.setTransactionContext(serverContext);
