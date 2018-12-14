@@ -44,6 +44,7 @@ import org.bytesoft.transaction.TransactionManager;
 public class ConnectionImpl implements Connection {
 	private Connection delegate;
 	private XAConnectionImpl managedConnection;
+	private boolean closed;
 
 	public <T> T unwrap(Class<T> iface) throws SQLException {
 		return delegate.unwrap(iface);
@@ -85,7 +86,7 @@ public class ConnectionImpl implements Connection {
 	}
 
 	public void setAutoCommit(boolean autoCommit) throws SQLException {
-		throw new SQLException("Not supported yet!");
+		delegate.setAutoCommit(autoCommit);
 	}
 
 	public boolean getAutoCommit() throws SQLException {
@@ -93,19 +94,20 @@ public class ConnectionImpl implements Connection {
 	}
 
 	public void commit() throws SQLException {
-		throw new SQLException("Not supported yet!");
+		delegate.commit();
 	}
 
 	public void rollback() throws SQLException {
-		throw new SQLException("Not supported yet!");
+		delegate.rollback();
 	}
 
 	public void close() throws SQLException {
+		this.closed = true;
 		delegate.close();
 	}
 
 	public boolean isClosed() throws SQLException {
-		return delegate.isClosed();
+		return this.closed ? true : delegate.isClosed();
 	}
 
 	public DatabaseMetaData getMetaData() throws SQLException {
@@ -280,7 +282,7 @@ public class ConnectionImpl implements Connection {
 	}
 
 	public boolean isValid(int timeout) throws SQLException {
-		return delegate.isValid(timeout);
+		return this.closed ? false : delegate.isValid(timeout);
 	}
 
 	public void setClientInfo(String name, String value) throws SQLClientInfoException {

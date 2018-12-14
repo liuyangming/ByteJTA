@@ -40,6 +40,7 @@ import org.bytesoft.transaction.aware.TransactionEndpointAware;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.PropertyValue;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.ObjectFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -68,6 +69,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.transaction.annotation.TransactionManagementConfigurer;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import feign.codec.ErrorDecoder;
 
@@ -77,11 +79,11 @@ import feign.codec.ErrorDecoder;
 @EnableAspectJAutoProxy(proxyTargetClass = true)
 @EnableAutoConfiguration(exclude = { DataSourceAutoConfiguration.class })
 @EnableTransactionManagement
-public class SpringCloudConfiguration implements TransactionManagementConfigurer, BeanFactoryPostProcessor,
-		TransactionEndpointAware, EnvironmentAware, ApplicationContextAware {
+public class SpringCloudConfiguration implements WebMvcConfigurer, TransactionManagementConfigurer, BeanFactoryPostProcessor,
+		InitializingBean, TransactionEndpointAware, EnvironmentAware, ApplicationContextAware {
 	static final String CONSTANT_INCLUSIONS = "org.bytesoft.bytejta.feign.inclusions";
 	static final String CONSTANT_EXCLUSIONS = "org.bytesoft.bytejta.feign.exclusions";
-	static final String FEIGN_FACTORY_CLASS = "org.springframework.cloud.netflix.feign.FeignClientFactoryBean";
+	static final String FEIGN_FACTORY_CLASS = "org.springframework.cloud.openfeign.FeignClientFactoryBean";
 
 	private ApplicationContext applicationContext;
 	private String identifier;

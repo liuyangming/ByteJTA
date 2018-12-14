@@ -56,6 +56,9 @@ public class XADataSourceImpl implements XADataSource, BeanNameAware {
 		managed.setIdentifier(this.identifier);
 		managed.setDelegate(delegate);
 
+		delegate.addConnectionEventListener(managed);
+		delegate.addStatementEventListener(managed);
+
 		return managed;
 	}
 
