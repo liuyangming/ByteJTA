@@ -637,21 +637,14 @@ public class TransactionImpl implements Transaction {
 			throw new IllegalStateException();
 		}
 
-		try {
-			if (XAResourceDescriptor.class.isInstance(xaRes)) {
-				return this.delistResource((XAResourceDescriptor) xaRes, flag);
-			} else {
-				XAResourceDescriptor descriptor = new UnidentifiedResourceDescriptor();
-				((UnidentifiedResourceDescriptor) descriptor).setDelegate(xaRes);
-				((UnidentifiedResourceDescriptor) descriptor).setIdentifier("");
-				return this.delistResource(descriptor, flag);
-			}
-		} finally {
-			if (flag == XAResource.TMFAIL) {
-				this.setRollbackOnlyQuietly();
-			}
+		if (XAResourceDescriptor.class.isInstance(xaRes)) {
+			return this.delistResource((XAResourceDescriptor) xaRes, flag);
+		} else {
+			XAResourceDescriptor descriptor = new UnidentifiedResourceDescriptor();
+			((UnidentifiedResourceDescriptor) descriptor).setDelegate(xaRes);
+			((UnidentifiedResourceDescriptor) descriptor).setIdentifier("");
+			return this.delistResource(descriptor, flag);
 		}
-
 	}
 
 	public boolean delistResource(XAResourceDescriptor descriptor, int flag) throws IllegalStateException, SystemException {
@@ -673,40 +666,37 @@ public class TransactionImpl implements Transaction {
 			throw new SystemException();
 		}
 
-		boolean success = false;
 		try {
-			success = this.delistResource(archive, flag);
+			return this.delistResource(archive, flag);
 		} finally {
-			if (success) {
-				this.resourceListenerList.onDelistResource(archive.getXid(), descriptor);
-			}
+			this.resourceListenerList.onDelistResource(archive.getXid(), descriptor);
 		}
 
-		return true;
 	}
 
-	private boolean delistResource(XAResourceArchive archive, int flag) throws SystemException, RollbackRequiredException {
+	private boolean delistResource(XAResourceArchive archive, int flag) throws SystemException {
 		try {
 			Xid branchXid = archive.getXid();
-
-			switch (flag) {
-			case XAResource.TMSUCCESS:
-			case XAResource.TMFAIL:
-				archive.end(branchXid, flag);
-				archive.setDelisted(true);
-				break;
-			case XAResource.TMSUSPEND:
-				archive.end(branchXid, flag);
-				archive.setDelisted(true);
-				archive.setSuspended(true);
-				break;
-			default:
-				throw new SystemException();
-			}
 
 			logger.info("{}> delist: xares= {}, branch= {}, flags= {}",
 					ByteUtils.byteArrayToString(branchXid.getGlobalTransactionId()), archive,
 					ByteUtils.byteArrayToString(branchXid.getBranchQualifier()), flag);
+
+			switch (flag) {
+			case XAResource.TMSUSPEND:
+				archive.end(branchXid, flag);
+				archive.setDelisted(true);
+				archive.setSuspended(true);
+				return true;
+			case XAResource.TMFAIL:
+				this.setRollbackOnlyQuietly();
+			case XAResource.TMSUCCESS:
+				archive.end(branchXid, flag);
+				archive.setDelisted(true);
+				return true;
+			default:
+				return false;
+			}
 		} catch (XAException xae) {
 			logger.error("XATerminatorImpl.delistResource(XAResourceArchive, int)", xae);
 
@@ -724,31 +714,23 @@ public class TransactionImpl implements Transaction {
 				// An error occurred that makes the resource manager unavailable.
 			case XAException.XAER_RMERR:
 				// An error occurred in dissociating the transaction branch from the thread of control.
-				SystemException sysex = new SystemException();
-				sysex.initCause(xae);
-				throw sysex;
-			default:
-				// XA_RB*
-				RollbackRequiredException rrex = new RollbackRequiredException();
-				rrex.initCause(xae);
-				throw rrex;
+				return false; // throw new SystemException();
+			default /* XA_RB* */ :
+				return false; // throw new RollbackRequiredException();
 			}
 		} catch (RuntimeException ex) {
 			logger.error("XATerminatorImpl.delistResource(XAResourceArchive, int)", ex);
-
-			SystemException sysex = new SystemException();
-			sysex.initCause(ex);
-			throw sysex;
+			throw new SystemException();
 		}
-
-		return true;
 	}
 
 	public synchronized boolean enlistResource(XAResource xaRes)
 			throws RollbackException, IllegalStateException, SystemException {
 
 		if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
-			throw new RollbackException();
+			// When a RollbackException is received, DBCP treats the state as STATUS_ROLLEDBACK,
+			// but the actual state is still STATUS_MARKED_ROLLBACK.
+			throw new IllegalStateException(); // throw new RollbackException();
 		} else if (this.transactionStatus != Status.STATUS_ACTIVE) {
 			throw new IllegalStateException();
 		}
@@ -830,13 +812,20 @@ public class TransactionImpl implements Transaction {
 				sysEx.initCause(ex);
 				throw sysEx;
 			} catch (RuntimeException ex) {
-				throw new IllegalStateException(ex);
+				SystemException sysEx = new SystemException();
+				sysEx.initCause(ex);
+				throw sysEx;
 			}
 		}
 
 		boolean success = false;
 		try {
-			success = this.enlistResource(archive, flags);
+			Boolean enlistValue = this.enlistResource(archive, flags);
+			success = enlistValue != null && enlistValue;
+			return enlistValue != null;
+		} catch (RollbackException error) {
+			this.setRollbackOnlyQuietly();
+			throw error;
 		} finally {
 			if (success) {
 				String identifier = descriptor.getIdentifier(); // dubbo: new identifier
@@ -876,10 +865,13 @@ public class TransactionImpl implements Transaction {
 			}
 		}
 
-		return true;
 	}
 
-	private boolean enlistResource(XAResourceArchive archive, int flag) throws SystemException, RollbackException {
+	// result description:
+	// 1) true, success(current resource should be added to archive list);
+	// 2) false, success(resource has already been added to archive list);
+	// 3) null, failure.
+	private Boolean enlistResource(XAResourceArchive archive, int flag) throws SystemException {
 		try {
 			Xid branchXid = archive.getXid();
 			logger.info("{}> enlist: xares= {}, branch= {}, flags: {}",
@@ -905,7 +897,7 @@ public class TransactionImpl implements Transaction {
 				archive.setSuspended(false);
 				return false;
 			default:
-				throw new SystemException();
+				return null;
 			}
 		} catch (XAException xae) {
 			logger.error("XATerminatorImpl.enlistResource(XAResourceArchive, int)", xae);
@@ -917,7 +909,7 @@ public class TransactionImpl implements Transaction {
 				// * If neither TMJOIN nor TMRESUME is specified and the transaction
 				// * specified by xid has previously been seen by the resource manager,
 				// * the resource manager throws the XAException exception with XAER_DUPID error code.
-				return false;
+				return null;
 			case XAException.XAER_OUTSIDE:
 				// The resource manager is doing work outside any global transaction
 				// on behalf of the application.
@@ -928,22 +920,20 @@ public class TransactionImpl implements Transaction {
 				// Invalid arguments were specified.
 			case XAException.XAER_PROTO:
 				// The routine was invoked in an improper context.
-				return false;
+				return null;
 			case XAException.XAER_RMFAIL:
 				// An error occurred that makes the resource manager unavailable
 			case XAException.XAER_RMERR:
 				// An error occurred in associating the transaction branch with the thread of control
-				SystemException sysex = new SystemException();
-				sysex.initCause(xae);
-				throw sysex;
-			default:
-				// XA_RB*
-				throw new RollbackException();
+				return null;
+			default /* XA_RB **/ :
+				// When a RollbackException is received, DBCP treats the state as STATUS_ROLLEDBACK,
+				// but the actual state is still STATUS_MARKED_ROLLBACK.
+				return null; // throw new RollbackException();
 			}
 		} catch (RuntimeException ex) {
 			logger.error("XATerminatorImpl.enlistResource(XAResourceArchive, int)", ex);
-
-			throw new RollbackException();
+			throw new SystemException();
 		}
 
 	}
