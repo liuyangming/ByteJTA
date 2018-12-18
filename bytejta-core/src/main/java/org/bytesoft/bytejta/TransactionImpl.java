@@ -823,9 +823,6 @@ public class TransactionImpl implements Transaction {
 			Boolean enlistValue = this.enlistResource(archive, flags);
 			success = enlistValue != null && enlistValue;
 			return enlistValue != null;
-		} catch (RollbackException error) {
-			this.setRollbackOnlyQuietly();
-			throw error;
 		} finally {
 			if (success) {
 				String identifier = descriptor.getIdentifier(); // dubbo: new identifier
@@ -1098,15 +1095,13 @@ public class TransactionImpl implements Transaction {
 	}
 
 	public void resume() throws RollbackRequiredException, SystemException {
-		boolean rollbackRequired = false;
+		// boolean rollbackRequired = false;
 		boolean errorExists = false;
 		for (int i = 0; i < this.participantList.size(); i++) {
 			XAResourceArchive xares = this.participantList.get(i);
 			if (xares.isDelisted()) {
 				try {
 					this.enlistResource(xares, XAResource.TMRESUME);
-				} catch (RollbackException rex) {
-					rollbackRequired = true;
 				} catch (SystemException rex) {
 					errorExists = true;
 				} catch (RuntimeException rex) {
@@ -1115,10 +1110,7 @@ public class TransactionImpl implements Transaction {
 			}
 		}
 
-		if (rollbackRequired) {
-			this.setRollbackOnlyQuietly();
-			throw new RollbackRequiredException();
-		} else if (errorExists) {
+		if (errorExists) {
 			throw new SystemException(XAException.XAER_RMERR);
 		}
 
