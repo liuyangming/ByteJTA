@@ -29,6 +29,7 @@ import org.bytesoft.transaction.xa.XidFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -44,7 +45,8 @@ public class TransactionCoordinatorController extends PropertyEditorSupport impl
 	@Autowired
 	private TransactionBeanFactory beanFactory;
 
-	@RequestMapping(value = "/org/bytesoft/bytejta/prepare/{xid}", method = RequestMethod.POST)
+	@RequestMapping(value = "/org/bytesoft/bytejta/prepare/{xid}", method = RequestMethod.POST, produces = {
+			MediaType.APPLICATION_JSON_UTF8_VALUE })
 	@ResponseBody
 	public int prepare(@PathVariable("xid") String identifier, HttpServletResponse response) {
 		try {
