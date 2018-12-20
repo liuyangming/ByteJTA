@@ -90,7 +90,7 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 			transaction.setTransactionTimeout((int) timeoutMillis);
 
 			transactionRepository.putTransaction(globalXid, transaction);
-			logger.info("{}> begin-transaction: participant", ByteUtils.byteArrayToString(globalXid.getGlobalTransactionId()));
+			logger.info("{}> begin-participant", ByteUtils.byteArrayToString(globalXid.getGlobalTransactionId()));
 		}
 
 		transactionManager.associateThread(transaction);

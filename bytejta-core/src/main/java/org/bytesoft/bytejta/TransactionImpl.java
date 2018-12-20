@@ -142,6 +142,10 @@ public class TransactionImpl implements Transaction {
 			throw new RollbackRequiredException();
 		}
 
+		if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
+			throw new RollbackRequiredException();
+		}
+
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		TransactionXid xid = this.transactionContext.getXid();
 
@@ -149,12 +153,7 @@ public class TransactionImpl implements Transaction {
 		TransactionArchive archive = this.getTransactionArchive();
 		transactionLogger.createTransaction(archive);
 		this.transactionListenerList.onPrepareStart(xid);
-
-		if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
-			// this.transactionListenerList.onPrepareSuccess(xid);
-			throw new RollbackRequiredException();
-		}
-
+		logger.info("{}> prepare-participant start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		try {
 			TransactionStrategy currentStrategy = this.getTransactionStrategy();
 			int vote = currentStrategy.prepare(xid);
@@ -165,6 +164,8 @@ public class TransactionImpl implements Transaction {
 			archive.setVote(vote);
 
 			this.transactionListenerList.onPrepareSuccess(xid);
+			logger.info("{}> prepare-participant complete successfully",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
 			return vote;
 		} catch (CommitRequiredException crex) {
@@ -175,18 +176,25 @@ public class TransactionImpl implements Transaction {
 			archive.setStatus(this.transactionStatus);
 
 			this.transactionListenerList.onPrepareSuccess(xid);
+			logger.info("{}> prepare-participant complete successfully",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+
 			throw crex;
 		} catch (RollbackRequiredException rrex) {
 			this.transactionStatus = Status.STATUS_ROLLING_BACK;
 			archive.setStatus(this.transactionStatus);
 
 			this.transactionListenerList.onPrepareFailure(xid);
+			logger.info("{}> prepare-participant failed", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+
 			throw rrex;
 		} catch (RuntimeException xaex) {
 			this.transactionStatus = Status.STATUS_ROLLING_BACK;
 			archive.setStatus(this.transactionStatus);
 
 			this.transactionListenerList.onPrepareFailure(xid);
+			logger.info("{}> prepare-participant failed", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+
 			RollbackRequiredException rrex = new RollbackRequiredException();
 			rrex.initCause(xaex);
 			throw rrex;
@@ -227,6 +235,16 @@ public class TransactionImpl implements Transaction {
 		if (this.transactionContext.isRecoveried()) {
 			this.recover(); // Execute recoveryInit if transaction is recovered from tx-log.
 			this.invokeParticipantCommit(opc);
+			return;
+		} // end-if (this.transactionContext.isRecoveried())
+
+		Transaction transaction = //
+				Transaction.class.isInstance(this.transactionalExtra) ? (Transaction) this.transactionalExtra : null;
+		TransactionContext transactionContext = transaction == null ? null : transaction.getTransactionContext();
+		TransactionXid transactionXid = transactionContext == null ? null : transactionContext.getXid();
+		boolean compensable = transactionXid != null && XidFactory.TCC_FORMAT_ID == transactionXid.getFormatId();
+		if (compensable) {
+			this.compensableOnePhaseCommit();
 		} else if (opc) {
 			this.participantOnePhaseCommit();
 		} else {
@@ -247,6 +265,64 @@ public class TransactionImpl implements Transaction {
 			}
 		} // end-if (this.transactionalExtra != null)
 
+	}
+
+	private void compensableOnePhaseCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
+			SecurityException, IllegalStateException, CommitRequiredException, SystemException {
+		this.checkForTransactionExtraIfNecessary();
+
+		if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
+			this.participantRollback();
+			throw new HeuristicRollbackException();
+		} else if (this.transactionStatus == Status.STATUS_ROLLING_BACK) {
+			throw new HeuristicMixedException();
+		} else if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
+			throw new HeuristicRollbackException();
+		} else if (this.transactionStatus == Status.STATUS_UNKNOWN) {
+			throw new IllegalStateException();
+		} else if (this.transactionStatus == Status.STATUS_NO_TRANSACTION) {
+			throw new IllegalStateException();
+		} else if (this.transactionStatus == Status.STATUS_COMMITTED) {
+			return;
+		} /* else active, preparing, prepared, committing {} */
+
+		TransactionXid xid = this.transactionContext.getXid();
+		try {
+			this.synchronizationList.beforeCompletion();
+			this.delistAllResource();
+
+			this.transactionStatus = Status.STATUS_COMMITTING;
+			TransactionArchive archive = this.getTransactionArchive();
+			this.transactionListenerList.onCommitStart(xid);
+			logger.info("{}> commit-participant start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+			// transactionLogger.updateTransaction(archive); // unneccessary
+			TransactionStrategy currentStrategy = this.getTransactionStrategy();
+			currentStrategy.commit(xid, true);
+
+			this.transactionStatus = Status.STATUS_COMMITTED; // Status.STATUS_COMMITTED;
+			archive.setStatus(this.transactionStatus);
+			this.transactionListenerList.onCommitSuccess(xid);
+			logger.info("{}> commit-participant complete successfully",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+
+			// transactionLogger.updateTransaction(archive); // unneccessary
+		} catch (HeuristicMixedException ex) {
+			this.transactionListenerList.onCommitHeuristicMixed(xid); // should never happen
+			throw ex;
+		} catch (HeuristicRollbackException ex) {
+			this.transactionListenerList.onCommitHeuristicRolledback(xid);
+			throw ex;
+		} catch (SystemException ex) {
+			this.transactionListenerList.onCommitFailure(xid);
+			throw ex;
+		} catch (RuntimeException ex) {
+			this.transactionListenerList.onCommitFailure(xid);
+			SystemException error = new SystemException();
+			error.initCause(ex);
+			throw error;
+		} finally {
+			this.synchronizationList.afterCompletion(this.transactionStatus);
+		}
 	}
 
 	private void participantOnePhaseCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException,
@@ -277,7 +353,7 @@ public class TransactionImpl implements Transaction {
 			try {
 				this.invokeParticipantPrepare();
 			} catch (CommitRequiredException crex) {
-				// some RMs has already been committed.
+				/* some RMs has already been committed. */
 			}
 
 			this.invokeParticipantCommit(true);
@@ -352,41 +428,38 @@ public class TransactionImpl implements Transaction {
 	private void invokeParticipantPrepare() throws RollbackRequiredException, CommitRequiredException {
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		TransactionXid xid = this.transactionContext.getXid();
-		logger.info("{}> prepare-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+		logger.info("{}> prepare-participant start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
 		this.transactionStatus = Status.STATUS_PREPARING;
 		TransactionArchive archive = this.getTransactionArchive();
 		this.transactionListenerList.onPrepareStart(xid);
-		transactionLogger.updateTransaction(archive);
+		transactionLogger.createTransaction(archive); // transactionLogger.updateTransaction(archive);
 
-		boolean unFinishExists = true;
+		CommitRequiredException commitRequired = null;
 		try {
 			TransactionStrategy currentStrategy = this.getTransactionStrategy();
 			currentStrategy.prepare(xid);
-
-			unFinishExists = false;
 		} catch (CommitRequiredException ex) {
-			unFinishExists = false;
-			throw ex;
+			commitRequired = ex;
 		} catch (RollbackRequiredException ex) {
 			this.transactionListenerList.onPrepareFailure(xid);
-			logger.info("{}> prepare-transaction failed", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+			logger.info("{}> prepare-participant failed", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 			throw ex;
 		} catch (RuntimeException ex) {
 			this.transactionListenerList.onPrepareFailure(xid);
-			logger.info("{}> prepare-transaction failed", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+			logger.info("{}> prepare-participant failed", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 			throw ex;
-		} finally {
-			if (unFinishExists == false) {
-				this.transactionStatus = Status.STATUS_PREPARED;
-				archive.setStatus(this.transactionStatus);
-				this.transactionListenerList.onPrepareSuccess(xid);
-				transactionLogger.updateTransaction(archive);
-
-				logger.info("{}> prepare-transaction complete successfully",
-						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-			}
 		}
+
+		this.transactionStatus = Status.STATUS_PREPARED;
+		archive.setStatus(this.transactionStatus);
+		this.transactionListenerList.onPrepareSuccess(xid);
+		transactionLogger.updateTransaction(archive);
+		logger.info("{}> prepare-participant complete successfully", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+
+		if (commitRequired != null) {
+			throw commitRequired;
+		} // end-if (commitRequired != null)
 
 	}
 
@@ -394,7 +467,7 @@ public class TransactionImpl implements Transaction {
 			throws HeuristicMixedException, HeuristicRollbackException, SystemException {
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		TransactionXid xid = this.transactionContext.getXid();
-		logger.info("{}> commit-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+		logger.info("{}> commit-participant start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
 		this.transactionStatus = Status.STATUS_COMMITTING;
 		TransactionArchive archive = this.getTransactionArchive();
@@ -426,7 +499,7 @@ public class TransactionImpl implements Transaction {
 				this.transactionListenerList.onCommitSuccess(xid);
 				transactionLogger.updateTransaction(archive);
 
-				logger.info("{}> commit-transaction complete successfully",
+				logger.info("{}> commit-participant complete successfully",
 						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 			}
 		}
@@ -464,17 +537,17 @@ public class TransactionImpl implements Transaction {
 			try {
 				this.delistAllResource();
 			} catch (RollbackRequiredException rrex) {
-				this.fireRollback();
+				this.invokeParticipantRollback(); // this.fireRollback();
 				HeuristicRollbackException hrex = new HeuristicRollbackException();
 				hrex.initCause(rrex);
 				throw hrex;
 			} catch (SystemException ex) {
-				this.fireRollback();
+				this.invokeParticipantRollback(); // this.fireRollback();
 				HeuristicRollbackException hrex = new HeuristicRollbackException();
 				hrex.initCause(ex);
 				throw hrex;
 			} catch (RuntimeException rex) {
-				this.fireRollback();
+				this.invokeParticipantRollback(); // this.fireRollback();
 				HeuristicRollbackException hrex = new HeuristicRollbackException();
 				hrex.initCause(rex);
 				throw hrex;
@@ -555,12 +628,15 @@ public class TransactionImpl implements Transaction {
 	public synchronized void fireTwoPhaseCommit()
 			throws HeuristicRollbackException, HeuristicMixedException, CommitRequiredException, SystemException {
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
+
+		TransactionXid xid = this.transactionContext.getXid();
+		logger.info("{}> prepare-participant start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+
 		this.transactionStatus = Status.STATUS_PREPARING;// .setStatusPreparing();
 
 		TransactionArchive archive = this.getTransactionArchive();// new TransactionArchive();
 		transactionLogger.createTransaction(archive);
 
-		TransactionXid xid = this.transactionContext.getXid();
 		this.transactionListenerList.onPrepareStart(xid);
 
 		TransactionStrategy currentStrategy = this.getTransactionStrategy();
@@ -569,7 +645,9 @@ public class TransactionImpl implements Transaction {
 			vote = currentStrategy.prepare(xid);
 		} catch (RollbackRequiredException xaex) {
 			this.transactionListenerList.onPrepareFailure(xid);
-			this.fireRollback();
+			logger.info("{}> prepare-participant failed", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+
+			this.invokeParticipantRollback(); // this.fireRollback();
 			HeuristicRollbackException hrex = new HeuristicRollbackException();
 			hrex.initCause(xaex);
 			throw hrex;
@@ -578,7 +656,9 @@ public class TransactionImpl implements Transaction {
 			// committed = true;
 		} catch (RuntimeException rex) {
 			this.transactionListenerList.onPrepareFailure(xid);
-			this.fireRollback();
+			logger.info("{}> prepare-participant failed", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+
+			this.invokeParticipantRollback(); // this.fireRollback();
 			HeuristicRollbackException hrex = new HeuristicRollbackException();
 			hrex.initCause(rex);
 			throw hrex;
@@ -593,9 +673,15 @@ public class TransactionImpl implements Transaction {
 			archive.setStatus(this.transactionStatus);
 			this.transactionListenerList.onCommitStart(xid);
 			this.transactionListenerList.onCommitSuccess(xid);
+			logger.info("{}> prepare-participant & commit-participant complete successfully",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+
 			transactionLogger.updateTransaction(archive);
 		} else {
 			// this.transactionStatus = Status.STATUS_PREPARED;// .setStatusPrepared();
+
+			logger.info("{}> prepare-participant complete successfully, and commit-participant start",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
 			this.transactionStatus = Status.STATUS_COMMITTING;// .setStatusCommiting();
 			this.transactionVote = XAResource.XA_OK;
@@ -604,10 +690,8 @@ public class TransactionImpl implements Transaction {
 			this.transactionListenerList.onCommitStart(xid);
 			transactionLogger.updateTransaction(archive);
 
-			boolean unFinishExists = true;
 			try {
 				currentStrategy.commit(xid, false);
-				unFinishExists = false;
 			} catch (HeuristicMixedException ex) {
 				this.transactionListenerList.onCommitHeuristicMixed(xid);
 				throw ex;
@@ -620,14 +704,15 @@ public class TransactionImpl implements Transaction {
 			} catch (RuntimeException ex) {
 				this.transactionListenerList.onCommitFailure(xid);
 				throw ex;
-			} finally {
-				if (unFinishExists == false) {
-					this.transactionStatus = Status.STATUS_COMMITTED; // Status.STATUS_COMMITTED;
-					archive.setStatus(this.transactionStatus);
-					this.transactionListenerList.onCommitSuccess(xid);
-					transactionLogger.updateTransaction(archive);
-				}
 			}
+
+			this.transactionStatus = Status.STATUS_COMMITTED; // Status.STATUS_COMMITTED;
+			archive.setStatus(this.transactionStatus);
+			this.transactionListenerList.onCommitSuccess(xid);
+			transactionLogger.updateTransaction(archive);
+
+			logger.info("{}> commit-participant complete successfully",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		} // end-else-if (vote == XAResource.XA_RDONLY)
 
 	}
@@ -971,12 +1056,17 @@ public class TransactionImpl implements Transaction {
 	private void fireRollback() throws IllegalStateException, RollbackRequiredException, SystemException {
 		beanFactory.getTransactionTimer().stopTiming(this);
 
+		TransactionXid xid = this.transactionContext.getXid();
 		try {
 			this.synchronizationList.beforeCompletion();
-
 			this.delistAllResourceQuietly();
 
+			logger.info("{}> rollback-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+
 			this.invokeParticipantRollback();
+
+			logger.info("{}> rollback-transaction complete successfully",
+					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 		} finally {
 			this.synchronizationList.afterCompletion(this.transactionStatus);
 		}
@@ -1024,19 +1114,16 @@ public class TransactionImpl implements Transaction {
 	private void invokeParticipantRollback() throws SystemException {
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		TransactionXid xid = this.transactionContext.getXid();
-		logger.info("{}> rollback-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+		logger.info("{}> rollback-participant start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
 		this.transactionStatus = Status.STATUS_ROLLING_BACK;
 		TransactionArchive archive = this.getTransactionArchive();
 		this.transactionListenerList.onRollbackStart(xid);
 		transactionLogger.updateTransaction(archive); // don't create!
 
-		boolean unFinishExists = true;
 		try {
 			TransactionStrategy currentStrategy = this.getTransactionStrategy();
 			currentStrategy.rollback(xid);
-
-			unFinishExists = false;
 		} catch (HeuristicMixedException ex) {
 			this.transactionListenerList.onRollbackFailure(xid);
 			SystemException sysEx = new SystemException();
@@ -1052,18 +1139,18 @@ public class TransactionImpl implements Transaction {
 			throw ex;
 		} catch (RuntimeException ex) {
 			this.transactionListenerList.onRollbackFailure(xid);
-			throw ex;
-		} finally {
-			if (unFinishExists == false) {
-				this.transactionStatus = Status.STATUS_ROLLEDBACK; // Status.STATUS_ROLLEDBACK;
-				archive.setStatus(this.transactionStatus);
-				this.transactionListenerList.onRollbackSuccess(xid);
-				transactionLogger.updateTransaction(archive);
-
-				logger.info("{}> rollback-transaction complete successfully",
-						ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-			}
+			SystemException sysEx = new SystemException();
+			sysEx.initCause(ex);
+			throw sysEx;
 		}
+
+		this.transactionStatus = Status.STATUS_ROLLEDBACK; // Status.STATUS_ROLLEDBACK;
+		archive.setStatus(this.transactionStatus);
+		this.transactionListenerList.onRollbackSuccess(xid);
+		transactionLogger.updateTransaction(archive);
+
+		logger.info("{}> rollback-participant complete successfully",
+				ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 	}
 
 	public void suspend() throws RollbackRequiredException, SystemException {
