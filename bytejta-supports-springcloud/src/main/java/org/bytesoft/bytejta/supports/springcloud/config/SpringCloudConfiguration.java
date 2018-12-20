@@ -31,6 +31,7 @@ import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignDecoder;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignErrorDecoder;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignInterceptor;
 import org.bytesoft.bytejta.supports.springcloud.hystrix.TransactionHystrixBeanPostProcessor;
+import org.bytesoft.bytejta.supports.springcloud.loadbalancer.TransactionLoadBalancerRuleImpl;
 import org.bytesoft.bytejta.supports.springcloud.property.TransactionPropertySourceFactory;
 import org.bytesoft.bytejta.supports.springcloud.web.TransactionHandlerInterceptor;
 import org.bytesoft.bytejta.supports.springcloud.web.TransactionRequestInterceptor;
@@ -41,7 +42,9 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.PropertyValue;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.ObjectFactory;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -80,7 +83,7 @@ import feign.codec.ErrorDecoder;
 @EnableAutoConfiguration(exclude = { DataSourceAutoConfiguration.class })
 @EnableTransactionManagement
 public class SpringCloudConfiguration implements WebMvcConfigurer, TransactionManagementConfigurer, BeanFactoryPostProcessor,
-		InitializingBean, TransactionEndpointAware, EnvironmentAware, ApplicationContextAware {
+		InitializingBean, SmartInitializingSingleton, TransactionEndpointAware, EnvironmentAware, ApplicationContextAware {
 	static final String CONSTANT_INCLUSIONS = "org.bytesoft.bytejta.feign.inclusions";
 	static final String CONSTANT_EXCLUSIONS = "org.bytesoft.bytejta.feign.exclusions";
 	static final String FEIGN_FACTORY_CLASS = "org.springframework.cloud.openfeign.FeignClientFactoryBean";
@@ -89,6 +92,21 @@ public class SpringCloudConfiguration implements WebMvcConfigurer, TransactionMa
 	private String identifier;
 	private Environment environment;
 	private transient final Set<String> transientClientSet = new HashSet<String>();
+
+	public void afterSingletonsInstantiated() /* Check if the rule is set correctly */ {
+		com.netflix.loadbalancer.IRule loadBalancerRule = null;
+		try {
+			loadBalancerRule = this.applicationContext.getBean(com.netflix.loadbalancer.IRule.class);
+		} catch (NoSuchBeanDefinitionException ex) {
+			return; // return quietly
+		}
+
+		if (TransactionLoadBalancerRuleImpl.class.isInstance(loadBalancerRule)) {
+			return; // return quietly
+		}
+
+		throw new IllegalStateException("TransactionLoadBalancerRuleImpl is disabled!");
+	}
 
 	public void afterPropertiesSet() throws Exception {
 		String host = CommonUtils.getInetAddress();
