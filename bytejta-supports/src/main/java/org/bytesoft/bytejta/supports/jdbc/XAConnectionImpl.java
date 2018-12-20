@@ -16,6 +16,7 @@
 package org.bytesoft.bytejta.supports.jdbc;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -23,6 +24,7 @@ import java.util.Set;
 
 import javax.sql.ConnectionEvent;
 import javax.sql.ConnectionEventListener;
+import javax.sql.StatementEvent;
 import javax.sql.StatementEventListener;
 import javax.sql.XAConnection;
 import javax.transaction.xa.XAResource;
@@ -32,82 +34,121 @@ import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class XAConnectionImpl implements XAConnection, ConnectionEventListener {
+public class XAConnectionImpl implements XAConnection, ConnectionEventListener, StatementEventListener {
 	static final Logger logger = LoggerFactory.getLogger(XAConnectionImpl.class);
 
-	private final Set<ConnectionEventListener> listeners = new HashSet<ConnectionEventListener>();
+	private final Set<ConnectionEventListener> connectionEventListeners = new HashSet<ConnectionEventListener>();
+	private final Set<StatementEventListener> statementEventListeners = new HashSet<StatementEventListener>();
 
 	private String identifier;
 	private XAConnection delegate;
 	private boolean closed;
+	private XAResource xaResource;
+
+	public void statementClosed(StatementEvent event) {
+		Iterator<StatementEventListener> itr = this.statementEventListeners.iterator();
+		while (itr.hasNext()) {
+			StatementEventListener listener = itr.next();
+			SQLException sqlException = event.getSQLException();
+			PreparedStatement statement = event.getStatement();
+			StatementEvent statementEvent = new StatementEvent(this, statement, sqlException);
+			try {
+				listener.statementClosed(statementEvent);
+			} catch (RuntimeException error) {
+				logger.warn("Error occurred!", error);
+			}
+		} // end-while (itr.hasNext())
+	}
+
+	public void statementErrorOccurred(StatementEvent event) {
+		Iterator<StatementEventListener> itr = this.statementEventListeners.iterator();
+		while (itr.hasNext()) {
+			StatementEventListener listener = itr.next();
+			SQLException sqlException = event.getSQLException();
+			PreparedStatement statement = event.getStatement();
+			StatementEvent statementEvent = new StatementEvent(this, statement, sqlException);
+			try {
+				listener.statementErrorOccurred(statementEvent);
+			} catch (RuntimeException error) {
+				logger.warn("Error occurred!", error);
+			}
+		} // end-while (itr.hasNext())
+	}
 
 	public void connectionClosed(ConnectionEvent event) {
-		for (Iterator<ConnectionEventListener> itr = this.listeners.iterator(); itr.hasNext();) {
+		Iterator<ConnectionEventListener> itr = this.connectionEventListeners.iterator();
+		while (itr.hasNext()) {
 			ConnectionEventListener listener = itr.next();
+			SQLException sqlException = event.getSQLException();
+			ConnectionEvent connectionEvent = new ConnectionEvent(this, sqlException);
 			try {
-				listener.connectionClosed(new ConnectionEvent(this, event.getSQLException()));
-			} catch (RuntimeException rex) {
-				logger.warn(rex.getMessage(), rex);
+				listener.connectionClosed(connectionEvent);
+			} catch (RuntimeException error) {
+				logger.warn("Error occurred!", error);
 			}
-		} // end-for (Iterator<ConnectionEventListener> itr = this.listeners.iterator(); itr.hasNext();)
-
-		this.firePhysicalConnectionClosed(event); // removeConnectionEventListener
+		} // end-while (itr.hasNext())
 	}
 
 	public void connectionErrorOccurred(ConnectionEvent event) {
-		for (Iterator<ConnectionEventListener> itr = this.listeners.iterator(); itr.hasNext();) {
+		Iterator<ConnectionEventListener> itr = this.connectionEventListeners.iterator();
+		while (itr.hasNext()) {
 			ConnectionEventListener listener = itr.next();
+			SQLException sqlException = event.getSQLException();
+			ConnectionEvent connectionEvent = new ConnectionEvent(this, sqlException);
 			try {
-				listener.connectionErrorOccurred(new ConnectionEvent(this, event.getSQLException()));
-			} catch (RuntimeException rex) {
-				logger.warn(rex.getMessage(), rex);
+				listener.connectionErrorOccurred(connectionEvent);
+			} catch (RuntimeException error) {
+				logger.warn("Error occurred!", error);
 			}
-		} // end-for (Iterator<ConnectionEventListener> itr = this.listeners.iterator(); itr.hasNext();)
-
-		this.firePhysicalConnectionClosed(event); // removeConnectionEventListener
-	}
-
-	private void firePhysicalConnectionClosed(ConnectionEvent event) {
-		try {
-			this.delegate.removeConnectionEventListener(this);
-
-			this.close(); // close physical connection
-		} catch (SQLException ex) {
-			logger.warn("Failed to close XAConnection", ex);
-		} catch (RuntimeException ex) {
-			logger.warn("Failed to close XAConnection", ex);
-		}
+		} // end-while (itr.hasNext())
 	}
 
 	public Connection getConnection() throws SQLException {
-		return this.delegate.getConnection();
+		Connection delegateConnection = this.delegate.getConnection();
+
+		ConnectionImpl connection = new ConnectionImpl();
+		connection.setManagedConnection(this);
+		connection.setDelegate(delegateConnection);
+
+		return connection;
 	}
 
 	public void addConnectionEventListener(ConnectionEventListener listener) {
-		this.listeners.add(listener);
+		this.connectionEventListeners.add(listener);
 	}
 
 	public void removeConnectionEventListener(ConnectionEventListener listener) {
-		this.listeners.remove(listener);
+		this.connectionEventListeners.remove(listener);
 	}
 
 	public void addStatementEventListener(StatementEventListener listener) {
-		this.delegate.addStatementEventListener(listener);
+		this.statementEventListeners.add(listener);
 	}
 
 	public void removeStatementEventListener(StatementEventListener listener) {
-		this.delegate.removeStatementEventListener(listener);
+		this.statementEventListeners.remove(listener);
 	}
 
 	public XAResource getXAResource() throws SQLException {
-		XAResource xares = this.delegate.getXAResource();
-		if (XAResourceDescriptor.class.isInstance(xares)) {
-			return xares;
-		}
-		CommonResourceDescriptor descriptor = new CommonResourceDescriptor();
-		descriptor.setDelegate(xares);
-		descriptor.setIdentifier(this.identifier);
-		return descriptor;
+		if (this.xaResource == null) {
+			this.initXAResourceIfNecessary();
+		} // end-if (this.xaResource == null)
+
+		return this.xaResource;
+	}
+
+	private synchronized void initXAResourceIfNecessary() throws SQLException {
+		if (this.xaResource == null) {
+			XAResource delegateResource = this.delegate.getXAResource();
+			if (XAResourceDescriptor.class.isInstance(delegateResource)) {
+				this.xaResource = delegateResource;
+			} else {
+				CommonResourceDescriptor descriptor = new CommonResourceDescriptor();
+				descriptor.setDelegate(delegateResource);
+				descriptor.setIdentifier(this.identifier);
+				this.xaResource = descriptor;
+			}
+		} // end-if (this.xaResource == null)
 	}
 
 	public void close() throws SQLException {

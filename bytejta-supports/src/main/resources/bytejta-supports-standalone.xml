@@ -29,7 +29,7 @@
 
 	<bean id="bytejtaResourceDeserializer" class="org.bytesoft.bytejta.supports.resource.serialize.XAResourceDeserializerImpl" />
 
-	<bean id="bytejtaBeanFactory" class="org.bytesoft.bytejta.TransactionBeanFactoryImpl">
+	<bean id="bytejtaBeanFactory" class="org.bytesoft.bytejta.TransactionBeanFactoryImpl" factory-method="getInstance">
 		<property name="transactionManager" ref="transactionManager" />
 		<property name="xidFactory" ref="bytejtaXidFactory" />
 		<property name="transactionTimer" ref="transactionManager" />

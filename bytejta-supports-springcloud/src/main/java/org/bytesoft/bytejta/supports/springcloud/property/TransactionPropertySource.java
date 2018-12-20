@@ -23,6 +23,7 @@ import org.springframework.core.io.AbstractResource;
 import org.springframework.core.io.support.EncodedResource;
 
 public class TransactionPropertySource extends PropertySource<Object> {
+	static final String NF_LOAD_BALANCER_RULE_CLASS_NAME_SUFFIX = ".ribbon.NFLoadBalancerRuleClassName";
 
 	private boolean enabled;
 
@@ -61,14 +62,17 @@ public class TransactionPropertySource extends PropertySource<Object> {
 
 		TransactionClientRegistry registry = TransactionClientRegistry.getInstance();
 
-		int index = name.indexOf(".");
-		String client = name.substring(0, index);
-		String suffix = name.substring(index);
-		if (registry.containsClient(client) && ".ribbon.NFLoadBalancerRuleClassName".equals(suffix)) {
-			return TransactionLoadBalancerRuleImpl.class.getName();
+		if (name.endsWith(NF_LOAD_BALANCER_RULE_CLASS_NAME_SUFFIX) == false) {
+			return null;
 		}
 
-		return null;
+		int index = name.indexOf(NF_LOAD_BALANCER_RULE_CLASS_NAME_SUFFIX);
+		String client = name.substring(0, index);
+		if (registry.containsClient(client) == false) {
+			return null;
+		}
+
+		return TransactionLoadBalancerRuleImpl.class.getName();
 	}
 
 }

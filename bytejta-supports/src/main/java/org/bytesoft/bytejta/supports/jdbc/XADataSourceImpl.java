@@ -50,20 +50,28 @@ public class XADataSourceImpl implements XADataSource, BeanNameAware {
 	}
 
 	public XAConnection getXAConnection() throws SQLException {
+		XAConnection delegate = this.xaDataSource.getXAConnection();
+
 		XAConnectionImpl managed = new XAConnectionImpl();
 		managed.setIdentifier(this.identifier);
-		XAConnection delegate = this.xaDataSource.getXAConnection();
 		managed.setDelegate(delegate);
+
 		delegate.addConnectionEventListener(managed);
+		delegate.addStatementEventListener(managed);
+
 		return managed;
 	}
 
 	public XAConnection getXAConnection(String user, String password) throws SQLException {
+		XAConnection delegate = this.xaDataSource.getXAConnection(user, password);
+
 		XAConnectionImpl managed = new XAConnectionImpl();
 		managed.setIdentifier(this.identifier);
-		XAConnection delegate = this.xaDataSource.getXAConnection(user, password);
 		managed.setDelegate(delegate);
+
 		delegate.addConnectionEventListener(managed);
+		delegate.addStatementEventListener(managed);
+
 		return managed;
 	}
 
