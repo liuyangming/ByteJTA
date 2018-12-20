@@ -817,7 +817,6 @@ public class TransactionImpl implements Transaction {
 
 		boolean success = false;
 		try {
-			success = this.enlistResource(archive, flags);
 			Boolean enlistValue = this.enlistResource(archive, flags);
 			success = enlistValue != null && enlistValue;
 			return enlistValue != null;

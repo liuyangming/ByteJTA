@@ -27,6 +27,7 @@ import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignDecoder;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignErrorDecoder;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignInterceptor;
 import org.bytesoft.bytejta.supports.springcloud.hystrix.TransactionHystrixBeanPostProcessor;
+import org.bytesoft.bytejta.supports.springcloud.loadbalancer.TransactionLoadBalancerRuleImpl;
 import org.bytesoft.bytejta.supports.springcloud.property.TransactionPropertySourceFactory;
 import org.bytesoft.bytejta.supports.springcloud.web.TransactionHandlerInterceptor;
 import org.bytesoft.bytejta.supports.springcloud.web.TransactionRequestInterceptor;
@@ -36,7 +37,9 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.PropertyValue;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.ObjectFactory;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -65,7 +68,7 @@ import feign.codec.ErrorDecoder;
 @PropertySource(value = "bytejta:loadbalancer.config", factory = TransactionPropertySourceFactory.class)
 @Configuration
 public class SpringCloudConfiguration extends WebMvcConfigurerAdapter implements BeanFactoryPostProcessor, InitializingBean,
-		TransactionEndpointAware, EnvironmentAware, ApplicationContextAware {
+		SmartInitializingSingleton, TransactionEndpointAware, EnvironmentAware, ApplicationContextAware {
 	static final String CONSTANT_INCLUSIONS = "org.bytesoft.bytejta.feign.inclusions";
 	static final String CONSTANT_EXCLUSIONS = "org.bytesoft.bytejta.feign.exclusions";
 	static final String FEIGN_FACTORY_CLASS = "org.springframework.cloud.netflix.feign.FeignClientFactoryBean";
@@ -80,6 +83,21 @@ public class SpringCloudConfiguration extends WebMvcConfigurerAdapter implements
 		String name = this.environment.getProperty("spring.application.name");
 		String port = this.environment.getProperty("server.port");
 		this.identifier = String.format("%s:%s:%s", host, name, port);
+	}
+
+	public void afterSingletonsInstantiated() /* Check if the rule is set correctly */ {
+		com.netflix.loadbalancer.IRule loadBalancerRule = null;
+		try {
+			loadBalancerRule = this.applicationContext.getBean(com.netflix.loadbalancer.IRule.class);
+		} catch (NoSuchBeanDefinitionException ex) {
+			return; // return quietly
+		}
+
+		if (TransactionLoadBalancerRuleImpl.class.isInstance(loadBalancerRule)) {
+			return; // return quietly
+		}
+
+		throw new IllegalStateException("TransactionLoadBalancerRuleImpl is disabled!");
 	}
 
 	@org.springframework.context.annotation.Bean
