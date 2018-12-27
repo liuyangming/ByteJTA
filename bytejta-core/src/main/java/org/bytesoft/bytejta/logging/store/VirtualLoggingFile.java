@@ -323,4 +323,20 @@ public class VirtualLoggingFile {
 		this.master = master;
 	}
 
+	public int getStartIdx() {
+		return startIdx;
+	}
+
+	public int getEndIndex() {
+		return endIndex;
+	}
+
+	public int getMajorVersion() {
+		return majorVersion;
+	}
+
+	public int getMinorVersion() {
+		return minorVersion;
+	}
+
 }

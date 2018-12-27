@@ -57,6 +57,7 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 	private boolean optimized = true;
 	private boolean initialized;
 
+	private int switchThreshold = 1024 * 1024 * 8;
 	private int switchInterval = 60;
 
 	public synchronized void construct() throws IOException {
@@ -136,6 +137,7 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 	}
 
 	public void run() {
+		int lastEndIndex = this.master.getEndIndex();
 		while (this.released == false) {
 			try {
 				this.timingLock.lock();
@@ -146,8 +148,15 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 				this.timingLock.unlock();
 			}
 
+			int increment = this.master.getEndIndex() - lastEndIndex;
+			if (increment < this.switchThreshold) {
+				continue;
+			} // end-if (increasement < this.switchThreshold)
+
 			this.syncMasterAndSlaver();
 			this.swapMasterAndSlaver();
+
+			lastEndIndex = this.master.getEndIndex();
 		}
 	}
 
@@ -436,6 +445,14 @@ public abstract class VirtualLoggingSystemImpl implements VirtualLoggingSystem, 
 		logging.setTrigger(this);
 		logging.setIdentifier(this.getLoggingIdentifier().getBytes());
 		return logging;
+	}
+
+	public int getSwitchThreshold() {
+		return switchThreshold;
+	}
+
+	public void setSwitchThreshold(int switchThreshold) {
+		this.switchThreshold = switchThreshold;
 	}
 
 	public int getSwitchInterval() {
