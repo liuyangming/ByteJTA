@@ -195,6 +195,10 @@ public class TransactionManagerImpl
 
 	public Transaction desociateThread() {
 		Transaction transaction = this.thread2txMap.remove(Thread.currentThread());
+		if (transaction == null) {
+			return null;
+		}
+
 		TransactionContext transactionContext = transaction.getTransactionContext();
 		this.xid2txMap.remove(transactionContext.getXid());
 		return transaction;
@@ -202,12 +206,20 @@ public class TransactionManagerImpl
 
 	public Transaction suspend() throws RollbackRequiredException, SystemException {
 		Transaction transaction = this.desociateThread();
+		if (transaction == null) {
+			return null;
+		}
+
 		transaction.suspend();
 		return transaction;
 	}
 
 	public void resume(javax.transaction.Transaction tobj)
 			throws InvalidTransactionException, IllegalStateException, RollbackRequiredException, SystemException {
+
+		if (tobj == null) {
+			throw new InvalidTransactionException();
+		}
 
 		if (TransactionImpl.class.isInstance(tobj) == false) {
 			throw new InvalidTransactionException();
