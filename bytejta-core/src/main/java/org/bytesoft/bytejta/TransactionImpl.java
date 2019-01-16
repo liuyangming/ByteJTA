@@ -63,7 +63,6 @@ import org.bytesoft.transaction.remote.RemoteSvc;
 import org.bytesoft.transaction.supports.TransactionExtra;
 import org.bytesoft.transaction.supports.TransactionListener;
 import org.bytesoft.transaction.supports.TransactionResourceListener;
-import org.bytesoft.transaction.supports.TransactionTimer;
 import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 import org.bytesoft.transaction.xa.TransactionXid;
 import org.bytesoft.transaction.xa.XidFactory;
@@ -104,7 +103,9 @@ public class TransactionImpl implements Transaction {
 
 	public synchronized int participantPrepare() throws RollbackRequiredException, CommitRequiredException {
 
-		if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
+		if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
+			throw new RollbackRequiredException();
+		} else if (this.transactionStatus == Status.STATUS_ROLLEDBACK) {
 			throw new RollbackRequiredException();
 		} else if (this.transactionStatus == Status.STATUS_ROLLING_BACK) {
 			throw new RollbackRequiredException();
@@ -119,32 +120,7 @@ public class TransactionImpl implements Transaction {
 			throw new CommitRequiredException();
 		} else if (this.transactionStatus == Status.STATUS_COMMITTED) {
 			throw new CommitRequiredException();
-		} /* else active, marked_rollback, preparing {} */
-
-		// stop-timing
-		TransactionTimer transactionTimer = beanFactory.getTransactionTimer();
-		transactionTimer.stopTiming(this);
-
-		// before-completion
-		this.synchronizationList.beforeCompletion();
-
-		// delist all resources
-		try {
-			this.delistAllResource();
-		} catch (RollbackRequiredException rrex) {
-			this.transactionStatus = Status.STATUS_ROLLING_BACK;
-			throw new RollbackRequiredException();
-		} catch (SystemException ex) {
-			this.transactionStatus = Status.STATUS_ROLLING_BACK;
-			throw new RollbackRequiredException();
-		} catch (RuntimeException rex) {
-			this.transactionStatus = Status.STATUS_ROLLING_BACK;
-			throw new RollbackRequiredException();
-		}
-
-		if (this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
-			throw new RollbackRequiredException();
-		}
+		} /* else active, preparing {} */
 
 		TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		TransactionXid xid = this.transactionContext.getXid();
@@ -288,9 +264,6 @@ public class TransactionImpl implements Transaction {
 
 		TransactionXid xid = this.transactionContext.getXid();
 		try {
-			this.synchronizationList.beforeCompletion();
-			this.delistAllResource();
-
 			this.transactionStatus = Status.STATUS_COMMITTING;
 			TransactionArchive archive = this.getTransactionArchive();
 			this.transactionListenerList.onCommitStart(xid);
@@ -320,8 +293,6 @@ public class TransactionImpl implements Transaction {
 			SystemException error = new SystemException();
 			error.initCause(ex);
 			throw error;
-		} finally {
-			this.synchronizationList.afterCompletion(this.transactionStatus);
 		}
 	}
 
@@ -345,11 +316,7 @@ public class TransactionImpl implements Transaction {
 			return;
 		} /* else active, preparing, prepared, committing {} */
 
-		this.beanFactory.getTransactionTimer().stopTiming(this);
 		try {
-			this.synchronizationList.beforeCompletion();
-			this.delistAllResource();
-
 			try {
 				this.invokeParticipantPrepare();
 			} catch (CommitRequiredException crex) {
@@ -372,8 +339,6 @@ public class TransactionImpl implements Transaction {
 			HeuristicRollbackException hrex = new HeuristicRollbackException();
 			hrex.initCause(rex);
 			throw hrex;
-		} finally {
-			this.synchronizationList.afterCompletion(this.transactionStatus);
 		}
 
 	}
@@ -399,10 +364,6 @@ public class TransactionImpl implements Transaction {
 		} /* else preparing, prepared, committing {} */
 
 		try {
-			this.beanFactory.getTransactionTimer().stopTiming(this);
-			this.synchronizationList.beforeCompletion(); // should has already been invoked
-			this.delistAllResource(); // should has already been invoked
-
 			this.invokeParticipantCommit(false);
 		} catch (RollbackRequiredException rrex) {
 			this.participantRollback();
@@ -419,8 +380,6 @@ public class TransactionImpl implements Transaction {
 			HeuristicRollbackException hrex = new HeuristicRollbackException();
 			hrex.initCause(rex);
 			throw hrex;
-		} finally {
-			this.synchronizationList.afterCompletion(this.transactionStatus);
 		}
 
 	}
@@ -525,51 +484,18 @@ public class TransactionImpl implements Transaction {
 
 	private void fireCommit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException, SecurityException,
 			IllegalStateException, CommitRequiredException, SystemException {
+		TransactionXid xid = this.transactionContext.getXid();
+		logger.info("{}> commit-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
-		// stop-timing
-		beanFactory.getTransactionTimer().stopTiming(this);
-
-		try {
-			// before-completion
-			this.synchronizationList.beforeCompletion();
-
-			// delist all resources
-			try {
-				this.delistAllResource();
-			} catch (RollbackRequiredException rrex) {
-				this.invokeParticipantRollback(); // this.fireRollback();
-				HeuristicRollbackException hrex = new HeuristicRollbackException();
-				hrex.initCause(rrex);
-				throw hrex;
-			} catch (SystemException ex) {
-				this.invokeParticipantRollback(); // this.fireRollback();
-				HeuristicRollbackException hrex = new HeuristicRollbackException();
-				hrex.initCause(ex);
-				throw hrex;
-			} catch (RuntimeException rex) {
-				this.invokeParticipantRollback(); // this.fireRollback();
-				HeuristicRollbackException hrex = new HeuristicRollbackException();
-				hrex.initCause(rex);
-				throw hrex;
-			}
-
-			TransactionXid xid = this.transactionContext.getXid();
-			logger.info("{}> commit-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-
-			if (this.participantList.size() == 0) {
-				this.skipOnePhaseCommit();
-			} else if (this.participantList.size() == 1
-					&& (this.nativeParticipantList.size() == 1 || this.participant != null)) {
-				this.fireOnePhaseCommit();
-			} else {
-				this.fireTwoPhaseCommit();
-			}
-
-			logger.info("{}> commit-transaction complete successfully",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-		} finally {
-			this.synchronizationList.afterCompletion(this.transactionStatus);
+		if (this.participantList.size() == 0) {
+			this.skipOnePhaseCommit();
+		} else if (this.participantList.size() == 1 && (this.nativeParticipantList.size() == 1 || this.participant != null)) {
+			this.fireOnePhaseCommit();
+		} else {
+			this.fireTwoPhaseCommit();
 		}
+
+		logger.info("{}> commit-transaction complete successfully", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 	}
 
 	public synchronized void skipOnePhaseCommit()
@@ -1054,23 +980,13 @@ public class TransactionImpl implements Transaction {
 	}
 
 	private void fireRollback() throws IllegalStateException, RollbackRequiredException, SystemException {
-		beanFactory.getTransactionTimer().stopTiming(this);
-
 		TransactionXid xid = this.transactionContext.getXid();
-		try {
-			this.synchronizationList.beforeCompletion();
-			this.delistAllResourceQuietly();
+		logger.info("{}> rollback-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 
-			logger.info("{}> rollback-transaction start", ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
+		this.invokeParticipantRollback();
 
-			this.invokeParticipantRollback();
-
-			logger.info("{}> rollback-transaction complete successfully",
-					ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
-		} finally {
-			this.synchronizationList.afterCompletion(this.transactionStatus);
-		}
-
+		logger.info("{}> rollback-transaction complete successfully",
+				ByteUtils.byteArrayToString(xid.getGlobalTransactionId()));
 	}
 
 	public synchronized void recoveryRollback() throws RollbackRequiredException, SystemException {
@@ -1098,15 +1014,7 @@ public class TransactionImpl implements Transaction {
 			this.recover(); // Execute recoveryInit if transaction is recovered from tx-log.
 			this.invokeParticipantRollback();
 		} else {
-			try {
-				this.beanFactory.getTransactionTimer().stopTiming(this);
-				this.synchronizationList.beforeCompletion();
-				this.delistAllResourceQuietly();
-
-				this.invokeParticipantRollback();
-			} finally {
-				this.synchronizationList.afterCompletion(this.transactionStatus);
-			}
+			this.invokeParticipantRollback();
 		}
 
 	}
@@ -1201,6 +1109,20 @@ public class TransactionImpl implements Transaction {
 			throw new SystemException(XAException.XAER_RMERR);
 		}
 
+	}
+
+	public synchronized void fireBeforeTransactionCompletionQuietly() {
+		this.synchronizationList.beforeCompletion();
+		this.delistAllResourceQuietly();
+	}
+
+	public synchronized void fireBeforeTransactionCompletion() throws RollbackRequiredException, SystemException {
+		this.synchronizationList.beforeCompletion();
+		this.delistAllResource();
+	}
+
+	public synchronized void fireAfterTransactionCompletion() {
+		this.synchronizationList.afterCompletion(this.transactionStatus);
 	}
 
 	public void delistAllResourceQuietly() {

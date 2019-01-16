@@ -157,7 +157,7 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		transactionManager.desociateThread();
 	}
 
-	public void commit(Xid xid, boolean onePhase) throws XAException {
+	public void commit(Xid xid, boolean onePhaseCommit) throws XAException {
 		this.checkParticipantReadyIfNecessary();
 
 		XidFactory xidFactory = this.beanFactory.getXidFactory();
@@ -175,8 +175,33 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 			throw new XAException(XAException.XAER_NOTA);
 		}
 
+		if (onePhaseCommit) {
+			this.beanFactory.getTransactionTimer().stopTiming(transaction);
+			try {
+				this.beanFactory.getTransactionManager().associateThread(transaction);
+				transaction.fireBeforeTransactionCompletion();
+			} catch (RollbackRequiredException rrex) {
+				this.rollback(xid);
+				XAException xaex = new XAException(XAException.XA_HEURRB);
+				xaex.initCause(rrex);
+				throw xaex;
+			} catch (SystemException ex) {
+				this.rollback(xid);
+				XAException xaex = new XAException(XAException.XA_HEURRB);
+				xaex.initCause(ex);
+				throw xaex;
+			} catch (RuntimeException rex) {
+				this.rollback(xid);
+				XAException xaex = new XAException(XAException.XA_HEURRB);
+				xaex.initCause(rex);
+				throw xaex;
+			} finally {
+				this.beanFactory.getTransactionManager().desociateThread();
+			}
+		} // end-if (onePhaseCommit)
+
 		try {
-			transaction.participantCommit(onePhase);
+			transaction.participantCommit(onePhaseCommit);
 			transaction.forgetQuietly(); // forget transaction
 		} catch (SecurityException ex) {
 			logger.error("{}> Error occurred while committing remote coordinator.",
@@ -240,6 +265,8 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 			XAException xaex = new XAException(XAException.XAER_RMERR);
 			xaex.initCause(ex);
 			throw xaex;
+		} finally {
+			transaction.fireAfterTransactionCompletion();
 		}
 	}
 
@@ -321,13 +348,34 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 			throw new XAException(XAException.XAER_NOTA);
 		}
 
+		this.beanFactory.getTransactionTimer().stopTiming(transaction);
 		try {
-			return transaction.participantPrepare();
-		} catch (CommitRequiredException crex) {
-			return XAResource.XA_OK;
+			this.beanFactory.getTransactionManager().associateThread(transaction);
+			transaction.fireBeforeTransactionCompletion();
 		} catch (RollbackRequiredException rrex) {
 			throw new XAException(XAException.XAER_RMERR);
+		} catch (SystemException ex) {
+			throw new XAException(XAException.XAER_RMERR);
+		} catch (RuntimeException rex) {
+			throw new XAException(XAException.XAER_RMERR);
+		} finally {
+			this.beanFactory.getTransactionManager().desociateThread();
 		}
+
+		int participantVote = XAResource.XA_OK;
+		try {
+			participantVote = transaction.participantPrepare();
+		} catch (CommitRequiredException crex) {
+			participantVote = XAResource.XA_OK;
+		} catch (RollbackRequiredException rrex) {
+			throw new XAException(XAException.XAER_RMERR);
+		} finally {
+			if (participantVote == XAResource.XA_RDONLY) {
+				transaction.fireAfterTransactionCompletion();
+			} // end-if (participantVote == XAResource.XA_RDONLY)
+		}
+
+		return participantVote;
 	}
 
 	public Xid[] recover(int flag) throws XAException {
@@ -377,6 +425,11 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		}
 
 		try {
+			this.beanFactory.getTransactionTimer().stopTiming(transaction);
+			this.beanFactory.getTransactionManager().associateThread(transaction);
+			transaction.fireBeforeTransactionCompletionQuietly();
+			this.beanFactory.getTransactionManager().desociateThread();
+
 			transaction.participantRollback();
 			transaction.forgetQuietly(); // forget transaction
 		} catch (RollbackRequiredException rrex) {
@@ -403,6 +456,8 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 			XAException xaex = new XAException(XAException.XAER_RMERR);
 			xaex.initCause(rrex);
 			throw xaex;
+		} finally {
+			transaction.fireAfterTransactionCompletion();
 		}
 	}
 

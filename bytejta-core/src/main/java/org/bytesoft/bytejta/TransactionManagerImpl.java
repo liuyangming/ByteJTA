@@ -96,7 +96,7 @@ public class TransactionManagerImpl
 
 	public void commit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException, SecurityException,
 			IllegalStateException, SystemException {
-		Transaction transaction = this.desociateThread();
+		Transaction transaction = this.getTransactionQuietly(); // this.desociateThread();
 		if (transaction == null) {
 			throw new IllegalStateException();
 		} else if (transaction.getTransactionStatus() == Status.STATUS_ROLLEDBACK) {
@@ -113,6 +113,41 @@ public class TransactionManagerImpl
 		TransactionRepository transactionRepository = this.beanFactory.getTransactionRepository();
 		TransactionContext transactionContext = transaction.getTransactionContext();
 		TransactionXid transactionXid = transactionContext.getXid();
+
+		this.stopTiming(transaction); // stop timing
+		boolean beforeCompletionFailure = true;
+		try {
+			transaction.fireBeforeTransactionCompletion();
+			this.desociateThread();
+
+			beforeCompletionFailure = false;
+		} catch (RollbackRequiredException rrex) {
+			this.desociateThread();
+			transaction.rollback();
+
+			HeuristicRollbackException hrex = new HeuristicRollbackException();
+			hrex.initCause(rrex);
+			throw hrex;
+		} catch (SystemException ex) {
+			this.desociateThread();
+			transaction.rollback();
+
+			HeuristicRollbackException hrex = new HeuristicRollbackException();
+			hrex.initCause(ex);
+			throw hrex;
+		} catch (RuntimeException rex) {
+			this.desociateThread();
+			transaction.rollback();
+
+			HeuristicRollbackException hrex = new HeuristicRollbackException();
+			hrex.initCause(rex);
+			throw hrex;
+		} finally {
+			if (beforeCompletionFailure) {
+				transaction.fireAfterTransactionCompletion();
+			} // end-if (beforeCompletionFailure)
+		}
+
 		try {
 			transaction.commit();
 			transaction.forgetQuietly(); // forget transaction
@@ -144,15 +179,14 @@ public class TransactionManagerImpl
 			logger.error("Error occurred while committing transaction.", rex);
 			transactionRepository.putErrorTransaction(transactionXid, transaction);
 			throw rex;
+		} finally {
+			transaction.fireAfterTransactionCompletion();
 		}
 	}
 
 	public void rollback() throws IllegalStateException, SecurityException, SystemException {
-		Transaction transaction = this.desociateThread();
-		this.rollback(transaction);
-	}
+		Transaction transaction = this.getTransactionQuietly(); // this.desociateThread();
 
-	protected void rollback(Transaction transaction) throws IllegalStateException, SecurityException, SystemException {
 		if (transaction == null) {
 			throw new IllegalStateException();
 		} else if (transaction.getTransactionStatus() == Status.STATUS_ROLLEDBACK) {
@@ -161,10 +195,19 @@ public class TransactionManagerImpl
 			throw new SystemException();
 		}
 
+		this.rollback(transaction);
+	}
+
+	protected void rollback(Transaction transaction) throws IllegalStateException, SecurityException, SystemException {
 		TransactionRepository transactionRepository = this.beanFactory.getTransactionRepository();
 		TransactionContext transactionContext = transaction.getTransactionContext();
 		TransactionXid transactionXid = transactionContext.getXid();
+
 		try {
+			this.stopTiming(transaction); // stop timing
+			transaction.fireBeforeTransactionCompletionQuietly();
+			this.desociateThread();
+
 			transaction.rollback();
 			transaction.forgetQuietly();
 		} catch (IllegalStateException ex) {
@@ -183,6 +226,8 @@ public class TransactionManagerImpl
 			logger.error("Error occurred while rolling back transaction.", ex);
 			transactionRepository.putErrorTransaction(transactionXid, transaction);
 			throw ex;
+		} finally {
+			transaction.fireAfterTransactionCompletion();
 		}
 	}
 
@@ -320,12 +365,17 @@ public class TransactionManagerImpl
 		TransactionRepository transactionRepository = this.beanFactory.getTransactionRepository();
 
 		try {
+			this.associateThread(transaction);
+			transaction.fireBeforeTransactionCompletionQuietly();
+			this.desociateThread();
+
 			transaction.rollback();
 			transaction.forgetQuietly(); // forget transaction
 		} catch (Exception ex) {
 			transactionRepository.putErrorTransaction(globalXid, transaction);
+		} finally {
+			transaction.fireAfterTransactionCompletion();
 		}
-
 	}
 
 	public void stopTiming(Transaction transaction) {

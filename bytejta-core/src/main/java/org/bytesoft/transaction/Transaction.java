@@ -29,6 +29,12 @@ import org.bytesoft.transaction.supports.resource.XAResourceDescriptor;
 
 public interface Transaction extends javax.transaction.Transaction, TransactionExtra {
 
+	public void fireBeforeTransactionCompletion() throws RollbackRequiredException, SystemException;
+
+	public void fireBeforeTransactionCompletionQuietly();
+
+	public void fireAfterTransactionCompletion();
+
 	public boolean isLocalTransaction();
 
 	public boolean isMarkedRollbackOnly();

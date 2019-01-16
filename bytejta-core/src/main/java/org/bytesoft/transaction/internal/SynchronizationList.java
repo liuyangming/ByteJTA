@@ -20,7 +20,11 @@ import java.util.List;
 
 import javax.transaction.Synchronization;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class SynchronizationList implements Synchronization {
+	private static final Logger logger = LoggerFactory.getLogger(SynchronizationList.class);
 	private final List<Synchronization> synchronizations = new ArrayList<Synchronization>();
 
 	private boolean beforeCompletionInvoked;
@@ -31,7 +35,7 @@ public class SynchronizationList implements Synchronization {
 		this.synchronizations.add(synchronization);
 	}
 
-	public void beforeCompletion() {
+	public synchronized void beforeCompletion() {
 		if (this.beforeCompletionInvoked == false) {
 			int length = this.synchronizations.size();
 			for (int i = 0; i < length; i++) {
@@ -39,7 +43,7 @@ public class SynchronizationList implements Synchronization {
 				try {
 					synchronization.beforeCompletion();
 				} catch (RuntimeException error) {
-					// ignore
+					logger.error(error.getMessage(), error);
 				}
 			} // end-for
 
@@ -47,7 +51,7 @@ public class SynchronizationList implements Synchronization {
 		} // end-if (this.beforeCompletionInvoked == false)
 	}
 
-	public void afterCompletion(int status) {
+	public synchronized void afterCompletion(int status) {
 		if (this.finishCompletionInvoked == false) {
 			int length = this.synchronizations.size();
 			for (int i = 0; i < length; i++) {
@@ -55,7 +59,7 @@ public class SynchronizationList implements Synchronization {
 				try {
 					synchronization.afterCompletion(status);
 				} catch (RuntimeException error) {
-					// ignore
+					logger.error(error.getMessage(), error);
 				}
 			} // end-for
 
