@@ -1142,6 +1142,10 @@ public class TransactionImpl implements Transaction {
 		boolean errorExists = false;
 		for (int i = 0; i < this.participantList.size(); i++) {
 			XAResourceArchive xares = this.participantList.get(i);
+			if (this.transactionContext.isRecoveried()) {
+				continue;
+			} // end-if (this.transactionContext.isRecoveried())
+
 			if (xares.isDelisted() == false) {
 				try {
 					this.delistResource(xares, XAResource.TMSUCCESS);
