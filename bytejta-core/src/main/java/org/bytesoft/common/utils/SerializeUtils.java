@@ -28,13 +28,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
-import org.objenesis.strategy.StdInstantiatorStrategy;
+import org.objenesis.strategy.SerializingInstantiatorStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.caucho.hessian.io.HessianInput;
 import com.caucho.hessian.io.HessianOutput;
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.Kryo.DefaultInstantiatorStrategy;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.pool.KryoCallback;
@@ -67,7 +68,7 @@ public class SerializeUtils {
 	static KryoPool kryoPool = new KryoPool.Builder(new KryoFactory() {
 		public Kryo create() {
 			Kryo kryo = new Kryo();
-			kryo.setInstantiatorStrategy(new StdInstantiatorStrategy());
+			kryo.setInstantiatorStrategy(new DefaultInstantiatorStrategy(new SerializingInstantiatorStrategy()));
 			return kryo;
 		}
 	}).softReferences().build();
