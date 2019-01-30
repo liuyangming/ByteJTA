@@ -44,9 +44,25 @@ import com.esotericsoftware.kryo.pool.KryoPool;
 public class SerializeUtils {
 	static final Logger logger = LoggerFactory.getLogger(SerializeUtils.class);
 
+	static final String SERIALIZER_NAME_DEFAULT = "default";
+	static final String SERIALIZER_NAME_KRYO = "kryo";
+	static final String SERIALIZER_NAME_HESSIAN = "hessian";
+
 	static final int SERIALIZER_DEFAULT = 0x0;
 	static final int SERIALIZER_KRYO = 0x1;
 	static final int SERIALIZER_HESSIAN = 0x2;
+
+	static int PREFERRED_SERIALIZER = SERIALIZER_KRYO;
+	static {
+		String serializer = StringUtils.trimToNull(System.getProperty("bytejta.serializer.preferred"));
+		if (StringUtils.isNotBlank(serializer) && StringUtils.equalsIgnoreCase(SERIALIZER_NAME_KRYO, serializer)) {
+			PREFERRED_SERIALIZER = SERIALIZER_KRYO;
+		} else if (StringUtils.isNotBlank(serializer) && StringUtils.equalsIgnoreCase(SERIALIZER_NAME_HESSIAN, serializer)) {
+			PREFERRED_SERIALIZER = SERIALIZER_HESSIAN;
+		} else {
+			PREFERRED_SERIALIZER = SERIALIZER_DEFAULT;
+		}
+	}
 
 	static KryoPool kryoPool = new KryoPool.Builder(new KryoFactory() {
 		public Kryo create() {
@@ -56,13 +72,16 @@ public class SerializeUtils {
 		}
 	}).softReferences().build();
 
-	public static byte[] serializeObject(Serializable obj) throws IOException {
+	public static byte[] serializeObject(Serializable obj, int serializerType) throws IOException {
 		int serializer = SERIALIZER_DEFAULT;
 		byte[] dataArray = null;
-		try {
+		if (serializerType == SERIALIZER_KRYO) {
 			dataArray = kryoSerialize(obj);
 			serializer = SERIALIZER_KRYO;
-		} catch (Exception ex) {
+		} else if (serializerType == SERIALIZER_HESSIAN) {
+			dataArray = hessianSerialize(obj);
+			serializer = SERIALIZER_HESSIAN;
+		} else {
 			dataArray = javaSerialize(obj);
 			serializer = SERIALIZER_DEFAULT;
 		}
@@ -72,6 +91,18 @@ public class SerializeUtils {
 		System.arraycopy(dataArray, 0, byteArray, 1, dataArray.length);
 
 		return byteArray;
+	}
+
+	public static byte[] serializeObject(Serializable obj) throws IOException {
+		if (PREFERRED_SERIALIZER == SERIALIZER_DEFAULT) {
+			return serializeObject(obj, PREFERRED_SERIALIZER);
+		} else {
+			try {
+				return serializeObject(obj, PREFERRED_SERIALIZER);
+			} catch (Exception ex) {
+				return serializeObject(obj, SERIALIZER_DEFAULT);
+			}
+		}
 	}
 
 	public static Serializable deserializeObject(byte[] bytes) throws IOException {
