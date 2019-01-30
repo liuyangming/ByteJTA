@@ -64,7 +64,7 @@ public class SerializeUtils {
 			serializer = SERIALIZER_KRYO;
 		} catch (Exception ex) {
 			dataArray = javaSerialize(obj);
-			serializer = SERIALIZER_KRYO;
+			serializer = SERIALIZER_DEFAULT;
 		}
 
 		byte[] byteArray = new byte[dataArray.length + 1];
