@@ -59,7 +59,7 @@ public class SerializeUtils {
 			PREFERRED_SERIALIZER = SERIALIZER_KRYO;
 		} else if (StringUtils.isNotBlank(serializer) && StringUtils.equalsIgnoreCase(SERIALIZER_NAME_HESSIAN, serializer)) {
 			PREFERRED_SERIALIZER = SERIALIZER_HESSIAN;
-		} else {
+		} else if (StringUtils.isNotBlank(serializer)) {
 			PREFERRED_SERIALIZER = SERIALIZER_DEFAULT;
 		}
 	}
