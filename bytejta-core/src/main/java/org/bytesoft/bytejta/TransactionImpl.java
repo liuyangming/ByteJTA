@@ -1461,8 +1461,7 @@ public class TransactionImpl implements Transaction {
 
 	public int hashCode() {
 		TransactionXid transactionXid = this.transactionContext == null ? null : this.transactionContext.getXid();
-		int hash = transactionXid == null ? 0 : transactionXid.hashCode();
-		return hash;
+		return transactionXid == null ? 0 : Arrays.hashCode(transactionXid.getGlobalTransactionId());
 	}
 
 	public boolean equals(Object obj) {
@@ -1476,7 +1475,8 @@ public class TransactionImpl implements Transaction {
 		TransactionContext thatContext = that.transactionContext;
 		TransactionXid thisXid = thisContext == null ? null : thisContext.getXid();
 		TransactionXid thatXid = thatContext == null ? null : thatContext.getXid();
-		return CommonUtils.equals(thisXid, thatXid);
+		return thisXid == null || thatXid == null ? false
+				: Arrays.equals(thisXid.getGlobalTransactionId(), thatXid.getGlobalTransactionId());
 	}
 
 	public void registerTransactionListener(TransactionListener listener) {
