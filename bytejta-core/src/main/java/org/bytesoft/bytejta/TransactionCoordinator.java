@@ -176,10 +176,10 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		}
 
 		if (onePhaseCommit) {
-			this.beanFactory.getTransactionTimer().stopTiming(transaction);
 			try {
 				this.beanFactory.getTransactionManager().associateThread(transaction);
 				transaction.fireBeforeTransactionCompletion();
+				this.beanFactory.getTransactionTimer().stopTiming(transaction);
 			} catch (RollbackRequiredException rrex) {
 				this.rollback(xid);
 				XAException xaex = new XAException(XAException.XA_HEURRB);
@@ -348,10 +348,10 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 			throw new XAException(XAException.XAER_NOTA);
 		}
 
-		this.beanFactory.getTransactionTimer().stopTiming(transaction);
 		try {
 			this.beanFactory.getTransactionManager().associateThread(transaction);
 			transaction.fireBeforeTransactionCompletion();
+			this.beanFactory.getTransactionTimer().stopTiming(transaction);
 		} catch (RollbackRequiredException rrex) {
 			throw new XAException(XAException.XAER_RMERR);
 		} catch (SystemException ex) {
@@ -425,10 +425,11 @@ public class TransactionCoordinator implements RemoteCoordinator, TransactionBea
 		}
 
 		try {
-			this.beanFactory.getTransactionTimer().stopTiming(transaction);
 			this.beanFactory.getTransactionManager().associateThread(transaction);
 			transaction.fireBeforeTransactionCompletionQuietly();
 			this.beanFactory.getTransactionManager().desociateThread();
+
+			this.beanFactory.getTransactionTimer().stopTiming(transaction);
 
 			transaction.participantRollback();
 			transaction.forgetQuietly(); // forget transaction

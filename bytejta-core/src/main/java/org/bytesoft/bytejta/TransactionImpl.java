@@ -1182,6 +1182,7 @@ public class TransactionImpl implements Transaction {
 
 	public synchronized void setRollbackOnly() throws IllegalStateException, SystemException {
 		if (this.transactionStatus == Status.STATUS_ACTIVE || this.transactionStatus == Status.STATUS_MARKED_ROLLBACK) {
+			this.transactionContext.setRollbackOnly(true);
 			this.transactionStatus = Status.STATUS_MARKED_ROLLBACK;
 		} else {
 			throw new IllegalStateException();

@@ -114,11 +114,12 @@ public class TransactionManagerImpl
 		TransactionContext transactionContext = transaction.getTransactionContext();
 		TransactionXid transactionXid = transactionContext.getXid();
 
-		this.stopTiming(transaction); // stop timing
 		boolean beforeCompletionFailure = true;
 		try {
 			transaction.fireBeforeTransactionCompletion();
 			this.desociateThread();
+
+			this.stopTiming(transaction); // stop timing
 
 			beforeCompletionFailure = false;
 		} catch (RollbackRequiredException rrex) {
@@ -204,9 +205,10 @@ public class TransactionManagerImpl
 		TransactionXid transactionXid = transactionContext.getXid();
 
 		try {
-			this.stopTiming(transaction); // stop timing
 			transaction.fireBeforeTransactionCompletionQuietly();
 			this.desociateThread();
+
+			this.stopTiming(transaction); // stop timing
 
 			transaction.rollback();
 			transaction.forgetQuietly();
