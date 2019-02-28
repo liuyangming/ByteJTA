@@ -205,18 +205,22 @@ public class TransactionServiceFilter implements Filter {
 		TransactionManager transactionManager = beanFactory.getTransactionManager();
 
 		String instanceId = invocation.getAttachment(RemoteCoordinator.class.getName());
+		RemoteAddr remoteAddr = CommonUtils.getRemoteAddr(instanceId);
 
 		this.registerRemoteParticipantIfNecessary(instanceId);
 
-		String application = CommonUtils.getApplication(instanceId);
-		RemoteCoordinator participant = //
-				StringUtils.isBlank(application) ? null : participantRegistry.getParticipant(application);
+		this.initializePhysicalInstanceIfNecessary(remoteAddr);
+		RemoteCoordinator physical = participantRegistry.getPhysicalInstance(remoteAddr);
+
+		// String application = CommonUtils.getApplication(instanceId);
+		// RemoteCoordinator participant = //
+		// StringUtils.isBlank(application) ? null : participantRegistry.getParticipant(application);
 
 		TransactionRequestImpl request = new TransactionRequestImpl();
-		request.setTargetTransactionCoordinator(participant);
+		request.setTargetTransactionCoordinator(physical);
 
 		TransactionResponseImpl response = new TransactionResponseImpl();
-		response.setSourceTransactionCoordinator(participant);
+		response.setSourceTransactionCoordinator(physical);
 
 		String propagatedBy = null;
 		boolean failure = false;
@@ -566,7 +570,7 @@ public class TransactionServiceFilter implements Filter {
 		remoteAddr.setServerPort(targetPort);
 
 		if (participantRegistry.containsPhysicalInstance(remoteAddr) == false) {
-			this.initializeRemoteParticipantIfNecessary(remoteAddr);
+			this.initializePhysicalInstanceIfNecessary(remoteAddr);
 		} // end-if (participantRegistry.containsPhysicalInstance(remoteAddr) == false)
 
 		RemoteNode invocationContext = new RemoteNode();
@@ -655,28 +659,29 @@ public class TransactionServiceFilter implements Filter {
 
 		if (StringUtils.isNotBlank(instanceId) && remoteAddr != null && remoteNode != null
 				&& participantRegistry.containsRemoteNode(remoteAddr) == false) {
-			// this.initializeRemoteParticipantIfNecessary(remoteNode.getServiceKey());
 			participantRegistry.putRemoteNode(remoteAddr, remoteNode);
 		}
 	}
 
-	private void initializeRemoteParticipantIfNecessary(RemoteAddr remoteAddr) throws RpcException {
-		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
-		RemoteCoordinator physicalInst = participantRegistry.getPhysicalInstance(remoteAddr);
-		if (physicalInst == null) {
-			String serverHost = remoteAddr.getServerHost();
-			int serverPort = remoteAddr.getServerPort();
-			final String target = String.format("%s:%s", serverHost, serverPort).intern();
-			synchronized (target) {
-				RemoteCoordinator participant = participantRegistry.getPhysicalInstance(remoteAddr);
-				if (participant == null) {
-					this.processInitRemoteParticipantIfNecessary(remoteAddr);
-				}
-			} // end-synchronized (target)
-		} // end-if (physicalInst == null)
+	private void initializePhysicalInstanceIfNecessary(RemoteAddr remoteAddr) throws RpcException {
+		if (remoteAddr != null) {
+			RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
+			RemoteCoordinator physicalInst = participantRegistry.getPhysicalInstance(remoteAddr);
+			if (physicalInst == null) {
+				String serverHost = remoteAddr.getServerHost();
+				int serverPort = remoteAddr.getServerPort();
+				final String target = String.format("%s:%s", serverHost, serverPort).intern();
+				synchronized (target) {
+					RemoteCoordinator participant = participantRegistry.getPhysicalInstance(remoteAddr);
+					if (participant == null) {
+						this.processInitPhysicalInstanceIfNecessary(remoteAddr);
+					}
+				} // end-synchronized (target)
+			} // end-if (physicalInst == null)
+		}
 	}
 
-	private void processInitRemoteParticipantIfNecessary(RemoteAddr remoteAddr) throws RpcException {
+	private void processInitPhysicalInstanceIfNecessary(RemoteAddr remoteAddr) throws RpcException {
 		RemoteCoordinatorRegistry participantRegistry = RemoteCoordinatorRegistry.getInstance();
 		TransactionBeanRegistry beanRegistry = TransactionBeanRegistry.getInstance();
 
@@ -710,19 +715,6 @@ public class TransactionServiceFilter implements Filter {
 			if (reference == null) {
 				throw new RpcException("Cannot get the application name of the remote application.");
 			}
-
-			// RemoteNode invocationContext = new RemoteNode();
-			// invocationContext.setServerHost(remoteAddr.getServerHost());
-			// invocationContext.setServerPort(remoteAddr.getServerPort());
-			//
-			// DubboRemoteCoordinator dubboCoordinator = new DubboRemoteCoordinator();
-			// dubboCoordinator.setInvocationContext(invocationContext);
-			// dubboCoordinator.setRemoteCoordinator(reference);
-			// dubboCoordinator.setCoordinatorType(DubboRemoteCoordinator.KEY_PARTICIPANT_TYPE_EXACT);
-			//
-			// RemoteCoordinator proxyCoordinator = (RemoteCoordinator) Proxy.newProxyInstance(
-			// DubboRemoteCoordinator.class.getClassLoader(), new Class[] { RemoteCoordinator.class }, dubboCoordinator);
-			// dubboCoordinator.setProxyCoordinator(proxyCoordinator);
 
 			participantRegistry.putPhysicalInstance(remoteAddr, reference);
 		}

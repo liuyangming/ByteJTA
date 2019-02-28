@@ -58,26 +58,39 @@ public final class SpringCloudBeanRegistry implements TransactionBeanFactoryAwar
 			return null;
 		}
 
-		String application = CommonUtils.getApplication(identifier);
-		RemoteCoordinator participant = registry.getParticipant(application);
-		if (participant != null) {
-			return participant;
-		}
-
 		RemoteAddr remoteAddr = CommonUtils.getRemoteAddr(identifier);
 		RemoteNode remoteNode = CommonUtils.getRemoteNode(identifier);
+
+		RemoteNode targetNode = registry.getRemoteNode(remoteAddr);
+		if (targetNode == null && remoteAddr != null //
+				&& remoteNode != null && StringUtils.isNotBlank(remoteNode.getServiceKey())) {
+			registry.putRemoteNode(remoteAddr, remoteNode);
+		}
+
+		// String application = CommonUtils.getApplication(identifier);
+		// RemoteCoordinator participant = registry.getParticipant(application);
+		// if (participant != null) {
+		// return participant;
+		// }
+
+		RemoteCoordinator physical = registry.getPhysicalInstance(remoteAddr);
+		if (physical != null) {
+			return physical;
+		}
 
 		SpringCloudCoordinator handler = new SpringCloudCoordinator();
 		handler.setIdentifier(identifier);
 		handler.setEnvironment(this.environment);
 
-		participant = (RemoteCoordinator) Proxy.newProxyInstance(SpringCloudCoordinator.class.getClassLoader(),
+		physical = (RemoteCoordinator) Proxy.newProxyInstance(SpringCloudCoordinator.class.getClassLoader(),
 				new Class[] { RemoteCoordinator.class }, handler);
 
-		registry.putRemoteNode(remoteAddr, remoteNode);
-		registry.putParticipant(application, participant);
+		registry.putPhysicalInstance(remoteAddr, physical);
 
-		return participant;
+		// registry.putRemoteNode(remoteAddr, remoteNode);
+		// registry.putParticipant(application, participant);
+
+		return physical;
 	}
 
 	public TransactionLoadBalancerInterceptor getLoadBalancerInterceptor() {
