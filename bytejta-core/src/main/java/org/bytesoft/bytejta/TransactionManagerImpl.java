@@ -100,8 +100,10 @@ public class TransactionManagerImpl
 		if (transaction == null) {
 			throw new IllegalStateException();
 		} else if (transaction.getTransactionStatus() == Status.STATUS_ROLLEDBACK) {
+			this.desociateThread();
 			throw new RollbackException();
 		} else if (transaction.getTransactionStatus() == Status.STATUS_COMMITTED) {
+			this.desociateThread();
 			return;
 		} else if (transaction.getTransactionStatus() == Status.STATUS_MARKED_ROLLBACK) {
 			this.rollback(transaction);
@@ -191,8 +193,10 @@ public class TransactionManagerImpl
 		if (transaction == null) {
 			throw new IllegalStateException();
 		} else if (transaction.getTransactionStatus() == Status.STATUS_ROLLEDBACK) {
+			this.desociateThread();
 			return;
 		} else if (transaction.getTransactionStatus() == Status.STATUS_COMMITTED) {
+			this.desociateThread();
 			throw new SystemException();
 		}
 
