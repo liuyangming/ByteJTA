@@ -41,8 +41,6 @@ public class LocalXAConnection implements XAConnection {
 	private boolean physicalConnectionReleased = false;
 	private int physicalConnectionSharingCount = 0;
 
-	private transient LocalXAResourceDescriptor descriptor;
-
 	private final Set<ConnectionEventListener> listeners = new HashSet<ConnectionEventListener>();
 
 	public LocalXAConnection(Connection connection) {
@@ -168,14 +166,16 @@ public class LocalXAConnection implements XAConnection {
 	public void removeStatementEventListener(StatementEventListener paramStatementEventListener) {
 	}
 
+	public LocalXAResourceDescriptor getXAResource(boolean loggingRequired) throws SQLException {
+		LocalXAResourceDescriptor descriptor = new LocalXAResourceDescriptor();
+		descriptor.setIdentifier(this.resourceId);
+		descriptor.setDelegate(this.xaResource);
+		descriptor.setLoggingRequired(loggingRequired);
+		return descriptor;
+	}
+
 	public LocalXAResourceDescriptor getXAResource() throws SQLException {
-		if (this.descriptor == null) {
-			LocalXAResourceDescriptor xares = new LocalXAResourceDescriptor();
-			xares.setIdentifier(this.resourceId);
-			xares.setDelegate(this.xaResource);
-			this.descriptor = xares;
-		}
-		return this.descriptor;
+		return this.getXAResource(true);
 	}
 
 	public String getResourceId() {

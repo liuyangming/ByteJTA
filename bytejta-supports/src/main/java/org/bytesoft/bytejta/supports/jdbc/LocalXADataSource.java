@@ -57,14 +57,21 @@ public class LocalXADataSource /* extends TransactionListenerAdapter */
 				return xacon.getConnection();
 			}
 
+			Transaction transactionExtra = (Transaction) transaction.getTransactionalExtra();
+
+			TransactionContext transactionContext = transaction.getTransactionContext();
+			TransactionContext extraContext = transactionExtra != null ? transactionExtra.getTransactionContext() : null;
+
+			boolean transactionCompatibleLoggingLRO = LocalXACompatible.class.isInstance(transactionContext) //
+					? ((LocalXACompatible) transactionContext).compatibleLoggingLRO() : false;
+			boolean extraCompatibleLoggingLRO = extraContext != null && LocalXACompatible.class.isInstance(extraContext) //
+					? ((LocalXACompatible) extraContext).compatibleLoggingLRO() : false;
+
+			boolean loggingRequired = transactionCompatibleLoggingLRO || extraCompatibleLoggingLRO;
+
 			xacon = this.getXAConnection();
 			LogicalConnection connection = xacon.getConnection();
-			descriptor = xacon.getXAResource();
-			LocalXAResource localXARes = (LocalXAResource) descriptor.getDelegate();
-			TransactionContext transactionContext = transaction.getTransactionContext();
-			boolean loggingRequired = LocalXACompatible.class.isInstance(transactionContext) //
-					? ((LocalXACompatible) transactionContext).compatibleLoggingLRO() : false;
-			localXARes.setLoggingRequired(loggingRequired);
+			descriptor = xacon.getXAResource(loggingRequired);
 			transaction.enlistResource(descriptor);
 
 			return connection;
@@ -93,14 +100,21 @@ public class LocalXADataSource /* extends TransactionListenerAdapter */
 				return xacon.getConnection();
 			}
 
+			Transaction transactionExtra = (Transaction) transaction.getTransactionalExtra();
+
+			TransactionContext transactionContext = transaction.getTransactionContext();
+			TransactionContext extraContext = transactionExtra != null ? transactionExtra.getTransactionContext() : null;
+
+			boolean transactionCompatibleLoggingLRO = LocalXACompatible.class.isInstance(transactionContext) //
+					? ((LocalXACompatible) transactionContext).compatibleLoggingLRO() : false;
+			boolean extraCompatibleLoggingLRO = extraContext != null && LocalXACompatible.class.isInstance(extraContext) //
+					? ((LocalXACompatible) extraContext).compatibleLoggingLRO() : false;
+
+			boolean loggingRequired = transactionCompatibleLoggingLRO || extraCompatibleLoggingLRO;
+
 			xacon = this.getXAConnection(username, password);
 			LogicalConnection connection = xacon.getConnection();
-			descriptor = xacon.getXAResource();
-			LocalXAResource localXARes = (LocalXAResource) descriptor.getDelegate();
-			TransactionContext transactionContext = transaction.getTransactionContext();
-			boolean loggingRequired = LocalXACompatible.class.isInstance(transactionContext) //
-					? ((LocalXACompatible) transactionContext).compatibleLoggingLRO() : false;
-			localXARes.setLoggingRequired(loggingRequired);
+			descriptor = xacon.getXAResource(loggingRequired);
 			transaction.enlistResource(descriptor);
 
 			return connection;
