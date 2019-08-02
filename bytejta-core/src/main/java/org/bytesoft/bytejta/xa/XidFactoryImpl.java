@@ -156,7 +156,7 @@ public class XidFactoryImpl implements XidFactory {
 		int second = calendar.get(Calendar.SECOND);
 		int millis = calendar.get(Calendar.MILLISECOND);
 
-		int value = (year << 28);
+		int value = (year << 29) >>> 1;
 		value = value | (month << 24);
 		value = value | (day << 19);
 		value = value | (hour << 14);
@@ -175,8 +175,9 @@ public class XidFactoryImpl implements XidFactory {
 		byte[] randomByteArray = new byte[4];
 		random.nextBytes(randomByteArray);
 
-		System.arraycopy(hardwareAddress, 0, byteArray, 0, SIZE_OF_MAC);
-		System.arraycopy(timeByteArray, 0, byteArray, SIZE_OF_MAC, 5);
+		System.arraycopy(timeByteArray, 0, byteArray, 0, timeByteArray.length);
+		System.arraycopy(hardwareAddress, 0, byteArray, timeByteArray.length, SIZE_OF_MAC);
+
 		byteArray[SIZE_OF_MAC + 5] = increment;
 		System.arraycopy(randomByteArray, 0, byteArray, SIZE_OF_MAC + 5 + 1, randomByteArray.length);
 
