@@ -70,7 +70,7 @@ public class TransactionFeignContract implements feign.Contract, InitializingBea
 		for (int i = 0; i < metas.size(); i++) {
 			MethodMetadata meta = metas.get(i);
 			if (meta.returnType() == void.class) {
-				meta.returnType(Void.class);
+				meta.returnType(String.class);
 			}
 		}
 		return metas;

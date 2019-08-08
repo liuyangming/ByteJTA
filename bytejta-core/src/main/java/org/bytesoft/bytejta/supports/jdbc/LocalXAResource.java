@@ -382,15 +382,18 @@ public class LocalXAResource implements XAResource {
 			return ByteUtils.byteArrayToString(globalByteArray);
 		}
 
+		byte[] prefixByteArray = new byte[5];
+		System.arraycopy(branchByteArray, 0, prefixByteArray, 0, 5);
+
 		byte[] gvalueByteArray = new byte[4];
-		System.arraycopy(globalByteArray, 6, gvalueByteArray, 0, 4);
+		System.arraycopy(globalByteArray, 0, gvalueByteArray, 0, 4);
 		int global = ByteUtils.byteArrayToInt(gvalueByteArray);
 
 		int gday = (global << 8) >>> 27;
 		int ghour = (global << 13) >>> 27;
 		int gminute = (global << 18) >>> 26;
 		int gsecond = (global << 24) >>> 26;
-		int gmillis = ((global << 30) >>> 22) | (globalByteArray[11] - Byte.MIN_VALUE);
+		int gmillis = ((global << 30) >>> 22) | (globalByteArray[4] - Byte.MIN_VALUE);
 
 		int datime = 0;
 		datime = datime | (gday << 27);
@@ -400,32 +403,13 @@ public class LocalXAResource implements XAResource {
 		datime = datime | gmillis;
 		byte[] datimeByteArray = ByteUtils.intToByteArray(datime);
 
-		byte[] bvalueByteArray = new byte[4];
-		System.arraycopy(branchByteArray, 6, bvalueByteArray, 0, 4);
-		int branch = ByteUtils.byteArrayToInt(bvalueByteArray);
-
-		int bmonth = (branch << 4) >> 28;
-		int bminute = (branch << 18) >>> 26;
-		int bsecond = (branch << 24) >>> 26;
-		int bmillis = ((branch << 30) >>> 22) | (branchByteArray[11] - Byte.MIN_VALUE);
-
 		byte[] randomByteArray = new byte[4];
 		System.arraycopy(branchByteArray, 12, randomByteArray, 0, 4);
-		int brandom = ByteUtils.byteArrayToInt(randomByteArray);
-		int bprefix = ((brandom >>> 16) << 26) >>> 26;
-
-		int millis = 0;
-		millis = millis | (bmonth << 28);
-		millis = millis | (bminute << 22);
-		millis = millis | (bsecond << 16);
-		millis = millis | (bmillis << 6);
-		millis = millis | bprefix;
-		byte[] millisByteArray = ByteUtils.intToByteArray(millis);
 
 		byte[] resultByteArray = new byte[16];
-		System.arraycopy(globalByteArray, 0, resultByteArray, 0, 6);
-		System.arraycopy(datimeByteArray, 0, resultByteArray, 6, 4);
-		System.arraycopy(millisByteArray, 0, resultByteArray, 10, 4);
+		System.arraycopy(prefixByteArray, 0, resultByteArray, 0, 5);
+		System.arraycopy(datimeByteArray, 1, resultByteArray, 5, 3);
+		System.arraycopy(branchByteArray, 5, resultByteArray, 8, 6);
 		System.arraycopy(randomByteArray, 2, resultByteArray, 14, 2);
 		return ByteUtils.byteArrayToString(resultByteArray);
 	}
