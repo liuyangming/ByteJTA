@@ -76,6 +76,7 @@ public class XAResourceDeserializerImpl implements XAResourceDeserializer, Appli
 
 			physical = (RemoteCoordinator) Proxy.newProxyInstance(SpringCloudCoordinator.class.getClassLoader(),
 					new Class[] { RemoteCoordinator.class }, springCloudCoordinator);
+			registry.putPhysicalInstance(remoteAddr, physical);
 		}
 
 		RemoteResourceDescriptor descriptor = new RemoteResourceDescriptor();

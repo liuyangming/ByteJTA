@@ -32,6 +32,7 @@ import org.bytesoft.transaction.TransactionParticipant;
 import org.bytesoft.transaction.remote.RemoteAddr;
 import org.bytesoft.transaction.remote.RemoteCoordinator;
 import org.bytesoft.transaction.remote.RemoteNode;
+import org.bytesoft.transaction.xa.TransactionXid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
@@ -75,15 +76,15 @@ public class SpringCloudCoordinator implements InvocationHandler {
 			if ("start".equals(methodName)) {
 				return null; // return immediately
 			} else if ("prepare".equals(methodName)) {
-				return this.invokePostCoordinator(proxy, method, args);
+				return this.invokeHttpPostRequest(proxy, method, args);
 			} else if ("commit".equals(methodName)) {
-				return this.invokePostCoordinator(proxy, method, args);
+				return this.invokeHttpPostRequest(proxy, method, args);
 			} else if ("rollback".equals(methodName)) {
-				return this.invokePostCoordinator(proxy, method, args);
+				return this.invokeHttpPostRequest(proxy, method, args);
 			} else if ("recover".equals(methodName)) {
-				return this.invokeGetCoordinator(proxy, method, args);
+				return this.invokeTransactionRecover(proxy, method, args);
 			} else if ("forget".equals(methodName)) {
-				return this.invokePostCoordinator(proxy, method, args);
+				return this.invokeHttpPostRequest(proxy, method, args);
 			} else {
 				throw new XAException(XAException.XAER_RMFAIL);
 			}
@@ -92,7 +93,7 @@ public class SpringCloudCoordinator implements InvocationHandler {
 		}
 	}
 
-	public Object invokePostCoordinator(Object proxy, Method method, Object[] args) throws Throwable {
+	public Object invokeHttpPostRequest(Object proxy, Method method, Object[] args) throws Throwable {
 
 		Class<?> returnType = method.getReturnType();
 		try {
@@ -156,9 +157,8 @@ public class SpringCloudCoordinator implements InvocationHandler {
 
 	}
 
-	public Object invokeGetCoordinator(Object proxy, Method method, Object[] args) throws Throwable {
+	public Object invokeTransactionRecover(Object proxy, Method method, Object[] args) throws Throwable {
 
-		Class<?> returnType = method.getReturnType();
 		try {
 			RestTemplate transactionRestTemplate = SpringCloudBeanRegistry.getInstance().getRestTemplate();
 			RestTemplate restTemplate = transactionRestTemplate == null ? new RestTemplate() : transactionRestTemplate;
@@ -182,7 +182,7 @@ public class SpringCloudCoordinator implements InvocationHandler {
 				ber.append("/").append(this.serialize(arg));
 			}
 
-			ResponseEntity<?> response = restTemplate.getForEntity(ber.toString(), returnType, new Object[0]);
+			ResponseEntity<?> response = restTemplate.getForEntity(ber.toString(), TransactionXid[].class, new Object[0]);
 
 			return response.getBody();
 		} catch (HttpClientErrorException ex) {

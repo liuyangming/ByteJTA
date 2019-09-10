@@ -350,6 +350,7 @@ public class XATerminatorImpl implements XATerminator {
 				// should be returned only when a resource manager concludes that it can never
 				// commit the branch and that it cannot hold the branch’s resources in a prepared
 				// state. Otherwise, [XA_RETRY] should be returned.
+				throw xaex; // TODO XA_RETRY is not defined by the JTA specification
 			default:// XA_RB*
 				XAException xarb = new XAException(XAException.XA_HEURRB);
 				xarb.initCause(xaex);
