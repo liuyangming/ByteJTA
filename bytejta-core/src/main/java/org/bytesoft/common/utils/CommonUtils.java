@@ -19,8 +19,13 @@ import java.io.Closeable;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.Comparator;
 import java.util.Enumeration;
+import java.util.Iterator;
+import java.util.Set;
+import java.util.TreeSet;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -130,40 +135,68 @@ public class CommonUtils {
 	}
 
 	public static String getInetAddress() {
+		Enumeration<NetworkInterface> interfaces = null;
 		try {
-			Enumeration<NetworkInterface> enumeration = NetworkInterface.getNetworkInterfaces();
-			while (enumeration.hasMoreElements()) {
-				NetworkInterface ni = enumeration.nextElement();
-				if (ni.isLoopback()) {
-					continue;
-				} else if (ni.isUp() == false) {
+			interfaces = NetworkInterface.getNetworkInterfaces();
+		} catch (SocketException ignored) {
+			return CommonUtils.getLocalHostAddress();
+		}
+
+		final Set<InetAddress> virtualist = new TreeSet<InetAddress>(new InetAddrComparator());
+		final Set<InetAddress> candidates = new TreeSet<InetAddress>(new InetAddrComparator());
+		while (interfaces != null && interfaces.hasMoreElements()) {
+			NetworkInterface network = interfaces.nextElement();
+			try {
+				if (network.isUp() == false || network.isLoopback() || network.isPointToPoint()) {
 					continue;
 				}
-
-				Enumeration<InetAddress> inetAddrList = ni.getInetAddresses();
-				while (inetAddrList.hasMoreElements()) {
-					InetAddress inetAddr = inetAddrList.nextElement();
-
-					if (inetAddr.isLoopbackAddress()) {
-						continue;
-					} else if (inetAddr.isMulticastAddress()) {
-						continue;
-					} else if (inetAddr.isAnyLocalAddress()) {
-						continue;
-					} else if (Inet4Address.class.isInstance(inetAddr) == false) {
-						continue;
-					}
-
-					return inetAddr.getHostAddress();
-				}
-
+			} catch (SocketException ignored) {
+				continue;
 			}
 
-			InetAddress inetAddr = InetAddress.getLocalHost();
-			return inetAddr.getHostAddress();
-		} catch (Exception ex) {
-			logger.error("Error occurred while getting ip address.", ex);
-			return "127.0.0.1";
+			Enumeration<InetAddress> addresses = network.getInetAddresses();
+			while (addresses.hasMoreElements()) {
+				InetAddress address = addresses.nextElement();
+				if (Inet4Address.class.isInstance(address) == false) {
+					continue;
+				} else if (address.isAnyLocalAddress() || address.isMulticastAddress()) {
+					continue;
+				}
+
+				(network.isVirtual() ? virtualist : candidates).add(address);
+			}
+		}
+
+		Iterator<InetAddress> itr = candidates.iterator();
+		Iterator<InetAddress> vtr = virtualist.iterator();
+		if (itr.hasNext()) {
+			return itr.next().getHostAddress();
+		} else if (vtr.hasNext()) {
+			return vtr.next().getHostAddress();
+		}
+
+		return CommonUtils.getLocalHostAddress();
+	}
+
+	private static class InetAddrComparator implements Comparator<InetAddress> {
+		public int compare(InetAddress o1, InetAddress o2) {
+			boolean linkLocalAddr1 = o1.isLinkLocalAddress();
+			boolean siteLocalAddr1 = o1.isSiteLocalAddress();
+			boolean linkLocalAddr2 = o2.isLinkLocalAddress();
+			boolean siteLocalAddr2 = o2.isSiteLocalAddress();
+			boolean linkLocalEquals = linkLocalAddr1 == linkLocalAddr2;
+			boolean siteLocalEquals = siteLocalAddr1 == siteLocalAddr2;
+			if (linkLocalEquals && siteLocalEquals) {
+				return -1;
+			} else if (linkLocalEquals == false && siteLocalEquals == false) {
+				return linkLocalAddr1 ? -1 : 1;
+			} else if (siteLocalEquals) {
+				return linkLocalAddr1 ? -1 : 1;
+			} else if (linkLocalEquals) {
+				return siteLocalAddr1 ? -1 : 1;
+			} else {
+				return -1;
+			}
 		}
 	}
 
@@ -174,6 +207,16 @@ public class CommonUtils {
 		} catch (UnknownHostException ex) {
 			logger.error("Error occurred while getting ip address: host= {}.", host, ex);
 			return host;
+		}
+	}
+
+	public static String getLocalHostAddress() {
+		try {
+			InetAddress inetAddr = InetAddress.getLocalHost();
+			return inetAddr.getHostAddress();
+		} catch (Exception ex) {
+			logger.error("Error occurred while getting ip address.", ex);
+			return "127.0.0.1";
 		}
 	}
 
