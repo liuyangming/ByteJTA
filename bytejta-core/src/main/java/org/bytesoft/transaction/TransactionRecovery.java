@@ -25,4 +25,8 @@ public interface TransactionRecovery {
 
 	public void startRecovery();
 
+	public void branchRecover();
+
+	public boolean isInitialized();
+
 }

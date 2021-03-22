@@ -64,18 +64,36 @@ public class TransactionWork implements Work, TransactionBeanFactoryAware {
 
 			if (current >= nextRecoveryTime) {
 				nextRecoveryTime = current + this.recoveryInterval;
-				try {
-					transactionRecovery.timingRecover();
-				} catch (SecurityException rex) {
-					logger.debug("Only the master node can perform the recovery operation!");
-				} catch (RuntimeException rex) {
-					logger.error(rex.getMessage(), rex);
-				}
+
+				this.fireGlobalRecovery();
+				this.fireBranchRecovery();
 			}
 
 			this.waitForMillis(100L);
 
 		} // end-while (this.currentActive())
+	}
+
+	private void fireGlobalRecovery() {
+		TransactionRecovery transactionRecovery = beanFactory.getTransactionRecovery();
+		try {
+			transactionRecovery.timingRecover();
+		} catch (SecurityException rex) {
+			logger.debug("Only the master node can perform the global recovery operation!");
+		} catch (RuntimeException rex) {
+			logger.error(rex.getMessage(), rex);
+		}
+	}
+
+	private void fireBranchRecovery() {
+		TransactionRecovery transactionRecovery = beanFactory.getTransactionRecovery();
+		try {
+			transactionRecovery.branchRecover();
+		} catch (SecurityException rex) {
+			logger.debug("Only the branch node can perform the branch recovery operation!");
+		} catch (RuntimeException rex) {
+			logger.error(rex.getMessage(), rex);
+		}
 	}
 
 	private void waitForMillis(long millis) {

@@ -53,6 +53,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 	private TransactionRecoveryListener listener;
 	@javax.inject.Inject
 	private TransactionBeanFactory beanFactory;
+	private volatile boolean initialized;
 
 	public synchronized void timingRecover() {
 		TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
@@ -162,7 +163,6 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		final TransactionRepository transactionRepository = beanFactory.getTransactionRepository();
 		final TransactionLogger transactionLogger = beanFactory.getTransactionLogger();
 		transactionLogger.recover(new TransactionRecoveryCallback() {
-
 			public void recover(TransactionArchive archive) {
 				try {
 					TransactionImpl transaction = (TransactionImpl) reconstruct(archive);
@@ -183,6 +183,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		TransactionCoordinator transactionCoordinator = //
 				(TransactionCoordinator) this.beanFactory.getNativeParticipant();
 		transactionCoordinator.markParticipantReady();
+		this.initialized = true; // timingRecovery should be executed after initialization
 	}
 
 	public org.bytesoft.transaction.Transaction reconstruct(TransactionArchive archive) throws IllegalStateException {
@@ -253,6 +254,15 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 		}
 
 		return transaction;
+	}
+
+	public synchronized void branchRecover() {
+		// For a completed global transaction, if its branch receives a business request again, it will be rolled back by the
+		// RM's timeout mechanism, there is no need to deal with it.
+	}
+
+	public boolean isInitialized() {
+		return initialized;
 	}
 
 	public TransactionBeanFactory getBeanFactory() {
