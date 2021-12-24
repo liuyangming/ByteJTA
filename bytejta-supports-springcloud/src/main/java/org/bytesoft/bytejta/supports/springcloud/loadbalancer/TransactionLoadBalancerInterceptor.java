@@ -17,12 +17,12 @@ package org.bytesoft.bytejta.supports.springcloud.loadbalancer;
 
 import java.util.List;
 
-import com.netflix.loadbalancer.Server;
+import org.springframework.cloud.client.ServiceInstance;
 
 public interface TransactionLoadBalancerInterceptor {
 
-	public List<Server> beforeCompletion(List<Server> servers);
+	public List<ServiceInstance> beforeCompletion(List<ServiceInstance> servers);
 
-	public void afterCompletion(Server server);
+	public void afterCompletion(ServiceInstance server);
 
 }

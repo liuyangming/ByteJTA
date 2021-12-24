@@ -15,20 +15,14 @@
  */
 package org.bytesoft.bytejta.supports.springcloud.rule;
 
-import java.util.List;
+public interface TransactionRule /* extends IClientConfigAware */ {
 
-import com.netflix.client.IClientConfigAware;
-import com.netflix.loadbalancer.ILoadBalancer;
-import com.netflix.loadbalancer.Server;
-
-public interface TransactionRule extends IClientConfigAware {
-
-	public Server chooseServer(Object key, List<Server> serverList);
-
-	public Server chooseServer(Object key);
-
-	public ILoadBalancer getLoadBalancer();
-
-	public void setLoadBalancer(ILoadBalancer loadBalancer);
+//	public Server chooseServer(Object key, List<Server> serverList);
+//
+//	public Server chooseServer(Object key);
+//
+//	public ILoadBalancer getLoadBalancer();
+//
+//	public void setLoadBalancer(ILoadBalancer loadBalancer);
 
 }

@@ -50,8 +50,7 @@ public class TransactionManagerImpl
 		implements TransactionManager, TransactionTimer, TransactionBeanFactoryAware, TransactionDebuggable {
 	static final Logger logger = LoggerFactory.getLogger(TransactionManagerImpl.class);
 
-	@javax.inject.Inject
-	private TransactionBeanFactory beanFactory;
+	private TransactionBeanFactory beanFactory = TransactionBeanFactoryImpl.getInstance();
 	private int timeoutSeconds = 5 * 60;
 	private final Map<Thread, Transaction> thread2txMap = new ConcurrentHashMap<Thread, Transaction>();
 	private final Map<Xid, Transaction> xid2txMap = new ConcurrentHashMap<Xid, Transaction>();

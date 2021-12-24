@@ -19,6 +19,7 @@ import java.nio.ByteBuffer;
 
 import javax.transaction.xa.Xid;
 
+import org.bytesoft.bytejta.TransactionBeanFactoryImpl;
 import org.bytesoft.bytejta.supports.resource.CommonResourceDescriptor;
 import org.bytesoft.bytejta.supports.resource.LocalXAResourceDescriptor;
 import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
@@ -34,8 +35,7 @@ import org.bytesoft.transaction.xa.XidFactory;
 
 public class XAResourceArchiveDeserializer implements ArchiveDeserializer, TransactionBeanFactoryAware {
 
-	@javax.inject.Inject
-	private TransactionBeanFactory beanFactory;
+	private TransactionBeanFactory beanFactory = TransactionBeanFactoryImpl.getInstance();
 	// private XAResourceDeserializer deserializer;
 
 	public byte[] serialize(TransactionXid xid, Object obj) {

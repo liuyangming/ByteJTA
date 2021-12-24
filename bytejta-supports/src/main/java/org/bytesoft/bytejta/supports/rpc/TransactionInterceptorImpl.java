@@ -21,6 +21,7 @@ import javax.transaction.SystemException;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 
+import org.bytesoft.bytejta.TransactionBeanFactoryImpl;
 import org.bytesoft.bytejta.supports.resource.RemoteResourceDescriptor;
 import org.bytesoft.transaction.Transaction;
 import org.bytesoft.transaction.TransactionBeanFactory;
@@ -38,8 +39,7 @@ import org.slf4j.LoggerFactory;
 public class TransactionInterceptorImpl implements TransactionInterceptor, TransactionBeanFactoryAware {
 	static final Logger logger = LoggerFactory.getLogger(TransactionInterceptorImpl.class);
 
-	@javax.inject.Inject
-	protected TransactionBeanFactory beanFactory;
+	protected TransactionBeanFactory beanFactory = TransactionBeanFactoryImpl.getInstance();
 
 	public void beforeSendRequest(TransactionRequest request) throws IllegalStateException {
 		TransactionManager transactionManager = this.beanFactory.getTransactionManager();

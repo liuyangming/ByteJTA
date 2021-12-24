@@ -4,7 +4,7 @@
 
 	<groupId>org.bytesoft</groupId>
 	<artifactId>bytejta-parent</artifactId>
-	<version>0.5.0-BETA9</version>
+	<version>0.6.0-SNAPSHOT</version>
 
 	<packaging>pom</packaging>
 
@@ -121,7 +121,7 @@
 			<dependency>
 				<groupId>javax.servlet</groupId>
 				<artifactId>javax.servlet-api</artifactId>
-				<version>3.1.0</version>
+				<version>4.0.1</version>
 			</dependency>
 			<dependency>
 				<groupId>javax.inject</groupId>
@@ -138,123 +138,67 @@
 			<dependency>
 				<groupId>org.springframework</groupId>
 				<artifactId>spring-context</artifactId>
-				<version>5.0.8.RELEASE</version>
+				<version>5.3.14</version>
 			</dependency>
 			<dependency>
 				<groupId>org.springframework</groupId>
 				<artifactId>spring-tx</artifactId>
-				<version>5.0.8.RELEASE</version>
+				<version>5.3.14</version>
 			</dependency>
 			<dependency>
 				<groupId>org.springframework</groupId>
 				<artifactId>spring-jdbc</artifactId>
-				<version>5.0.8.RELEASE</version>
+				<version>5.3.14</version>
 			</dependency>
 			<dependency>
 				<groupId>org.springframework</groupId>
 				<artifactId>spring-aop</artifactId>
-				<version>5.0.8.RELEASE</version>
+				<version>5.3.14</version>
 			</dependency>
 			<dependency>
 				<groupId>org.springframework</groupId>
 				<artifactId>spring-webmvc</artifactId>
-				<version>5.1.0.RELEASE</version>
-			</dependency>
-			<dependency>
-				<groupId>org.springframework.retry</groupId>
-				<artifactId>spring-retry</artifactId>
-				<version>1.2.2.RELEASE</version>
+				<version>5.3.14</version>
 			</dependency>
 
 			<!-- spring-boot -->
 			<dependency>
 				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot</artifactId>
-				<version>2.0.4.RELEASE</version>
-			</dependency>
-			<dependency>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-autoconfigure</artifactId>
-				<version>2.0.4.RELEASE</version>
-			</dependency>
-			<dependency>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-starter-web</artifactId>
-				<version>2.0.4.RELEASE</version>
+				<artifactId>spring-boot-dependencies</artifactId>
+				<version>2.6.2</version>
+				<type>pom</type>
+				<scope>import</scope>
 			</dependency>
 
 			<!-- spring-cloud -->
 			<dependency>
 				<groupId>org.springframework.cloud</groupId>
-				<artifactId>spring-cloud-starter-netflix-eureka-server</artifactId>
-				<version>2.0.2.RELEASE</version>
-			</dependency>
-			<dependency>
-				<groupId>org.springframework.cloud</groupId>
-				<artifactId>spring-cloud-netflix-eureka-client</artifactId>
-				<version>2.0.1.RELEASE</version>
-			</dependency>
-			<dependency>
-				<groupId>org.springframework.cloud</groupId>
-				<artifactId>spring-cloud-starter-netflix-ribbon</artifactId>
-				<version>2.0.2.RELEASE</version>
-			</dependency>
-			<dependency>
-				<groupId>org.springframework.cloud</groupId>
-				<artifactId>spring-cloud-starter-openfeign</artifactId>
-				<version>2.0.2.RELEASE</version>
-			</dependency>
-			<dependency>
-				<groupId>org.springframework.cloud</groupId>
-				<artifactId>spring-cloud-starter-netflix-hystrix</artifactId>
-				<version>2.0.2.RELEASE</version>
-			</dependency>
-			<dependency>
-				<groupId>org.springframework.cloud</groupId>
-				<artifactId>spring-cloud-netflix-core</artifactId>
-				<version>2.0.1.RELEASE</version>
-			</dependency>
-			<dependency>
-				<groupId>org.springframework.cloud</groupId>
-				<artifactId>spring-cloud-openfeign-core</artifactId>
-				<version>2.0.1.RELEASE</version>
-			</dependency>
-			<dependency>
-				<groupId>org.springframework.cloud</groupId>
-				<artifactId>spring-cloud-commons</artifactId>
-				<version>2.0.1.RELEASE</version>
-			</dependency>
-			<dependency>
-				<groupId>org.springframework.cloud</groupId>
-				<artifactId>spring-cloud-config-client</artifactId>
-				<version>2.0.1.RELEASE</version>
-			</dependency>
-			<dependency>
-				<groupId>org.springframework.cloud</groupId>
-				<artifactId>spring-cloud-zookeeper-core</artifactId>
-				<version>2.0.0.RELEASE</version>
+				<artifactId>spring-cloud-dependencies</artifactId>
+				<version>2021.0.0</version>
+				<type>pom</type>
+				<scope>import</scope>
 			</dependency>
 
 			<!-- bytejta -->
 			<dependency>
 				<groupId>org.bytesoft</groupId>
 				<artifactId>bytejta-core</artifactId>
-				<version>0.5.0-BETA9</version>
+				<version>0.6.0-SNAPSHOT</version>
 			</dependency>
 			<dependency>
 				<groupId>org.bytesoft</groupId>
 				<artifactId>bytejta-supports</artifactId>
-				<version>0.5.0-BETA9</version>
+				<version>0.6.0-SNAPSHOT</version>
 			</dependency>
 			<dependency>
 				<groupId>org.bytesoft</groupId>
 				<artifactId>bytejta-supports-springcloud</artifactId>
-				<version>0.5.0-BETA9</version>
+				<version>0.6.0-SNAPSHOT</version>
 			</dependency>
 			<dependency>
 				<groupId>org.bytesoft</groupId>
 				<artifactId>bytejta-supports-dubbo</artifactId>
-				<version>0.5.0-BETA9</version>
+				<version>0.6.0-SNAPSHOT</version>
 			</dependency>
 
 			<!-- logger -->
@@ -309,22 +253,22 @@
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-buffer</artifactId>
-				<version>4.1.9.Final</version>
+				<version>4.1.32.Final</version>
 			</dependency>
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-codec</artifactId>
-				<version>4.1.9.Final</version>
+				<version>4.1.32.Final</version>
 			</dependency>
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-codec-http</artifactId>
-				<version>4.1.9.Final</version>
+				<version>4.1.32.Final</version>
 			</dependency>
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-common</artifactId>
-				<version>4.1.9.Final</version>
+				<version>4.1.32.Final</version>
 			</dependency>
 			<dependency>
 				<groupId>io.netty</groupId>
@@ -334,12 +278,12 @@
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-transport</artifactId>
-				<version>4.1.9.Final</version>
+				<version>4.1.32.Final</version>
 			</dependency>
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-transport-native-epoll</artifactId>
-				<version>4.1.9.Final</version>
+				<version>4.1.32.Final</version>
 			</dependency>
 
 			<!-- others -->
@@ -409,7 +353,7 @@
 			<dependency>
 				<groupId>com.esotericsoftware</groupId>
 				<artifactId>kryo</artifactId>
-				<version>3.0.3</version>
+				<version>4.0.2</version>
 			</dependency>
 
 			<dependency>
@@ -483,17 +427,6 @@
 			</plugin>
 		</plugins>
 	</build>
-
-	<repositories>
-	    <repository>
-	        <id>spring-milestones</id>
-	        <name>Spring Milestones</name>
-	        <url>https://repo.spring.io/libs-milestone</url>
-	        <snapshots>
-	            <enabled>false</enabled>
-	        </snapshots>
-	    </repository>
-	</repositories>
 
 	<modules>
 		<module>bytejta-core</module>

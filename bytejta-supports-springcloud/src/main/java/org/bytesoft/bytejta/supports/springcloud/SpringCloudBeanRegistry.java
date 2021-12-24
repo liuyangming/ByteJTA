@@ -18,6 +18,7 @@ package org.bytesoft.bytejta.supports.springcloud;
 import java.lang.reflect.Proxy;
 
 import org.apache.commons.lang3.StringUtils;
+import org.bytesoft.bytejta.TransactionBeanFactoryImpl;
 import org.bytesoft.bytejta.supports.internal.RemoteCoordinatorRegistry;
 import org.bytesoft.bytejta.supports.springcloud.loadbalancer.TransactionLoadBalancerInterceptor;
 import org.bytesoft.common.utils.CommonUtils;
@@ -36,8 +37,7 @@ public final class SpringCloudBeanRegistry implements TransactionBeanFactoryAwar
 	static final Logger logger = LoggerFactory.getLogger(SpringCloudBeanRegistry.class);
 	private static final SpringCloudBeanRegistry instance = new SpringCloudBeanRegistry();
 
-	@javax.inject.Inject
-	private TransactionBeanFactory beanFactory;
+	private TransactionBeanFactory beanFactory = TransactionBeanFactoryImpl.getInstance();
 	private RestTemplate restTemplate;
 	private ThreadLocal<TransactionLoadBalancerInterceptor> interceptors = new ThreadLocal<TransactionLoadBalancerInterceptor>();
 	private Environment environment;

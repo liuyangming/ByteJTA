@@ -18,6 +18,7 @@ package org.bytesoft.bytejta.supports.springcloud;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.bytesoft.bytejta.TransactionBeanFactoryImpl;
 import org.bytesoft.common.utils.CommonUtils;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
@@ -36,8 +37,7 @@ public class SpringCloudEndpointPostProcessor
 		implements BeanFactoryPostProcessor, TransactionBeanFactoryAware, EnvironmentAware {
 	static final Logger logger = LoggerFactory.getLogger(SpringCloudEndpointPostProcessor.class);
 
-	@javax.inject.Inject
-	private TransactionBeanFactory beanFactory;
+	private TransactionBeanFactory beanFactory = TransactionBeanFactoryImpl.getInstance();
 	private Environment environment;
 
 	public void setEnvironment(Environment environment) {

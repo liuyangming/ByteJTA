@@ -27,6 +27,7 @@ import javax.annotation.PostConstruct;
 import javax.transaction.xa.Xid;
 
 import org.apache.commons.lang3.StringUtils;
+import org.bytesoft.bytejta.TransactionBeanFactoryImpl;
 import org.bytesoft.bytejta.logging.store.VirtualLoggingSystemImpl;
 import org.bytesoft.common.utils.ByteUtils;
 import org.bytesoft.transaction.TransactionBeanFactory;
@@ -50,8 +51,7 @@ public class SampleTransactionLogger extends VirtualLoggingSystemImpl
 		implements TransactionLogger, LoggingFlushable, TransactionBeanFactoryAware, TransactionEndpointAware {
 	static final Logger logger = LoggerFactory.getLogger(SampleTransactionLogger.class);
 
-	@javax.inject.Inject
-	private TransactionBeanFactory beanFactory;
+	private TransactionBeanFactory beanFactory = TransactionBeanFactoryImpl.getInstance();
 	private String identifier;
 
 	@PostConstruct

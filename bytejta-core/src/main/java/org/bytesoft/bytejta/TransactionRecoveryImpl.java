@@ -51,8 +51,7 @@ public class TransactionRecoveryImpl implements TransactionRecovery, Transaction
 	static final long SECOND_MILLIS = 1000L;
 
 	private TransactionRecoveryListener listener;
-	@javax.inject.Inject
-	private TransactionBeanFactory beanFactory;
+	private TransactionBeanFactory beanFactory = TransactionBeanFactoryImpl.getInstance();
 	private volatile boolean initialized;
 
 	public synchronized void timingRecover() {

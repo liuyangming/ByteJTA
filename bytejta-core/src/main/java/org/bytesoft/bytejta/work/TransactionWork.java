@@ -17,6 +17,7 @@ package org.bytesoft.bytejta.work;
 
 import javax.resource.spi.work.Work;
 
+import org.bytesoft.bytejta.TransactionBeanFactoryImpl;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.TransactionRecovery;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
@@ -27,8 +28,7 @@ import org.slf4j.LoggerFactory;
 public class TransactionWork implements Work, TransactionBeanFactoryAware {
 	static final Logger logger = LoggerFactory.getLogger(TransactionWork.class);
 
-	@javax.inject.Inject
-	private TransactionBeanFactory beanFactory;
+	private TransactionBeanFactory beanFactory = TransactionBeanFactoryImpl.getInstance();
 
 	static final long SECOND_MILLIS = 1000L;
 	private long stopTimeMillis = -1;

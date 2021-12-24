@@ -30,8 +30,6 @@ import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignContract;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignDecoder;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignErrorDecoder;
 import org.bytesoft.bytejta.supports.springcloud.feign.TransactionFeignInterceptor;
-import org.bytesoft.bytejta.supports.springcloud.hystrix.TransactionHystrixBeanPostProcessor;
-import org.bytesoft.bytejta.supports.springcloud.loadbalancer.TransactionLoadBalancerRuleImpl;
 import org.bytesoft.bytejta.supports.springcloud.property.TransactionPropertySourceFactory;
 import org.bytesoft.bytejta.supports.springcloud.web.TransactionHandlerInterceptor;
 import org.bytesoft.bytejta.supports.springcloud.web.TransactionRequestInterceptor;
@@ -42,7 +40,6 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.PropertyValue;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.ObjectFactory;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,7 +48,6 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.http.HttpMessageConverters;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
@@ -94,18 +90,18 @@ public class SpringCloudConfiguration implements WebMvcConfigurer, TransactionMa
 	private transient final Set<String> transientClientSet = new HashSet<String>();
 
 	public void afterSingletonsInstantiated() /* Check if the rule is set correctly */ {
-		com.netflix.loadbalancer.IRule loadBalancerRule = null;
-		try {
-			loadBalancerRule = this.applicationContext.getBean(com.netflix.loadbalancer.IRule.class);
-		} catch (NoSuchBeanDefinitionException ex) {
-			return; // return quietly
-		}
-
-		if (TransactionLoadBalancerRuleImpl.class.isInstance(loadBalancerRule)) {
-			return; // return quietly
-		}
-
-		throw new IllegalStateException("TransactionLoadBalancerRuleImpl is disabled!");
+//		com.netflix.loadbalancer.IRule loadBalancerRule = null; // TODO
+//		try {
+//			loadBalancerRule = this.applicationContext.getBean(com.netflix.loadbalancer.IRule.class);
+//		} catch (NoSuchBeanDefinitionException ex) {
+//			return; // return quietly
+//		}
+//
+//		if (TransactionLoadBalancerRuleImpl.class.isInstance(loadBalancerRule)) {
+//			return; // return quietly
+//		}
+//
+//		throw new IllegalStateException("TransactionLoadBalancerRuleImpl is disabled!");
 	}
 
 	public void afterPropertiesSet() throws Exception {
@@ -129,12 +125,12 @@ public class SpringCloudConfiguration implements WebMvcConfigurer, TransactionMa
 		return new TransactionFeignBeanPostProcessor();
 	}
 
-	@org.springframework.context.annotation.Bean
-	@ConditionalOnProperty(name = "feign.hystrix.enabled")
-	@ConditionalOnClass(feign.hystrix.HystrixFeign.class)
-	public TransactionHystrixBeanPostProcessor hystrixPostProcessor() {
-		return new TransactionHystrixBeanPostProcessor();
-	}
+//	@org.springframework.context.annotation.Bean
+//	@ConditionalOnProperty(name = "feign.hystrix.enabled")
+//	@ConditionalOnClass(feign.hystrix.HystrixFeign.class)
+//	public TransactionHystrixBeanPostProcessor hystrixPostProcessor() {
+//		return new TransactionHystrixBeanPostProcessor();
+//	}
 
 	@org.springframework.context.annotation.Bean
 	public TransactionFeignInterceptor transactionFeignInterceptor() {

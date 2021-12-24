@@ -36,11 +36,7 @@ import org.bytesoft.transaction.remote.RemoteSvc;
 import org.bytesoft.transaction.supports.rpc.TransactionInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.netflix.appinfo.InstanceInfo;
-import com.netflix.loadbalancer.Server;
-import com.netflix.loadbalancer.Server.MetaInfo;
-import com.netflix.niws.loadbalancer.DiscoveryEnabledServer;
+import org.springframework.cloud.client.ServiceInstance;
 
 public class TransactionFeignHandler implements InvocationHandler {
 	static final Logger logger = LoggerFactory.getLogger(TransactionFeignHandler.class);
@@ -69,44 +65,31 @@ public class TransactionFeignHandler implements InvocationHandler {
 
 			final Map<RemoteSvc, XAResourceArchive> participants = transaction.getRemoteParticipantMap();
 			beanRegistry.setLoadBalancerInterceptor(new TransactionLoadBalancerInterceptor() {
-				public List<Server> beforeCompletion(List<Server> servers) {
-					final List<Server> readyServerList = new ArrayList<Server>();
-					final List<Server> unReadyServerList = new ArrayList<Server>();
+				public List<ServiceInstance> beforeCompletion(List<ServiceInstance> servers) {
+					final List<ServiceInstance> readyServerList = new ArrayList<ServiceInstance>();
+					final List<ServiceInstance> unReadyServerList = new ArrayList<ServiceInstance>();
 
 					for (int i = 0; servers != null && i < servers.size(); i++) {
-						Server server = servers.get(i);
+						ServiceInstance server = servers.get(i);
 
-						// String instanceId = metaInfo.getInstanceId();
-						String instanceId = null;
-						if (DiscoveryEnabledServer.class.isInstance(server)) {
-							DiscoveryEnabledServer discoveryEnabledServer = (DiscoveryEnabledServer) server;
-							InstanceInfo instanceInfo = discoveryEnabledServer.getInstanceInfo();
-							String addr = instanceInfo.getIPAddr();
-							String appName = instanceInfo.getAppName();
-							int port = instanceInfo.getPort();
+						String addr = server.getHost();
+						String application = server.getServiceId();
+						int port = server.getPort();
 
-							instanceId = String.format("%s:%s:%s", addr, appName, port);
-						} else {
-							MetaInfo metaInfo = server.getMetaInfo();
-
-							String host = server.getHost();
-							String addr = host.matches("\\d+(\\.\\d+){3}") ? host : CommonUtils.getInetAddress(host);
-							String appName = metaInfo.getAppName();
-							int port = server.getPort();
-							instanceId = String.format("%s:%s:%s", addr, appName, port);
-						}
+						String identifier = String.format("%s:%s:%s", addr, application, port);
+						RemoteSvc instanceId = CommonUtils.getRemoteSvc(identifier);
 
 						if (participants.containsKey(instanceId)) {
-							List<Server> serverList = new ArrayList<Server>();
+							List<ServiceInstance> serverList = new ArrayList<ServiceInstance>();
 							serverList.add(server);
 							return serverList;
 						} // end-if (participants.containsKey(instanceId))
 
-						if (server.isReadyToServe()) {
-							readyServerList.add(server);
-						} else {
-							unReadyServerList.add(server);
-						}
+//						if (server.isReadyToServe()) {
+						readyServerList.add(server);
+//						} else {
+//							unReadyServerList.add(server);
+//						}
 
 					}
 
@@ -114,7 +97,7 @@ public class TransactionFeignHandler implements InvocationHandler {
 					return readyServerList.isEmpty() ? unReadyServerList : readyServerList;
 				}
 
-				public void afterCompletion(Server server) {
+				public void afterCompletion(ServiceInstance server) {
 					beanRegistry.removeLoadBalancerInterceptor();
 
 					if (server == null) {
@@ -126,26 +109,11 @@ public class TransactionFeignHandler implements InvocationHandler {
 					// TransactionRequestImpl request = new TransactionRequestImpl();
 					request.setTransactionContext(transactionContext);
 
-					// String instanceId = metaInfo.getInstanceId();
-					String instanceId = null;
+					String addr = server.getHost();
+					String application = server.getServiceId();
+					int port = server.getPort();
 
-					if (DiscoveryEnabledServer.class.isInstance(server)) {
-						DiscoveryEnabledServer discoveryEnabledServer = (DiscoveryEnabledServer) server;
-						InstanceInfo instanceInfo = discoveryEnabledServer.getInstanceInfo();
-						String addr = instanceInfo.getIPAddr();
-						String appName = instanceInfo.getAppName();
-						int port = instanceInfo.getPort();
-
-						instanceId = String.format("%s:%s:%s", addr, appName, port);
-					} else {
-						MetaInfo metaInfo = server.getMetaInfo();
-
-						String host = server.getHost();
-						String addr = host.matches("\\d+(\\.\\d+){3}") ? host : CommonUtils.getInetAddress(host);
-						String appName = metaInfo.getAppName();
-						int port = server.getPort();
-						instanceId = String.format("%s:%s:%s", addr, appName, port);
-					}
+					String instanceId = String.format("%s:%s:%s", addr, application, port);
 
 					RemoteCoordinator coordinator = beanRegistry.getConsumeCoordinator(instanceId);
 					request.setTargetTransactionCoordinator(coordinator);

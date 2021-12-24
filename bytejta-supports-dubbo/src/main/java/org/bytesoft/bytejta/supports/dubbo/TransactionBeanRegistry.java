@@ -20,6 +20,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.bytesoft.bytejta.TransactionBeanFactoryImpl;
 import org.bytesoft.transaction.TransactionBeanFactory;
 import org.bytesoft.transaction.aware.TransactionBeanFactoryAware;
 import org.bytesoft.transaction.remote.RemoteCoordinator;
@@ -40,8 +41,7 @@ public class TransactionBeanRegistry implements TransactionBeanFactoryAware, App
 	private RemoteCoordinator consumeCoordinator;
 	private ApplicationContext applicationContext;
 	private Environment environment;
-	@javax.inject.Inject
-	private TransactionBeanFactory beanFactory;
+	private TransactionBeanFactory beanFactory = TransactionBeanFactoryImpl.getInstance();
 
 	private Lock lock = new ReentrantLock();
 	private Condition condition = this.lock.newCondition();
